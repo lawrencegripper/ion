@@ -7,18 +7,8 @@ import (
 	"os"
 
 	"github.com/containous/flaeg"
+	"github.com/lawrencegripper/mlops/dispatcher/types"
 )
-
-// Configuration is a struct which contains all differents type to field
-// using parsers on string, time.Duration, pointer, bool, int, int64, time.Time, float64
-type Configuration struct {
-	Name           string // no description struct tag, it will not be flaged
-	LogLevel       string `short:"l" description:"Log level"` // string type field, short flag "-l"
-	SubscriptionID string `description:"Timeout duration"`
-	ClientID       string `description:"Timeout duration"`
-	ClientSecret   string `description:"Timeout duration"`
-	TenantID       string `description:"Timeout duration"`
-}
 
 func main() {
 	log.Println("hello")
@@ -27,18 +17,23 @@ func main() {
 		fmt.Println("Unable to automatically set instanceid to hostname")
 	}
 
-	config := &Configuration{
-		Name: hostName,
+	config := &types.Configuration{
+		Hostname: hostName,
 	}
 
 	rootCmd := &flaeg.Command{
 		Name:                  "start",
-		Description:           `Starts the watchdog, checking both the /health endpoint and request routing`,
+		Description:           `Creates the dispatcher to process events`,
 		Config:                config,
 		DefaultPointersConfig: config,
 		Run: func() error {
 			fmt.Printf("Running dispatcher")
-			fmt.Println(prettyPrintStruct(config))
+			if config.PrintConfig {
+				fmt.Println(prettyPrintStruct(config))
+			}
+			if config.ClientID == "" || config.ClientSecret == "" || config.TenantID == "" || config.SubscriptionID == "" {
+				panic("Missing configuration. Use '--printconfig' arg to show current config on start")
+			}
 			return nil
 		},
 	}

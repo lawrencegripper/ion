@@ -36,3 +36,7 @@
 [[constraint]]
   name = "github.com/containous/flaeg"
   version = "1.1.2"
+
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "1.0.5"
