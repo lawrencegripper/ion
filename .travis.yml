@@ -13,7 +13,8 @@ before_install:
   - gometalinter --install
 
 install:
-  - dep ensure --vendor-only
+  - cd ./dispatcher && dep ensure -v && cd ..
+  - cd ./sidecar && dep ensure -v && cd ..
 
 script: 
   - go test -race -v ./...
