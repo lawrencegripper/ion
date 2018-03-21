@@ -116,7 +116,6 @@ func NewListener(ctx context.Context, config types.Configuration) *Listener {
 		log.WithField("config", types.RedactConfigSecrets(config)).Panicf("Failed getting subscription: %v", err)
 	}
 	listener.SubscriptionName = *sub.Name
-	log.WithField("sub", prettyPrintStruct(sub)).Warn("Sub result")
 	listener.SubscriptionAmqpPath = getSubscriptionAmqpPath(config.SubscribesToEvent, config.ModuleName)
 
 	listener.AmqpSession = createAmqpSession(&listener)
@@ -128,7 +127,6 @@ func NewListener(ctx context.Context, config types.Configuration) *Listener {
 func createAmqpSession(listener *Listener) *amqp.Session {
 	// Create client
 	client, err := amqp.Dial(listener.AMQPConnectionString)
-	log.Warn(listener.AMQPConnectionString)
 	if err != nil {
 		log.Fatal("Dialing AMQP server:", err)
 	}
