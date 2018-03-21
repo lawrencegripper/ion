@@ -24,10 +24,13 @@ type Listener struct {
 	TopicName            string
 	AccessKeys           servicebus.AccessKeys
 	AMQPConnectionString string
+	BaseChannel          *amqp.Channel
+	ReceiveChannel       <-chan amqp.Delivery
+	PublishChannels      []<-chan interface{}
 }
 
 // NewListener initilises a servicebus lister from configuration
-func NewListener(ctx context.Context, config types.Configuration) Listener {
+func NewListener(ctx context.Context, config types.Configuration) *Listener {
 	listener := Listener{}
 	auth := getAuthorizer(config)
 	subsClient := servicebus.NewSubscriptionsClient(config.SubscriptionID)
@@ -64,7 +67,7 @@ func NewListener(ctx context.Context, config types.Configuration) Listener {
 		}).WithError(err).Panicf("Failed getting servicebus namespace")
 	}
 	listener.AccessKeys = keys
-	listener.AMQPConnectionString = fmt.Sprintf("amqps://%s:%s@%s.servicebus.windows.net", config.ServiceBusNamespace, keys.KeyName, keys.PrimaryConnectionString)
+	listener.AMQPConnectionString = fmt.Sprintf("amqps://%s:%s@%s.servicebus.windows.net", config.ServiceBusNamespace, *keys.KeyName, *keys.PrimaryConnectionString)
 
 	// Check Topic to listen on. Create a topic if missing
 	topic, err := topicsClient.Get(ctx, config.ResourceGroup, config.ServiceBusNamespace, config.SubscribesToEvent)
@@ -107,37 +110,39 @@ func NewListener(ctx context.Context, config types.Configuration) Listener {
 	}
 	listener.SubscriptionName = *sub.Name
 
-	return listener
-}
+	listener.BaseChannel = createAmqpChannel(&listener)
+	listener.ReceiveChannel = createAmqpListener(&listener)
 
-// Start starts listening to the bus for new messages
-func Start() {
-	client := servicebus.New("thing")
-	log.Println(client)
+	return &listener
 }
 
 func getSubscriptionName(eventName, moduleName string) string {
 	return strings.Join([]string{eventName, moduleName}, "_")
 }
 
-func addAmqpSender(listener *Listener) <-chan amqp.Delivery {
-	// Native AMQP Library
-	// Create client
+func createAmqpChannel(listener *Listener) *amqp.Channel {
 	connection, err := amqp.Dial(listener.AMQPConnectionString)
 	if err != nil {
 		log.Fatal("Dialing AMQP server:", err)
 	}
 	defer connection.Close()
 	go func() {
-		log.Printf("closing: %s", <-connection.NotifyClose(make(chan *amqp.Error)))
+		log.Panicf("Connection to AMQP server closing: %s", <-connection.NotifyClose(make(chan *amqp.Error)))
 	}()
 
 	channel, err := connection.Channel()
 	if err != nil {
 		log.WithError(err).Panicln("Failed creating amqp channel")
 	}
+	return channel
+}
 
-	err = channel.ExchangeDeclare(
+func createAmqpListener(listener *Listener) <-chan amqp.Delivery {
+	if listener.BaseChannel == nil {
+		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a channel already configured")
+	}
+	channel := listener.BaseChannel
+	err := channel.ExchangeDeclare(
 		listener.TopicName, // name of the exchange
 		"topic",            // type
 		true,               // durable
