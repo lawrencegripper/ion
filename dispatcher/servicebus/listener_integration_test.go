@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"pack.ag/amqp"
+
 	"github.com/lawrencegripper/mlops/dispatcher/types"
 )
 
@@ -39,11 +41,20 @@ func TestNewListener(t *testing.T) {
 		LogLevel:            "Debug",
 	})
 
-	//Listener will panic on error
-	for {
-		message := <-listener.ReceiveChannel
-		t.Log("Received Message")
-		t.Log(message)
-		return
+	t.Log(listener)
+
+	sender := createAmqpSender(listener)
+	err := sender.Send(ctx, &amqp.Message{
+		Value: "hello",
+	})
+	if err != nil {
+		t.Error(err)
 	}
+
+	message, err := listener.AmqpReceiver.Receive(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Log(message)
 }

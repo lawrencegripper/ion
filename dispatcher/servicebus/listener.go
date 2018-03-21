@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -11,8 +12,10 @@ import (
 	"github.com/azure/azure-sdk-for-go/services/resources/mgmt/2017-05-10/resources"
 	"github.com/azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
-	"github.com/streadway/amqp"
+	"pack.ag/amqp"
 )
+
+const serviceBusRootKeyName = "RootManageSharedAccessKey"
 
 // Listener provides a connection to service bus and methods for creating required subscriptions and topics
 type Listener struct {
@@ -21,13 +24,16 @@ type Listener struct {
 	topicsClient         servicebus.TopicsClient
 	Endpoint             string
 	SubscriptionName     string
+	SubscriptionAmqpPath string
 	TopicName            string
 	AccessKeys           servicebus.AccessKeys
 	AMQPConnectionString string
-	BaseChannel          *amqp.Channel
-	ReceiveChannel       <-chan amqp.Delivery
-	PublishChannels      []<-chan interface{}
+	AmqpSession          *amqp.Session
+	AmqpReceiver         *amqp.Receiver
 }
+
+// Todo: Reconsider approach to error handling in this code.
+// Move to returning err and panicing in the caller if listener creation fails.
 
 // NewListener initilises a servicebus lister from configuration
 func NewListener(ctx context.Context, config types.Configuration) *Listener {
@@ -59,15 +65,16 @@ func NewListener(ctx context.Context, config types.Configuration) *Listener {
 	}
 	listener.Endpoint = *namespace.ServiceBusEndpoint
 
-	keys, err := namespaceClient.ListKeys(ctx, config.ResourceGroup, config.ServiceBusNamespace, "RootManagerSharedAccessKey")
+	keys, err := namespaceClient.ListKeys(ctx, config.ResourceGroup, config.ServiceBusNamespace, serviceBusRootKeyName)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"config":   types.RedactConfigSecrets(config),
 			"response": keys,
 		}).WithError(err).Panicf("Failed getting servicebus namespace")
 	}
+
 	listener.AccessKeys = keys
-	listener.AMQPConnectionString = fmt.Sprintf("amqps://%s:%s@%s.servicebus.windows.net", config.ServiceBusNamespace, *keys.KeyName, *keys.PrimaryConnectionString)
+	listener.AMQPConnectionString = getAmqpConnectionString(*keys.KeyName, *keys.SecondaryKey, *namespace.Name)
 
 	// Check Topic to listen on. Create a topic if missing
 	topic, err := topicsClient.Get(ctx, config.ResourceGroup, config.ServiceBusNamespace, config.SubscribesToEvent)
@@ -80,7 +87,7 @@ func NewListener(ctx context.Context, config types.Configuration) *Listener {
 	} else if err != nil {
 		log.WithField("config", types.RedactConfigSecrets(config)).Panicf("Failed getting topic: %v", err)
 	}
-	listener.TopicName = *topic.Name
+	listener.TopicName = strings.ToLower(*topic.Name)
 
 	// Check subscription to listen on. Create if missing
 	subName := getSubscriptionName(config.SubscribesToEvent, config.ModuleName)
@@ -109,75 +116,73 @@ func NewListener(ctx context.Context, config types.Configuration) *Listener {
 		log.WithField("config", types.RedactConfigSecrets(config)).Panicf("Failed getting subscription: %v", err)
 	}
 	listener.SubscriptionName = *sub.Name
+	log.WithField("sub", prettyPrintStruct(sub)).Warn("Sub result")
+	listener.SubscriptionAmqpPath = getSubscriptionAmqpPath(config.SubscribesToEvent, config.ModuleName)
 
-	listener.BaseChannel = createAmqpChannel(&listener)
-	listener.ReceiveChannel = createAmqpListener(&listener)
+	listener.AmqpSession = createAmqpSession(&listener)
+	listener.AmqpReceiver = createAmqpListener(&listener)
 
 	return &listener
 }
 
-func getSubscriptionName(eventName, moduleName string) string {
-	return strings.Join([]string{eventName, moduleName}, "_")
-}
-
-func createAmqpChannel(listener *Listener) *amqp.Channel {
-	connection, err := amqp.Dial(listener.AMQPConnectionString)
+func createAmqpSession(listener *Listener) *amqp.Session {
+	// Create client
+	client, err := amqp.Dial(listener.AMQPConnectionString)
+	log.Warn(listener.AMQPConnectionString)
 	if err != nil {
 		log.Fatal("Dialing AMQP server:", err)
 	}
-	defer connection.Close()
-	go func() {
-		log.Panicf("Connection to AMQP server closing: %s", <-connection.NotifyClose(make(chan *amqp.Error)))
-	}()
-
-	channel, err := connection.Channel()
+	session, err := client.NewSession()
 	if err != nil {
-		log.WithError(err).Panicln("Failed creating amqp channel")
+		log.WithError(err).Fatal("Creating session failed")
 	}
-	return channel
+
+	return session
 }
 
-func createAmqpListener(listener *Listener) <-chan amqp.Delivery {
-	if listener.BaseChannel == nil {
-		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a channel already configured")
-	}
-	channel := listener.BaseChannel
-	err := channel.ExchangeDeclare(
-		listener.TopicName, // name of the exchange
-		"topic",            // type
-		true,               // durable
-		false,              // delete when complete
-		false,              // internal
-		false,              // noWait
-		nil,                // arguments
-	)
-	if err != nil {
-		log.WithError(err).Panicf("Exchange declaration failed")
+func createAmqpListener(listener *Listener) *amqp.Receiver {
+	// Todo: how do we validate that the session is healthy?
+	if listener.AmqpSession == nil {
+		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a session already configured")
 	}
 
-	err = channel.QueueBind(
-		listener.SubscriptionName, // name of the queue
-		"#",                // route all messages
-		listener.TopicName, // sourceExchange
-		false,              // noWait
-		nil,                // arguments
+	// Create a receiver
+	receiver, err := listener.AmqpSession.NewReceiver(
+		amqp.LinkSourceAddress(listener.SubscriptionAmqpPath),
+		// amqp.LinkCredit(10), // Todo: Add config value to define how many inflight tasks the dispatcher can handle
 	)
 	if err != nil {
-		log.WithError(err).Panicf("Queue binding failed")
+		log.Fatal("Creating receiver:", err)
 	}
 
-	deliveries, err := channel.Consume(
-		listener.SubscriptionName, // name
-		listener.SubscriptionName, // consumerTag,
-		false, // noAck
-		false, // exclusive
-		false, // noLocal
-		false, // noWait
-		nil,   // arguments
+	return receiver
+}
+
+// createAmqpSender exists for e2e testing.
+func createAmqpSender(listener *Listener) *amqp.Sender {
+	if listener.AmqpSession == nil {
+		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a session already configured")
+	}
+
+	sender, err := listener.AmqpSession.NewSender(
+		amqp.LinkTargetAddress("/" + listener.TopicName),
 	)
 	if err != nil {
-		log.WithError(err).Panicf("Queue Consume failed")
+		log.Fatal("Creating receiver:", err)
 	}
 
-	return deliveries
+	return sender
+}
+
+func getAmqpConnectionString(keyName, keyValue, namespace string) string {
+	encodedKey := url.QueryEscape(keyValue)
+	return fmt.Sprintf("amqps://%s:%s@%s.servicebus.windows.net", keyName, encodedKey, namespace)
+}
+
+func getSubscriptionAmqpPath(eventName, moduleName string) string {
+	return "/" + strings.ToLower(eventName) + "/subscriptions/" + getSubscriptionName(eventName, moduleName)
+}
+
+func getSubscriptionName(eventName, moduleName string) string {
+	return strings.ToLower(eventName) + "_" + strings.ToLower(moduleName)
 }

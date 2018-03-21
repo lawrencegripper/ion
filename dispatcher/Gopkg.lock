@@ -45,15 +45,16 @@
   revision = "45c278ab3607870051a2ea9040bb85fcb8557481"
 
 [[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
   version = "v1.0.5"
-
-[[projects]]
-  name = "github.com/streadway/amqp"
-  packages = ["."]
-  revision = "8e4aba63da9fc5571e01c6a45dc809a58cbc5a68"
 
 [[projects]]
   branch = "master"
@@ -70,9 +71,18 @@
   ]
   revision = "7ceb54c8418b8f9cdf0177b511d5cbb06e9fae39"
 
+[[projects]]
+  name = "pack.ag/amqp"
+  packages = [
+    ".",
+    "internal/testconn"
+  ]
+  revision = "a0dd226acfbfe50b70ce3380963ed2018ddc68ad"
+  version = "v0.4.0"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7cf0c079273705fada4ca3f454f472853153d9331ea87fe6b5af910dcd1092ff"
+  inputs-digest = "aa3e3a77d523a19c4604726daa63bc675c3255ef5e1cc2a5311876a4bbe69a11"
   solver-name = "gps-cdcl"
   solver-version = 1
