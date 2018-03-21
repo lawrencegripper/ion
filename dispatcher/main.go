@@ -28,8 +28,10 @@ func main() {
 		DefaultPointersConfig: config,
 		Run: func() error {
 			fmt.Printf("Running dispatcher")
-			if config.PrintConfig {
+			if config.LogSensitiveConfig {
 				fmt.Println(prettyPrintStruct(config))
+			} else {
+				fmt.Println(prettyPrintStruct(types.RedactConfigSecrets(*config)))
 			}
 			if config.ClientID == "" || config.ClientSecret == "" || config.TenantID == "" || config.SubscriptionID == "" {
 				panic("Missing configuration. Use '--printconfig' arg to show current config on start")

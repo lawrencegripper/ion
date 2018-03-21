@@ -2,12 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/Azure/Azure-sdk-for-go"
-  packages = ["services/servicebus/mgmt/2017-04-01/servicebus"]
-  revision = "21b68149ccf7c16b3f028bb4c7fd0ab458fe308f"
-  version = "v12.5.0-beta"
-
-[[projects]]
   name = "github.com/Azure/go-autorest"
   packages = [
     "autorest",
@@ -19,6 +13,15 @@
   ]
   revision = "fc3b03a2d2d1f43fad3007038bd16f044f870722"
   version = "v9.10.0"
+
+[[projects]]
+  name = "github.com/azure/azure-sdk-for-go"
+  packages = [
+    "services/resources/mgmt/2017-05-10/resources",
+    "services/servicebus/mgmt/2017-04-01/servicebus"
+  ]
+  revision = "21b68149ccf7c16b3f028bb4c7fd0ab458fe308f"
+  version = "v12.5.0-beta"
 
 [[projects]]
   name = "github.com/containous/flaeg"
@@ -48,6 +51,11 @@
   version = "v1.0.5"
 
 [[projects]]
+  name = "github.com/streadway/amqp"
+  packages = ["."]
+  revision = "8e4aba63da9fc5571e01c6a45dc809a58cbc5a68"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
@@ -65,6 +73,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "66de1d7330ae90216227fa3cb4f676e601398fe2795933af6a1d55b2e573f9e1"
+  inputs-digest = "7cf0c079273705fada4ca3f454f472853153d9331ea87fe6b5af910dcd1092ff"
   solver-name = "gps-cdcl"
   solver-version = 1

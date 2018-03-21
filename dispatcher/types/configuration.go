@@ -13,5 +13,16 @@ type Configuration struct {
 	ClientID            string `description:"ClientID of Service Principal for Azure access"`
 	ClientSecret        string `description:"Client Secrete of Service Principal for Azure access"`
 	TenantID            string `description:"TentantID for Azure"`
-	PrintConfig         bool   `description:"Print out config object when starting for debugging"`
+	LogSensitiveConfig  bool   `description:"Print out sensitive config when logging"`
+}
+
+// RedactConfigSecrets strips sensitive data from the config
+func RedactConfigSecrets(c Configuration) Configuration {
+	if !c.LogSensitiveConfig {
+		c.ClientID = "***********"
+		c.ClientSecret = "***********"
+		c.TenantID = "***********"
+		c.SubscriptionID = "***********"
+	}
+	return c
 }
