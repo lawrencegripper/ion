@@ -32,7 +32,7 @@ func NewMongoDB(name, password, collection string, port int) (*MongoDB, error) {
 
 	session, err := mongo.DialWithInfo(dialInfo)
 	if err != nil {
-		return nil, fmt.Errorf("can't connect to mongo, go error %v\n", err)
+		return nil, fmt.Errorf("can't connect to mongo, go error %v", err)
 	}
 
 	session.SetSafe(&mongo.Safe{})

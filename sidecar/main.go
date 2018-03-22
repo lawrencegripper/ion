@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//Configuration represents the input configuration schema
 type Configuration struct {
 	SharedSecret            string `description:"A shared secret to authenticate client requests with"`
 	BlobStorageAccessKey    string `description:"A access token for an external blob storage provider"`

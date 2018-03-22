@@ -75,6 +75,7 @@ func (a *App) Run(addr string) {
 }
 
 //GetBlobsInContainerByID returns a list of blobs in a given container/bucket
+// nolint: errcheck
 func (a *App) GetBlobsInContainerByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
@@ -93,6 +94,7 @@ func (a *App) GetBlobsInContainerByID(w http.ResponseWriter, r *http.Request) {
 }
 
 //GetMetadataByID gets a metadata document by id from a metadata store
+// nolint: errcheck
 func (a *App) GetMetadataByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
@@ -111,6 +113,7 @@ func (a *App) GetMetadataByID(w http.ResponseWriter, r *http.Request) {
 }
 
 //UpdateMetadata updates an existing metadata document
+// nolint: errcheck
 func (a *App) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
@@ -134,6 +137,7 @@ func (a *App) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 }
 
 //PublishEvent posts an event to the event topic
+// nolint: errcheck
 func (a *App) PublishEvent(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var event Event
@@ -145,7 +149,7 @@ func (a *App) PublishEvent(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	//TODO: validate event before publishing
-	err, code := a.Publisher.PublishEvent(event)
+	code, err := a.Publisher.PublishEvent(event)
 	if err != nil {
 		w.WriteHeader(code)
 		return
@@ -154,6 +158,7 @@ func (a *App) PublishEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 //GetBlobAccessKey gets a storage access key for blob storage
+// nolint: errcheck
 func (a *App) GetBlobAccessKey(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(a.blobAccessKey))
 }
@@ -201,6 +206,7 @@ func compareHash(secret, secretHash string) error {
 }
 
 //hash returns a MD5 hash of the provided string
+// nolint: errcheck
 func hash(s string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(s))

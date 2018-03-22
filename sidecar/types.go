@@ -9,7 +9,7 @@ type MetadataDB interface {
 
 //Publisher is responsible for publishing events to a remote system
 type Publisher interface {
-	PublishEvent(e Event) (error, int)
+	PublishEvent(e Event) (int, error)
 	Close()
 }
 

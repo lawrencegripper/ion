@@ -220,7 +220,7 @@ func TestGetBlobAccessKey(t *testing.T) {
 			}
 			bodyStr := string(body)
 			if bodyStr != blobKey {
-				err := fmt.Errorf("expected blobkey %s. Got %s\n", blobKey, bodyStr)
+				err := fmt.Errorf("expected blobkey %s. Got %s", blobKey, bodyStr)
 				t.Errorf("error thrown in test case %d: %+v", i, err)
 			}
 		}
@@ -279,7 +279,7 @@ func executeRequest(req *http.Request) *httptest.ResponseRecorder {
 
 func checkResponseCode(expected, actual int) error {
 	if expected != actual {
-		return fmt.Errorf("expected response code %d. Got %d\n", expected, actual)
+		return fmt.Errorf("expected response code %d. Got %d", expected, actual)
 	}
 	return nil
 }
@@ -292,7 +292,7 @@ func checkMetadata(expectedDoc Document, reader io.Reader) error {
 		return fmt.Errorf("could not decode metadata body: %+v", err)
 	}
 	if !reflect.DeepEqual(expectedDoc, doc) {
-		return fmt.Errorf("expected document %+v. Got %+v\n", expectedDoc, doc)
+		return fmt.Errorf("expected document %+v. Got %+v", expectedDoc, doc)
 	}
 	return nil
 }
@@ -305,7 +305,7 @@ func checkBlobs(expectedBlobs []BlobInfo, reader io.Reader) error {
 		return fmt.Errorf("could not decode metadata body: %+v", err)
 	}
 	if !reflect.DeepEqual(expectedBlobs, blobs) {
-		return fmt.Errorf("expected document %+v. Got %+v\n", expectedBlobs, blobs)
+		return fmt.Errorf("expected document %+v. Got %+v", expectedBlobs, blobs)
 	}
 	return nil
 }

@@ -33,10 +33,10 @@ func NewServiceBus(namespace, topic, key, skn string) (*ServiceBus, error) {
 }
 
 //PublishEvent publishes an event onto a Service Bus topic
-func (s *ServiceBus) PublishEvent(e Event) (error, int) {
+func (s *ServiceBus) PublishEvent(e Event) (int, error) {
 	b, err := json.Marshal(e)
 	if err != nil {
-		return fmt.Errorf("error publishing event %+v", err), http.StatusInternalServerError
+		return http.StatusInternalServerError, fmt.Errorf("error publishing event %+v", err)
 	}
 	req, err := http.NewRequest(http.MethodPost, s.URL, bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
@@ -46,26 +46,25 @@ func (s *ServiceBus) PublishEvent(e Event) (error, int) {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("error publishing event %+v", err), http.StatusInternalServerError
+		return http.StatusInternalServerError, fmt.Errorf("error publishing event %+v", err)
 	}
 
 	switch res.StatusCode {
-	case 201:
-		return nil, http.StatusCreated
-	case 400:
-		return fmt.Errorf("bad request"), http.StatusBadRequest
-	case 401:
-		return fmt.Errorf("authorization failure"), http.StatusUnauthorized
-	case 403:
-		return fmt.Errorf("quota exceeded or message to large"), http.StatusForbidden
-	case 410:
-		return fmt.Errorf("specified queue or topic does not exist"), http.StatusGone
-	case 500:
-		return fmt.Errorf("internal error"), http.StatusInternalServerError
+	case http.StatusCreated:
+		return res.StatusCode, nil
+	case http.StatusBadRequest:
+		return res.StatusCode, fmt.Errorf("bad request")
+	case http.StatusUnauthorized:
+		return res.StatusCode, fmt.Errorf("authorization failure")
+	case http.StatusForbidden:
+		return res.StatusCode, fmt.Errorf("quota exceeded or message to large")
+	case http.StatusGone:
+		return res.StatusCode, fmt.Errorf("specified queue or topic does not exist")
+	case http.StatusInternalServerError:
+		return res.StatusCode, fmt.Errorf("internal error")
 	default:
-		return fmt.Errorf("unknown status code"), res.StatusCode
+		return res.StatusCode, fmt.Errorf("unknown status code")
 	}
-
 }
 
 //Close cleans up any outstanding connections to Service Bus
@@ -73,6 +72,7 @@ func (s *ServiceBus) Close() {
 }
 
 //generateSAS builds a SAS token for use as a HTTP header
+// nolint: errcheck
 func generateSAS(uri, skn, key string) string {
 	encoded := template.URLQueryEscaper(uri)
 	now := time.Now().Unix()
