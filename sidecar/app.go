@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 )
 
 //App is the sidecar application
@@ -16,50 +16,33 @@ type App struct {
 	Router     *mux.Router
 	MetadataDB MetadataDB
 	Publisher  Publisher
+	Blob       BlobStorage
+	Logger     *log.Logger
 
 	secretHash    string
 	blobAccessKey string
 }
 
-//MetadataDB is a document storage DB for holding metadata
-type MetadataDB interface {
-	GetByID(id string) (*Document, error)
-	Update(id string, entry Entry) error
-	Close()
-}
-
-//Publisher is responsible for publishing events to a remote system
-type Publisher interface {
-	PublishEvent(e Event) (error, int)
-	Close()
-}
-
-//Event is a message for downstream services
-type Event struct {
-	ID        string `json:"id"`
-	Desc      string `json:"desc"`
-	CreatedAt string `json:"createdAt"`
-}
-
-//Document is a collection of entries associated with a workflow
-type Document struct {
-	ID      string  `bson:"id" json:"id"`
-	Entries []Entry `bson:"entries" json:"entries"`
-}
-
-//Entry is a single entry in a document
-type Entry struct {
-	ID       string            `bson:"entryID" json:"entryID"`
-	Metadata map[string]string `bson:"metadata" json:"metadata"`
-}
-
 //Setup initializes application
-func (a *App) Setup(secret, blobAccessKey string, metadataDB MetadataDB, publisher Publisher) {
+func (a *App) Setup(
+	secret, blobAccessKey string,
+	metadataDB MetadataDB,
+	publisher Publisher,
+	blob BlobStorage,
+	logger *log.Logger) {
+
+	if secret == "" || blobAccessKey == "" || metadataDB == nil ||
+		publisher == nil || blob == nil || logger == nil {
+		panic("nil or empty argument(s) passed to App.Setup()")
+	}
+
 	a.secretHash = hash(secret)
 	a.blobAccessKey = blobAccessKey
 
 	a.MetadataDB = metadataDB
 	a.Publisher = publisher
+	a.Blob = blob
+	a.Logger = logger
 
 	a.Router = mux.NewRouter()
 	a.setupRoutes()
@@ -68,23 +51,45 @@ func (a *App) Setup(secret, blobAccessKey string, metadataDB MetadataDB, publish
 //setupRoutes initializes the API routing
 func (a *App) setupRoutes() {
 	secretAuth := SecretAuth(a.secretHash)
+	logRequest := LogRequest(a.Logger)
 
 	getMetadataByIDHandler := http.HandlerFunc(a.GetMetadataByID)
-	a.Router.Handle("/meta/{id}", secretAuth(getMetadataByIDHandler)).Methods("GET")
+	a.Router.Handle("/meta/{id}", logRequest(secretAuth(getMetadataByIDHandler))).Methods("GET")
 
 	updateMetadataHandler := http.HandlerFunc(a.UpdateMetadata)
-	a.Router.Handle("/meta/{id}", secretAuth(updateMetadataHandler)).Methods("POST")
+	a.Router.Handle("/meta/{id}", logRequest(secretAuth(updateMetadataHandler))).Methods("POST")
 
 	getBlobAccessKeyHandler := http.HandlerFunc(a.GetBlobAccessKey)
-	a.Router.Handle("/blob", secretAuth(getBlobAccessKeyHandler)).Methods("GET")
+	a.Router.Handle("/blob", logRequest(secretAuth(getBlobAccessKeyHandler))).Methods("GET")
+
+	getBlobsInContainerByIDHandler := http.HandlerFunc(a.GetBlobsInContainerByID)
+	a.Router.Handle("/blob/container/{id}", logRequest(secretAuth(getBlobsInContainerByIDHandler))).Methods("GET")
 
 	publishEventHandler := http.HandlerFunc(a.PublishEvent)
-	a.Router.Handle("/events", secretAuth(publishEventHandler)).Methods("POST")
+	a.Router.Handle("/events", logRequest(secretAuth(publishEventHandler))).Methods("POST")
 }
 
 //Run and block on web server
 func (a *App) Run(addr string) {
 	log.Fatal(http.ListenAndServe(addr, a.Router))
+}
+
+//GetBlobsInContainerByID returns a list of blobs in a given container/bucket
+func (a *App) GetBlobsInContainerByID(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id := params["id"]
+
+	blobs, err := a.Blob.GetBlobsInContainerByID(id)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	b, err := json.Marshal(blobs)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Write(b)
 }
 
 //GetMetadataByID gets a metadata document by id from a metadata store
@@ -169,6 +174,16 @@ func SecretAuth(secretHash string) func(http.Handler) http.Handler {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+//LogRequest logs the request (Warning - performance impact)
+func LogRequest(logger *log.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger.Debugf("request received: %+v", r)
 			next.ServeHTTP(w, r)
 		})
 	}

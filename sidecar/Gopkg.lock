@@ -2,6 +2,26 @@
 
 
 [[projects]]
+  name = "github.com/Azure/azure-sdk-for-go"
+  packages = [
+    "storage",
+    "version"
+  ]
+  revision = "e67cd39e942c417ae5e9ae1165f778d9fe8996e0"
+  version = "v14.5.0"
+
+[[projects]]
+  name = "github.com/Azure/go-autorest"
+  packages = [
+    "autorest",
+    "autorest/adal",
+    "autorest/azure",
+    "autorest/date"
+  ]
+  revision = "0ae36a9e544696de46fdadb7b0d5fb38af48c063"
+  version = "v10.2.0"
+
+[[projects]]
   name = "github.com/containous/flaeg"
   packages = [
     ".",
@@ -9,6 +29,12 @@
   ]
   revision = "b4c2f060875361c070ed2bc300c5929b82f5fa2e"
   version = "v1.1.2"
+
+[[projects]]
+  name = "github.com/dgrijalva/jwt-go"
+  packages = ["."]
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
 
 [[projects]]
   name = "github.com/gorilla/context"
@@ -23,10 +49,43 @@
   version = "v1.6.1"
 
 [[projects]]
+  name = "github.com/marstr/guid"
+  packages = ["."]
+  revision = "8bd9a64bf37eb297b492a4101fb28e80ac0b290f"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/ogier/pflag"
   packages = ["."]
   revision = "45c278ab3607870051a2ea9040bb85fcb8557481"
+
+[[projects]]
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
+  version = "v1.2.0"
+
+[[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+  packages = ["ssh/terminal"]
+  revision = "80db560fac1fb3e6ac81dbc7f8ae4c061f5257bd"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = [
+    "unix",
+    "windows"
+  ]
+  revision = "bb729a57828d76e3050e664d86aa052741ab620f"
 
 [[projects]]
   name = "gopkg.in/mgo.v2"
@@ -48,6 +107,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c6d6b85be43c7fab549aeeb4ce9522ab78ae64b57f02fcbd839ee9fcf9fb9b0f"
+  inputs-digest = "0eabf2cfc197330e7c9f8aaa7db9a7c130922c36e8849b46e0de8c201f87e26a"
   solver-name = "gps-cdcl"
   solver-version = 1

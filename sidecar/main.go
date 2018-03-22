@@ -6,11 +6,13 @@ import (
 	"os"
 
 	"github.com/containous/flaeg"
+	log "github.com/sirupsen/logrus"
 )
 
 type Configuration struct {
 	SharedSecret            string `description:"A shared secret to authenticate client requests with"`
 	BlobStorageAccessKey    string `description:"A access token for an external blob storage provider"`
+	BlobStorageAccountName  string `description:"Blob storage account name"`
 	DBName                  string `description:"The name of database to store metadata"`
 	DBPassword              string `description:"The password to access the metadata database"`
 	DBCollection            string `description:"The document collection name on the metadata database"`
@@ -19,6 +21,7 @@ type Configuration struct {
 	PublisherTopic          string `description:"The topic to publish events on"`
 	PublisherAccessKey      string `description:"An access key for the publisher"`
 	PublisherAccessRuleName string `description:"The rule name associated with the given access key"`
+	LogFile                 string `description:"File to log output to"`
 }
 
 func main() {
@@ -33,9 +36,10 @@ func main() {
 		Run: func() error {
 			fmt.Println("Running sidecar")
 			fmt.Println("---------------")
-			fmt.Println(prettyPrintStruct(config))
+			fmt.Println(prettyPrintStruct(cleanConfig(*config)))
 			if config.SharedSecret == "" ||
 				config.BlobStorageAccessKey == "" ||
+				config.BlobStorageAccountName == "" ||
 				config.DBName == "" ||
 				config.DBPassword == "" ||
 				config.DBCollection == "" ||
@@ -61,12 +65,29 @@ func main() {
 func runApp(config *Configuration) {
 	mongoDB, err := NewMongoDB(config.DBName, config.DBPassword, config.DBCollection, config.DBPort)
 	if err != nil {
-		panic(fmt.Errorf("Failed to create mongodb with error: %+v", err))
+		panic(fmt.Errorf("Failed to connect to mongodb with error: %+v", err))
 	}
 
 	serviceBus, err := NewServiceBus(config.PublisherName, config.PublisherTopic, config.PublisherAccessKey, config.PublisherAccessRuleName)
 	if err != nil {
-		panic(fmt.Errorf("Failed to create servicebus with error: %+v", err))
+		panic(fmt.Errorf("Failed to connect to servicebus with error: %+v", err))
+	}
+
+	azureBlob, err := NewAzureBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey)
+	if err != nil {
+		panic(fmt.Errorf("Failed to connect to azure blob storage with error: %+v", err))
+	}
+
+	logger := log.New()
+	logger.Out = os.Stdout
+
+	if config.LogFile != "" {
+		file, err := os.OpenFile("test.log", os.O_CREATE|os.O_WRONLY, 0666)
+		if err == nil {
+			logger.Out = file
+		} else {
+			logger.Info("Failed to log to file, using default stderr")
+		}
 	}
 
 	a := App{}
@@ -75,6 +96,8 @@ func runApp(config *Configuration) {
 		config.BlobStorageAccessKey,
 		mongoDB,
 		serviceBus,
+		azureBlob,
+		logger,
 	)
 
 	defer a.Close()
@@ -84,4 +107,12 @@ func runApp(config *Configuration) {
 func prettyPrintStruct(item interface{}) string {
 	b, _ := json.MarshalIndent(item, "", " ")
 	return string(b)
+}
+
+func cleanConfig(c Configuration) Configuration {
+	c.SharedSecret = "**********"
+	c.BlobStorageAccessKey = "**********"
+	c.DBPassword = "**********"
+	c.PublisherAccessKey = "**********"
+	return c
 }
