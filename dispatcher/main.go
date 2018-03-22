@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/containous/flaeg"
+	"github.com/lawrencegripper/mlops/dispatcher/providers/kubernetes"
+	"github.com/lawrencegripper/mlops/dispatcher/servicebus"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
 )
 
@@ -31,10 +35,24 @@ func main() {
 			if config.LogSensitiveConfig {
 				fmt.Println(prettyPrintStruct(config))
 			} else {
-				fmt.Println(prettyPrintStruct(types.RedactConfigSecrets(*config)))
+				fmt.Println(prettyPrintStruct(types.RedactConfigSecrets(config)))
 			}
 			if config.ClientID == "" || config.ClientSecret == "" || config.TenantID == "" || config.SubscriptionID == "" {
 				panic("Missing configuration. Use '--printconfig' arg to show current config on start")
+			}
+
+			ctx := context.Background()
+
+			listener := servicebus.NewListener(ctx, config)
+			for {
+				message, err := listener.AmqpReceiver.Receive(ctx)
+				if err != nil {
+					// Todo: Investigate the type of error here. If this could be triggered by a poisened message
+					// app shouldn't panic.
+					log.WithError(err).Panic("Error received dequeuing message")
+				}
+
+				kubernetes.Dispatch(message)
 			}
 			return nil
 		},

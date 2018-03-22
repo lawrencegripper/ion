@@ -17,7 +17,8 @@ type Configuration struct {
 }
 
 // RedactConfigSecrets strips sensitive data from the config
-func RedactConfigSecrets(c Configuration) Configuration {
+func RedactConfigSecrets(config *Configuration) Configuration {
+	c := *config
 	if !c.LogSensitiveConfig {
 		c.ClientID = "***********"
 		c.ClientSecret = "***********"

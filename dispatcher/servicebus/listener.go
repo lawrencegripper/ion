@@ -44,7 +44,13 @@ func (l *Listener) GetQueueDepth() (*int64, error) {
 // Move to returning err and panicing in the caller if listener creation fails.
 
 // NewListener initilises a servicebus lister from configuration
-func NewListener(ctx context.Context, config types.Configuration) *Listener {
+func NewListener(ctx context.Context, config *types.Configuration) *Listener {
+	if config == nil {
+		log.Panic("Nil config not allowed")
+	}
+
+	//Todo: close connection to amqp when context is cancelled/done
+
 	listener := Listener{}
 	auth := getAuthorizer(config)
 	subsClient := servicebus.NewSubscriptionsClient(config.SubscriptionID)

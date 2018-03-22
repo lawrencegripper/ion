@@ -33,7 +33,7 @@ func TestIntegrationNewListener(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	listener := NewListener(ctx, types.Configuration{
+	listener := NewListener(ctx, &types.Configuration{
 		ClientID:            os.Getenv("AZURE_CLIENT_ID"),
 		ClientSecret:        os.Getenv("AZURE_CLIENT_SECRET"),
 		ResourceGroup:       os.Getenv("AZURE_RESOURCE_GROUP"),
@@ -59,8 +59,6 @@ func TestIntegrationNewListener(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	t.Log(message)
 
 	message.Accept()
 	if message.Value != nonce {

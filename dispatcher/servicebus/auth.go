@@ -10,7 +10,7 @@ import (
 
 // NewServicePrincipalTokenFromCredentials creates a new ServicePrincipalToken using values of the
 // passed credentials map.
-func newServicePrincipalTokenFromCredentials(c types.Configuration, scope string) (*adal.ServicePrincipalToken, error) {
+func newServicePrincipalTokenFromCredentials(c *types.Configuration, scope string) (*adal.ServicePrincipalToken, error) {
 	oauthConfig, err := adal.NewOAuthConfig(azure.PublicCloud.ActiveDirectoryEndpoint, c.TenantID)
 	if err != nil {
 		panic(err)
@@ -18,7 +18,7 @@ func newServicePrincipalTokenFromCredentials(c types.Configuration, scope string
 	return adal.NewServicePrincipalToken(*oauthConfig, c.ClientID, c.ClientSecret, scope)
 }
 
-func getAuthorizer(c types.Configuration) autorest.Authorizer {
+func getAuthorizer(c *types.Configuration) autorest.Authorizer {
 	spt, err := newServicePrincipalTokenFromCredentials(c, azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
 		logrus.Panicf("Failed to create authorizer: %v", err)

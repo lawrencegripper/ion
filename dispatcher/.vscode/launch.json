@@ -12,7 +12,7 @@
             "remotePath": "",
             "port": 2345,
             "host": "127.0.0.1",
-            "program": "${workspaceRoot}/servicebus",
+            "program": "${workspaceRoot}/providers/kubernetes",
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "args": [
                 "-test.v",  
