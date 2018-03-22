@@ -1,14 +1,10 @@
 package kubernetes
 
 import (
-	"encoding/json"
 	"testing"
-)
 
-func prettyPrintStruct(item interface{}) string {
-	b, _ := json.MarshalIndent(item, "", " ")
-	return string(b)
-}
+	"github.com/lawrencegripper/mlops/dispatcher/types"
+)
 
 // TestNewListener performs an end-2-end integration test on the listener talking to Azure ServiceBus
 func TestIntegrationKuberentesDispatch(t *testing.T) {
@@ -18,9 +14,16 @@ func TestIntegrationKuberentesDispatch(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("Paniced: %v", prettyPrintStruct(r))
+			t.Errorf("Paniced: %v", types.PrettyPrintStruct(r))
 		}
 	}()
 
-	Dispatch(nil)
+	config := &types.Configuration{
+		Hostname:          "Test",
+		ModuleName:        "ModuleName",
+		SubscribesToEvent: "ExampleEvent",
+		LogLevel:          "Debug",
+	}
+
+	Dispatch(nil, config)
 }
