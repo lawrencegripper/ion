@@ -74,42 +74,23 @@ func (a *App) Run(addr string) {
 	log.Fatal(http.ListenAndServe(addr, a.Router))
 }
 
-//GetBlobsInContainerByID returns a list of blobs in a given container/bucket
-// nolint: errcheck
-func (a *App) GetBlobsInContainerByID(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
-
-	blobs, err := a.Blob.GetBlobsInContainerByID(id)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	b, err := json.Marshal(blobs)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	w.Write(b)
-}
-
 //GetMetadataByID gets a metadata document by id from a metadata store
 // nolint: errcheck
 func (a *App) GetMetadataByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
 
+	w.Header().Set("Content-Type", "application/json")
 	doc, err := a.MetadataDB.GetByID(id)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	b, err := json.Marshal(doc)
+	err = json.NewEncoder(w).Encode(doc)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Write(b)
 }
 
 //UpdateMetadata updates an existing metadata document
@@ -161,6 +142,25 @@ func (a *App) PublishEvent(w http.ResponseWriter, r *http.Request) {
 // nolint: errcheck
 func (a *App) GetBlobAccessKey(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(a.blobAccessKey))
+}
+
+//GetBlobsInContainerByID returns a list of blobs in a given container/bucket
+// nolint: errcheck
+func (a *App) GetBlobsInContainerByID(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id := params["id"]
+
+	w.Header().Set("Content-Type", "application/json")
+	blobs, err := a.Blob.GetBlobsInContainerByID(id)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	err = json.NewEncoder(w).Encode(blobs)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 //Close cleans up any external resources

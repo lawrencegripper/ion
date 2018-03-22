@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
@@ -38,7 +39,16 @@ func (a *AzureBlobStorage) GetBlobsInContainerByID(id string) ([]BlobInfo, error
 	blobInfoList := make([]BlobInfo, 0)
 	for _, blob := range blobList.Blobs {
 		name := blob.Name
-		uri, err := blob.GetSASURI(storage.BlobSASOptions{})
+		uri, err := blob.GetSASURI(storage.BlobSASOptions{
+			BlobServiceSASPermissions: storage.BlobServiceSASPermissions{
+				Read: true,
+			},
+			SASOptions: storage.SASOptions{
+				Start:    time.Now(),
+				Expiry:   time.Now().Add(time.Hour * time.Duration(24)),
+				UseHTTPS: true,
+			},
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting blob '%s' SAS uri in container %s: %+v", name, id, err)
 		}
