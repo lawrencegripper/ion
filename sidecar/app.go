@@ -11,6 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const secretHeaderKey = "secret"
+
 //App is the sidecar application
 type App struct {
 	Router     *mux.Router
@@ -173,7 +175,7 @@ func (a *App) Close() {
 func SecretAuth(secretHash string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			secret := r.Header.Get("Secret")
+			secret := r.Header.Get(secretHeaderKey)
 			err := compareHash(secret, secretHash)
 			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)

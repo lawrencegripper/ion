@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/containous/flaeg"
 	log "github.com/sirupsen/logrus"
@@ -23,6 +24,7 @@ type Configuration struct {
 	PublisherAccessKey      string `description:"An access key for the publisher"`
 	PublisherAccessRuleName string `description:"The rule name associated with the given access key"`
 	LogFile                 string `description:"File to log output to"`
+	LogLevel                string `description:"Logging level, possible values {debug, info, warn, error}"`
 }
 
 func main() {
@@ -91,8 +93,21 @@ func runApp(config *Configuration) {
 		}
 	}
 
-	a := App{}
-	a.Setup(
+	switch strings.ToLower(config.LogLevel) {
+	case "debug":
+		logger.Level = log.DebugLevel
+	case "info":
+		logger.Level = log.InfoLevel
+	case "warn":
+		logger.Level = log.WarnLevel
+	case "error":
+		logger.Level = log.ErrorLevel
+	default:
+		logger.Level = log.WarnLevel
+	}
+
+	app := App{}
+	app.Setup(
 		config.SharedSecret,
 		config.BlobStorageAccessKey,
 		mongoDB,
@@ -101,8 +116,8 @@ func runApp(config *Configuration) {
 		logger,
 	)
 
-	defer a.Close()
-	a.Run(":8080")
+	defer app.Close()
+	app.Run(":8080")
 }
 
 func prettyPrintStruct(item interface{}) string {
