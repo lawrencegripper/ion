@@ -15,9 +15,7 @@
             "program": "${workspaceRoot}/servicebus",
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "args": [
-                "-test.v",
-                "-test.run",
-                "TestNewListener",
+                "-test.v",  
                 "-test.timeout",
                 "5m"
             ],

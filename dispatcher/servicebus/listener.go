@@ -19,9 +19,6 @@ const serviceBusRootKeyName = "RootManageSharedAccessKey"
 
 // Listener provides a connection to service bus and methods for creating required subscriptions and topics
 type Listener struct {
-	namespaceClient      servicebus.NamespacesClient
-	subscriptionsClient  servicebus.SubscriptionsClient
-	topicsClient         servicebus.TopicsClient
 	Endpoint             string
 	SubscriptionName     string
 	SubscriptionAmqpPath string
@@ -30,6 +27,17 @@ type Listener struct {
 	AMQPConnectionString string
 	AmqpSession          *amqp.Session
 	AmqpReceiver         *amqp.Receiver
+	getSubscription      func() (servicebus.SBSubscription, error)
+}
+
+// GetQueueDepth returns the current length of the sb queue
+func (l *Listener) GetQueueDepth() (*int64, error) {
+	sub, err := l.getSubscription()
+	if err != nil {
+		return nil, err
+	}
+
+	return sub.MessageCount, nil
 }
 
 // Todo: Reconsider approach to error handling in this code.
@@ -47,10 +55,6 @@ func NewListener(ctx context.Context, config types.Configuration) *Listener {
 	namespaceClient.Authorizer = auth
 	groupsClient := resources.NewGroupsClient(config.SubscriptionID)
 	groupsClient.Authorizer = auth
-
-	listener.subscriptionsClient = subsClient
-	listener.topicsClient = topicsClient
-	listener.namespaceClient = namespaceClient
 
 	// Check if resource group exists
 	_, err := groupsClient.Get(ctx, config.ResourceGroup)
@@ -98,6 +102,15 @@ func NewListener(ctx context.Context, config types.Configuration) *Listener {
 		config.SubscribesToEvent,
 		subName,
 	)
+	listener.getSubscription = func() (servicebus.SBSubscription, error) {
+		return subsClient.Get(
+			ctx,
+			config.ResourceGroup,
+			config.ServiceBusNamespace,
+			config.SubscribesToEvent,
+			subName,
+		)
+	}
 
 	if err != nil && sub.Response.StatusCode == http.StatusNotFound {
 		log.WithField("config", types.RedactConfigSecrets(config)).Debugf("subscription %v doesn't exist.. creating", subName)
@@ -124,20 +137,6 @@ func NewListener(ctx context.Context, config types.Configuration) *Listener {
 	return &listener
 }
 
-func createAmqpSession(listener *Listener) *amqp.Session {
-	// Create client
-	client, err := amqp.Dial(listener.AMQPConnectionString)
-	if err != nil {
-		log.Fatal("Dialing AMQP server:", err)
-	}
-	session, err := client.NewSession()
-	if err != nil {
-		log.WithError(err).Fatal("Creating session failed")
-	}
-
-	return session
-}
-
 func createAmqpListener(listener *Listener) *amqp.Receiver {
 	// Todo: how do we validate that the session is healthy?
 	if listener.AmqpSession == nil {
@@ -156,20 +155,18 @@ func createAmqpListener(listener *Listener) *amqp.Receiver {
 	return receiver
 }
 
-// createAmqpSender exists for e2e testing.
-func createAmqpSender(listener *Listener) *amqp.Sender {
-	if listener.AmqpSession == nil {
-		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a session already configured")
-	}
-
-	sender, err := listener.AmqpSession.NewSender(
-		amqp.LinkTargetAddress("/" + listener.TopicName),
-	)
+func createAmqpSession(listener *Listener) *amqp.Session {
+	// Create client
+	client, err := amqp.Dial(listener.AMQPConnectionString)
 	if err != nil {
-		log.Fatal("Creating receiver:", err)
+		log.Fatal("Dialing AMQP server:", err)
+	}
+	session, err := client.NewSession()
+	if err != nil {
+		log.WithError(err).Fatal("Creating session failed")
 	}
 
-	return sender
+	return session
 }
 
 func getAmqpConnectionString(keyName, keyValue, namespace string) string {
