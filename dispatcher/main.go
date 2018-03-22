@@ -52,9 +52,8 @@ func main() {
 					log.WithError(err).Panic("Error received dequeuing message")
 				}
 
-				kubernetes.Dispatch(message)
+				kubernetes.Dispatch(message, config)
 			}
-			return nil
 		},
 	}
 
