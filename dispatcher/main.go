@@ -63,7 +63,10 @@ func main() {
 						log.WithError(err).Panic("Error received dequeuing message - nil message")
 					}
 
-					provider.Dispatch(providers.NewAmqpMessageWrapper(message))
+					err = provider.Dispatch(providers.NewAmqpMessageWrapper(message))
+					if err != nil {
+						log.WithError(err).Error("Couldn't dispatch message to kubernetes provider")
+					}
 				}
 			}()
 

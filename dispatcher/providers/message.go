@@ -11,7 +11,7 @@ import (
 // Message interface for any message protocol to use
 type Message interface {
 	ID() string
-	DeliveryCount() uint32
+	DeliveryCount() int
 	Body() interface{}
 	Accept() error
 	Reject() error
@@ -34,8 +34,8 @@ func NewAmqpMessageWrapper(m *amqp.Message) Message {
 }
 
 // DeliveryCount get number of times the message has ben delivered
-func (m *AmqpMessage) DeliveryCount() uint32 {
-	return m.OriginalMessage.Header.DeliveryCount
+func (m *AmqpMessage) DeliveryCount() int {
+	return int(m.OriginalMessage.Header.DeliveryCount)
 }
 
 // ID get the ID

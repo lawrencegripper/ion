@@ -3,7 +3,6 @@ package providers
 import (
 	"testing"
 
-	"github.com/lawrencegripper/mlops/dispatcher/providers"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
 )
 
@@ -26,7 +25,10 @@ func TestIntegrationKuberentesDispatch(t *testing.T) {
 		LogLevel:          "Debug",
 	}
 
-	p, err := providers.NewKubernetesProvider(config)
+	p, err := NewKubernetesProvider(config)
+	if err != nil {
+		t.Error(err)
+	}
 
 	p.Dispatch(nil)
 }
