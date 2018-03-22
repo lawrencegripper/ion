@@ -23,6 +23,7 @@ func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error)
 	}
 	k.dispatcherName = mockDispatcherName
 
+	k.inflightJobStore = map[string]Message{}
 	k.createJob = create
 	k.listAllJobs = list
 	return &k, nil
@@ -123,9 +124,103 @@ func TestDispatchedJobHasCorrectLabels(t *testing.T) {
 
 }
 
+func TestReconcileJobCompleted(t *testing.T) {
+	//Setup... it's a long one. We need to schedule a job first
+	inMemMockJobStore := []batchv1.Job{}
+
+	create := func(b *batchv1.Job) (*batchv1.Job, error) {
+		inMemMockJobStore = append(inMemMockJobStore, *b)
+		return b, nil
+	}
+
+	list := func() (*batchv1.JobList, error) {
+		return &batchv1.JobList{
+			Items: inMemMockJobStore,
+		}, nil
+	}
+
+	k, _ := NewMockKubernetesProvider(create, list)
+
+	var acceptedMessage bool
+
+	messageToSend := MockMessage{
+		MessageID: mockMessageID,
+		Accepted: func() {
+			acceptedMessage = true
+		},
+	}
+
+	err := k.Dispatch(messageToSend)
+	if err != nil {
+		t.Error(err)
+	}
+
+	job := &inMemMockJobStore[0]
+	job.Status.Conditions = append(job.Status.Conditions, batchv1.JobCondition{
+		Type: batchv1.JobComplete,
+	})
+	//Lets test things...
+	err = k.Reconcile()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !acceptedMessage {
+		t.Error("Failed to accept message during reconcilation. Expected message to be marked as accepted as job is complete")
+	}
+}
+
+func TestReconcileJobFailed(t *testing.T) {
+	//Setup... it's a long one. We need to schedule a job first
+	inMemMockJobStore := []batchv1.Job{}
+
+	create := func(b *batchv1.Job) (*batchv1.Job, error) {
+		inMemMockJobStore = append(inMemMockJobStore, *b)
+		return b, nil
+	}
+
+	list := func() (*batchv1.JobList, error) {
+		return &batchv1.JobList{
+			Items: inMemMockJobStore,
+		}, nil
+	}
+
+	k, _ := NewMockKubernetesProvider(create, list)
+
+	var rejectedMessage bool
+
+	messageToSend := MockMessage{
+		MessageID: mockMessageID,
+		Rejected: func() {
+			rejectedMessage = true
+		},
+	}
+
+	err := k.Dispatch(messageToSend)
+	if err != nil {
+		t.Error(err)
+	}
+
+	job := &inMemMockJobStore[0]
+	job.Status.Conditions = append(job.Status.Conditions, batchv1.JobCondition{
+		Type: batchv1.JobFailed,
+	})
+	//Lets test things...
+	err = k.Reconcile()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !rejectedMessage {
+		t.Error("Failed to accept message during reconcilation. Expected message to be marked as accepted as job is complete")
+	}
+}
+
 // AmqpMessage Wrapper for amqp
 type MockMessage struct {
 	MessageID string
+	Accepted  func()
+	Rejected  func()
 }
 
 // DeliveryCount get number of times the message has ben delivered
@@ -146,10 +241,12 @@ func (m MockMessage) Body() interface{} {
 
 // Accept mark the message as processed successfully (don't re-queue)
 func (m MockMessage) Accept() error {
+	m.Accepted()
 	return nil
 }
 
 // Reject mark the message as failed and requeue
 func (m MockMessage) Reject() error {
+	m.Rejected()
 	return nil
 }

@@ -53,6 +53,7 @@ func NewKubernetesProvider(config *types.Configuration) (*Kubernetes, error) {
 	k.Namespace = namespace.Name
 	k.jobConfig = config.JobConfig
 	k.dispatcherName = config.Hostname
+	k.inflightJobStore = map[string]Message{}
 	k.createJob = func(b *batchv1.Job) (*batchv1.Job, error) {
 		return k.client.BatchV1().Jobs(k.Namespace).Create(b)
 	}
@@ -138,6 +139,7 @@ func (k *Kubernetes) Reconcile() error {
 
 // Dispatch creates a job on kubernetes for the message
 func (k *Kubernetes) Dispatch(message Message) error {
+	k.inflightJobStore[message.ID()] = message
 	labels := map[string]string{
 		dispatcherNameLabel: k.dispatcherName,
 		messageIDLabel:      message.ID(),
