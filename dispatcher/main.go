@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/containous/flaeg"
-	"github.com/lawrencegripper/mlops/dispatcher/providers/kubernetes"
+	"github.com/lawrencegripper/mlops/dispatcher/providers"
 	"github.com/lawrencegripper/mlops/dispatcher/servicebus"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
 )
@@ -22,8 +23,8 @@ func main() {
 	}
 
 	config := &types.Configuration{
-		Hostname: hostName,
-		JobConfig: &types.JobConfig{}
+		Hostname:  hostName,
+		JobConfig: &types.JobConfig{},
 	}
 
 	rootCmd := &flaeg.Command{
@@ -45,16 +46,39 @@ func main() {
 			ctx := context.Background()
 
 			listener := servicebus.NewListener(ctx, config)
-			for {
-				message, err := listener.AmqpReceiver.Receive(ctx)
-				if err != nil {
-					// Todo: Investigate the type of error here. If this could be triggered by a poisened message
-					// app shouldn't panic.
-					log.WithError(err).Panic("Error received dequeuing message")
-				}
-
-				kubernetes.Dispatch(message, config)
+			provider, err := providers.NewKubernetesProvider(config)
+			if err != nil {
+				log.WithError(err).Panic("Couldn't create kubernetes provider")
 			}
+			go func() {
+				for {
+					message, err := listener.AmqpReceiver.Receive(ctx)
+					if err != nil {
+						// Todo: Investigate the type of error here. If this could be triggered by a poisened message
+						// app shouldn't panic.
+						log.WithError(err).Panic("Error received dequeuing message")
+					}
+
+					if message == nil {
+						log.WithError(err).Panic("Error received dequeuing message - nil message")
+					}
+
+					provider.Dispatch(providers.NewAmqpMessageWrapper(message))
+				}
+			}()
+
+			go func() {
+				for {
+					err := provider.Reconcile()
+					if err != nil {
+						// Todo: Should this panic here? Should we tolerate a few failures (k8s upgade causing masters not to be vailable for example?)
+						log.WithError(err).Panic("Failed to reconsile ....")
+					}
+					time.Sleep(time.Second * 15)
+				}
+			}()
+
+			return nil
 		},
 	}
 

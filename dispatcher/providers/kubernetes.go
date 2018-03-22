@@ -49,7 +49,7 @@ func NewKubernetesProvider(config *types.Configuration) (*Kubernetes, error) {
 }
 
 // Reconcile will review the state of running jobs and accept or reject messages accordingly
-func (k *Kubernetes) Reconcile(message Message) error {
+func (k *Kubernetes) Reconcile() error {
 	// Todo: investigate using the field selector to limit the returned data to only
 	// completed or failed jobs
 	jobs, err := k.client.BatchV1().Jobs(k.Namespace).List(metav1.ListOptions{})
@@ -118,7 +118,7 @@ func (k *Kubernetes) Reconcile(message Message) error {
 
 // Dispatch creates a job on kubernetes for the message
 func (k *Kubernetes) Dispatch(message Message) error {
-	job, err := k.client.BatchV1().Jobs(k.Namespace).Create(&batchv1.Job{
+	_, err := k.client.BatchV1().Jobs(k.Namespace).Create(&batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: getJobName(message),
 		},
