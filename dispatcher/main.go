@@ -23,6 +23,7 @@ func main() {
 
 	config := &types.Configuration{
 		Hostname: hostName,
+		JobConfig: &types.JobConfig{}
 	}
 
 	rootCmd := &flaeg.Command{

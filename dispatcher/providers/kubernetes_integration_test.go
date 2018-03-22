@@ -1,4 +1,4 @@
-package kubernetes
+package providers
 
 import (
 	"testing"
