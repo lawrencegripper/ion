@@ -14,10 +14,10 @@
   name = "github.com/sirupsen/logrus"
   version = "1.0.5"
 
-[[constraint]]
-  revision = "8e4aba63da9fc5571e01c6a45dc809a58cbc5a68"
-  name = "github.com/streadway/amqp"
-
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "pack.ag/amqp"
+  version = "0.4.0"
