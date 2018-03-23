@@ -15,15 +15,23 @@ before_install:
 
 install:
   - cd ./dispatcher && dep ensure -v && cd ..
-  - cd ./sidecar && dep ensure -v && cd ..
+
+script:
+  - echo "Using stages instead..."
 
 jobs:
   include:
+    - stage: dep
+      script: cd ./dispatcher && dep ensure -v && cd .. && cd ./sidecar && dep ensure -v && cd ..
+    - stage: linting
+      script: gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline 15m ./... 
+    - stage: build dispatcher
+      script: go build ./dispatcher/...
+    - stage: build sidecar
+      script: go build ./sidecar/...
     - stage: dispatcher tests
       script: go test -v -race -short ./dispatcher/...
     - stage: sidecar tests
       script: go test -v -race -short ./sidecar/...
-    - stage: linting
-      script: gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline 15m ./... 
     - stage: k8s integration testing
       script: bash -f ./dispatcher/scripts/kube_int_tests.sh
