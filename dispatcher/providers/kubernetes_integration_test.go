@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/lawrencegripper/mlops/dispatcher/helpers"
@@ -19,13 +20,13 @@ func TestIntegrationKuberentesDispatch(t *testing.T) {
 		ModuleName:        "ModuleName",
 		SubscribesToEvent: "ExampleEvent",
 		LogLevel:          "Debug",
-		JobConfig: &types.JobConfig{
+		Job: &types.JobConfig{
 			SidecarImage: "sidecarimagetest",
 			WorkerImage:  "workerimagetest",
 		},
 	}
 
-	p, err := NewKubernetesProvider(config)
+	p, err := NewKubernetesProvider(config, []string{"-examplearg1=1"})
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -52,6 +53,10 @@ func TestIntegrationKuberentesDispatch(t *testing.T) {
 	for _, j := range jobs.Items {
 		if j.Name == getJobName(message) {
 			CheckLabelsAssignedCorrectly(t, j, message.MessageID)
+			sidecarContainerArgs := j.Spec.Template.Spec.Containers[0].Args
+			if len(sidecarContainerArgs) > 3 {
+				t.Logf("Some args set ... validate: %s", strings.Join(sidecarContainerArgs, " "))
+			}
 			jobsFoundCount++
 		}
 	}

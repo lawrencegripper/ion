@@ -1,10 +1,13 @@
 package providers
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/lawrencegripper/mlops/dispatcher/messaging"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
+	log "github.com/sirupsen/logrus"
 
 	batchv1 "k8s.io/api/batch/v1"
 )
@@ -24,7 +27,7 @@ func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error)
 	}
 	k.dispatcherName = mockDispatcherName
 
-	k.inflightJobStore = map[string]Message{}
+	k.inflightJobStore = map[string]messaging.Message{}
 	k.createJob = create
 	k.listAllJobs = list
 	return &k, nil
@@ -258,6 +261,7 @@ type MockMessage struct {
 	DeliveryCountValue int
 	Accepted           func()
 	Rejected           func()
+	JSONValue          string
 }
 
 // DeliveryCount get number of times the message has ben delivered
@@ -286,4 +290,20 @@ func (m MockMessage) Accept() error {
 func (m MockMessage) Reject() error {
 	m.Rejected()
 	return nil
+}
+
+// EventData deserialize json value to type
+func (m MockMessage) EventData() (messaging.Event, error) {
+	a := messaging.Event{}
+
+	if m.JSONValue == "" {
+		m.JSONValue = `{ "id": "barry", "type": "faceevnt", "parentId": "barrySnr", "correlationId": "12345" }`
+	}
+
+	err := json.Unmarshal([]byte(m.JSONValue), &a)
+	if err != nil {
+		log.WithError(err).WithField("value", m.JSONValue).Fatal("Unmarshal failed")
+		return a, err
+	}
+	return a, nil
 }

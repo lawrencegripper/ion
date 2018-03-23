@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lawrencegripper/mlops/dispatcher/messaging"
+
 	"github.com/Azure/go-autorest/autorest/to"
 
 	"github.com/lawrencegripper/mlops/dispatcher/types"
@@ -33,21 +35,23 @@ type Kubernetes struct {
 	listAllJobs      func() (*batchv1.JobList, error)
 	client           *kubernetes.Clientset
 	jobConfig        *types.JobConfig
-	inflightJobStore map[string]Message
+	inflightJobStore map[string]messaging.Message
 	dispatcherName   string
 	Namespace        string
+	sidecarArgs      []string
 }
 
 // NewKubernetesProvider Creates an instance and does basic setup
-func NewKubernetesProvider(config *types.Configuration) (*Kubernetes, error) {
+func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []string) (*Kubernetes, error) {
 	if config == nil {
 		return nil, fmt.Errorf("invalid config. Cannot be nil")
 	}
-	if config.JobConfig == nil {
+	if config.Job == nil {
 		return nil, fmt.Errorf("invalid JobConfig. Cannot be nil")
 	}
 
 	k := Kubernetes{}
+	k.sidecarArgs = sharedSidecarArgs
 	client, err := getClientSet()
 	if err != nil {
 		return nil, err
@@ -59,9 +63,9 @@ func NewKubernetesProvider(config *types.Configuration) (*Kubernetes, error) {
 		return nil, err
 	}
 	k.Namespace = namespace
-	k.jobConfig = config.JobConfig
+	k.jobConfig = config.Job
 	k.dispatcherName = config.Hostname
-	k.inflightJobStore = map[string]Message{}
+	k.inflightJobStore = map[string]messaging.Message{}
 	k.createJob = func(b *batchv1.Job) (*batchv1.Job, error) {
 		return k.client.BatchV1().Jobs(k.Namespace).Create(b)
 	}
@@ -149,13 +153,19 @@ func (k *Kubernetes) Reconcile() error {
 }
 
 // Dispatch creates a job on kubernetes for the message
-func (k *Kubernetes) Dispatch(message Message) error {
+func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	if message == nil {
 		return fmt.Errorf("invalid input. Message cannot be nil")
 	}
 	if k == nil {
 		return fmt.Errorf("invalid properties. Provider cannot be nil")
 	}
+
+	perJobArgs, err := getMessageSidecarArgs(message)
+	if err != nil {
+		return fmt.Errorf("failed generating sidecar args from message: %v", err)
+	}
+	fullSidecarArgs := append(k.sidecarArgs, perJobArgs...)
 
 	k.inflightJobStore[message.ID()] = message
 	labels := map[string]string{
@@ -164,7 +174,7 @@ func (k *Kubernetes) Dispatch(message Message) error {
 		deliverycountlabel:  strconv.Itoa(message.DeliveryCount()),
 	}
 
-	_, err := k.createJob(&batchv1.Job{
+	_, err = k.createJob(&batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   getJobName(message),
 			Labels: labels,
@@ -181,6 +191,7 @@ func (k *Kubernetes) Dispatch(message Message) error {
 						{
 							Name:  "sidecar",
 							Image: k.jobConfig.SidecarImage,
+							Args:  fullSidecarArgs,
 						},
 						{
 							Name:  "worker",
@@ -257,6 +268,6 @@ func createNamespaceForModule(moduleName string, client *kubernetes.Clientset) (
 	return namespace, nil
 }
 
-func getJobName(m Message) string {
+func getJobName(m messaging.Message) string {
 	return strings.ToLower(m.ID()) + "-a" + strconv.Itoa(m.DeliveryCount())
 }

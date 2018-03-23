@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/containous/flaeg"
+	"github.com/lawrencegripper/mlops/dispatcher/messaging"
 	"github.com/lawrencegripper/mlops/dispatcher/providers"
 	"github.com/lawrencegripper/mlops/dispatcher/servicebus"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
@@ -24,8 +25,8 @@ func main() {
 
 	config := &types.Configuration{
 		Hostname: hostName,
-		JobConfig: &types.JobConfig{
-			JobMaxRunningTimeMins: 10,
+		Job: &types.JobConfig{
+			MaxRunningTimeMins: 10,
 		},
 	}
 
@@ -42,13 +43,20 @@ func main() {
 				fmt.Println(prettyPrintStruct(types.RedactConfigSecrets(config)))
 			}
 			if config.ClientID == "" || config.ClientSecret == "" || config.TenantID == "" || config.SubscriptionID == "" {
-				panic("Missing configuration. Use '--printconfig' arg to show current config on start")
+				panic("Missing configuration. Use '--printconfig' or '-h' arg to show current config on start")
+			}
+			if config.Job == nil {
+				panic("Job config can't be nil. Use '-h' to see options")
+			}
+			if config.Storage == nil {
+				panic("Storage config can't be nil. Use '-h' to see options")
 			}
 
 			ctx := context.Background()
 
 			listener := servicebus.NewListener(ctx, config)
-			provider, err := providers.NewKubernetesProvider(config)
+			sidecarArgs := providers.GetSharedSidecarArgs(config, listener.AccessKeys)
+			provider, err := providers.NewKubernetesProvider(config, sidecarArgs)
 			if err != nil {
 				log.WithError(err).Panic("Couldn't create kubernetes provider")
 			}
@@ -65,7 +73,7 @@ func main() {
 						log.WithError(err).Panic("Error received dequeuing message - nil message")
 					}
 
-					err = provider.Dispatch(providers.NewAmqpMessageWrapper(message))
+					err = provider.Dispatch(messaging.NewAmqpMessageWrapper(message))
 					if err != nil {
 						log.WithError(err).Error("Couldn't dispatch message to kubernetes provider")
 					}

@@ -26,4 +26,4 @@ script:
 jobs:
   include:
     - stage: k8s integration testing
-      script: bash -f ./dispatcher/scripts/kube_int_tests.sh
+      script: travis_wait bash -f ./dispatcher/scripts/kube_int_tests.sh

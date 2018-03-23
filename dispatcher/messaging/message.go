@@ -1,6 +1,7 @@
-package providers
+package messaging
 
 import (
+	"encoding/json"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -15,6 +16,7 @@ type Message interface {
 	Body() interface{}
 	Accept() error
 	Reject() error
+	EventData() (Event, error)
 }
 
 // AmqpMessage Wrapper for amqp
@@ -66,4 +68,15 @@ func (m *AmqpMessage) Reject() error {
 	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
 	m.OriginalMessage.Release()
 	return nil
+}
+
+// EventData deserialize json value to type
+func (m *AmqpMessage) EventData() (Event, error) {
+	a := Event{}
+	err := json.Unmarshal([]byte(fmt.Sprintf("%v", m.OriginalMessage.Value)), &a)
+	if err != nil {
+		log.WithError(err).WithField("value", m.OriginalMessage.Value).Fatal("Unmarshal failed")
+		return a, err
+	}
+	return a, nil
 }

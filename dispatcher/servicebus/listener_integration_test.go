@@ -45,8 +45,8 @@ func TestIntegrationNewListener(t *testing.T) {
 		ModuleName:          helpers.RandomName(8),
 		SubscribesToEvent:   "ExampleEvent",
 		LogLevel:            "Debug",
-		JobConfig: &types.JobConfig{
-			JobRetryCount: 1337,
+		Job: &types.JobConfig{
+			RetryCount: 1337,
 		},
 	}
 	listener := NewListener(ctx, config)
@@ -113,8 +113,8 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 		ModuleName:          helpers.RandomName(8),
 		SubscribesToEvent:   "ExampleEvent",
 		LogLevel:            "Debug",
-		JobConfig: &types.JobConfig{
-			JobRetryCount: 1337,
+		Job: &types.JobConfig{
+			RetryCount: 1337,
 		},
 	}
 	listener := NewListener(ctx, config)
@@ -149,6 +149,7 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	messageSecondDelivery, err := listener.AmqpReceiver.Receive(checkCtx)
 	if err != nil {
 		t.Error(err)
+		t.FailNow()
 	}
 
 	if messageSecondDelivery.Value != message.Value {
