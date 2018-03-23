@@ -2,6 +2,7 @@ package providers
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -82,6 +83,44 @@ func TestDispatchAddsJob(t *testing.T) {
 	jobsLen := len(inMemMockJobStore)
 	if jobsLen != 1 {
 		t.Errorf("Job count incorrected Expected: 1 Got: %v", jobsLen)
+	}
+}
+
+func TestFailedDispatchRejectsMessage(t *testing.T) {
+	inMemMockJobStore := []batchv1.Job{}
+
+	create := func(b *batchv1.Job) (*batchv1.Job, error) {
+		return nil, fmt.Errorf("Failed to send: %v", b)
+	}
+
+	list := func() (*batchv1.JobList, error) {
+		return &batchv1.JobList{
+			Items: inMemMockJobStore,
+		}, nil
+	}
+
+	k, _ := NewMockKubernetesProvider(create, list)
+
+	wasRejected := false
+	messageToSend := MockMessage{
+		MessageID: mockMessageID,
+	}
+	messageToSend.Rejected = func() {
+		wasRejected = true
+	}
+
+	err := k.Dispatch(messageToSend)
+
+	if err == nil {
+		t.Error("Expected error ... didn't see one!")
+	}
+
+	if !wasRejected {
+		t.Error("Expected to be rejected... wasn't")
+	}
+
+	if len(inMemMockJobStore) > 0 {
+		t.Error("Expected job to not be stored")
 	}
 }
 
@@ -271,7 +310,6 @@ func (m MockMessage) DeliveryCount() int {
 
 // ID get the ID
 func (m MockMessage) ID() string {
-	// Todo: use reflection to identify type and do smarter stuff
 	return m.MessageID
 }
 

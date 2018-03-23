@@ -167,7 +167,6 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	}
 	fullSidecarArgs := append(k.sidecarArgs, perJobArgs...)
 
-	k.inflightJobStore[message.ID()] = message
 	labels := map[string]string{
 		dispatcherNameLabel: k.dispatcherName,
 		messageIDLabel:      message.ID(),
@@ -205,8 +204,12 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	})
 
 	if err != nil {
+		err := message.Reject()
+		log.WithError(err).Error("Error occurred rejecting message")
 		return err
 	}
+
+	k.inflightJobStore[message.ID()] = message
 
 	return nil
 }

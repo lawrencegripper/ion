@@ -92,17 +92,11 @@ func NewListener(ctx context.Context, config *types.Configuration) *Listener {
 	listener.AMQPConnectionString = getAmqpConnectionString(*keys.KeyName, *keys.SecondaryKey, *namespace.Name)
 
 	// Check Topic to listen on. Create a topic if missing
-	topic, err := topicsClient.Get(ctx, config.ResourceGroup, config.ServiceBusNamespace, config.SubscribesToEvent)
-	if err != nil && topic.Response.StatusCode == http.StatusNotFound {
-		log.WithField("config", types.RedactConfigSecrets(config)).Debugf("topic %v doesn't exist.. creating", config.SubscribesToEvent)
-		topic, err = topicsClient.CreateOrUpdate(ctx, config.ResourceGroup, config.ServiceBusNamespace, config.SubscribesToEvent, servicebus.SBTopic{})
-		if err != nil {
-			log.WithField("config", types.RedactConfigSecrets(config)).Panicf("Failed creating topic: %v", err)
-		}
-	} else if err != nil {
-		log.WithField("config", types.RedactConfigSecrets(config)).Panicf("Failed getting topic: %v", err)
-	}
+	topic := createTopic(ctx, topicsClient, config, config.SubscribesToEvent)
 	listener.TopicName = strings.ToLower(*topic.Name)
+
+	// Check topic to publish to. Create is missing
+	createTopic(ctx, topicsClient, config, config.EventsPublished)
 
 	// Check subscription to listen on. Create if missing
 	subName := getSubscriptionName(config.SubscribesToEvent, config.ModuleName)
@@ -169,6 +163,21 @@ func createAmqpListener(listener *Listener) *amqp.Receiver {
 	}
 
 	return receiver
+}
+
+func createTopic(ctx context.Context, topicsClient servicebus.TopicsClient, config *types.Configuration, topicName string) servicebus.SBTopic {
+	topic, err := topicsClient.Get(ctx, config.ResourceGroup, config.ServiceBusNamespace, topicName)
+	if err != nil && topic.Response.StatusCode == http.StatusNotFound {
+		log.WithField("config", types.RedactConfigSecrets(config)).Debugf("topic %v doesn't exist.. creating", topicName)
+		topic, err = topicsClient.CreateOrUpdate(ctx, config.ResourceGroup, config.ServiceBusNamespace, topicName, servicebus.SBTopic{})
+		if err != nil {
+			log.WithField("config", types.RedactConfigSecrets(config)).Panicf("Failed creating topic: %v", err)
+		}
+	} else if err != nil {
+		log.WithField("config", types.RedactConfigSecrets(config)).Panicf("Failed getting topic: %v", err)
+	}
+
+	return topic
 }
 
 func createAmqpSession(listener *Listener) *amqp.Session {

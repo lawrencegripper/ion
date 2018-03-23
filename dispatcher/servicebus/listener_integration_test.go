@@ -19,6 +19,23 @@ func prettyPrintStruct(item interface{}) string {
 	return string(b)
 }
 
+var config = &types.Configuration{
+	ClientID:            os.Getenv("AZURE_CLIENT_ID"),
+	ClientSecret:        os.Getenv("AZURE_CLIENT_SECRET"),
+	ResourceGroup:       os.Getenv("AZURE_RESOURCE_GROUP"),
+	SubscriptionID:      os.Getenv("AZURE_SUBSCRIPTION_ID"),
+	TenantID:            os.Getenv("AZURE_TENANT_ID"),
+	ServiceBusNamespace: os.Getenv("AZURE_SERVICEBUS_NAMESPACE"),
+	Hostname:            "Test",
+	ModuleName:          helpers.RandomName(8),
+	SubscribesToEvent:   "ExampleEvent",
+	EventsPublished:     "ExamplePublishtopic",
+	LogLevel:            "Debug",
+	Job: &types.JobConfig{
+		RetryCount: 1337,
+	},
+}
+
 // TestNewListener performs an end-2-end integration test on the listener talking to Azure ServiceBus
 func TestIntegrationNewListener(t *testing.T) {
 	if testing.Short() {
@@ -34,21 +51,6 @@ func TestIntegrationNewListener(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	config := &types.Configuration{
-		ClientID:            os.Getenv("AZURE_CLIENT_ID"),
-		ClientSecret:        os.Getenv("AZURE_CLIENT_SECRET"),
-		ResourceGroup:       os.Getenv("AZURE_RESOURCE_GROUP"),
-		SubscriptionID:      os.Getenv("AZURE_SUBSCRIPTION_ID"),
-		TenantID:            os.Getenv("AZURE_TENANT_ID"),
-		ServiceBusNamespace: os.Getenv("AZURE_SERVICEBUS_NAMESPACE"),
-		Hostname:            "Test",
-		ModuleName:          helpers.RandomName(8),
-		SubscribesToEvent:   "ExampleEvent",
-		LogLevel:            "Debug",
-		Job: &types.JobConfig{
-			RetryCount: 1337,
-		},
-	}
 	listener := NewListener(ctx, config)
 	// Remove topic to ensure each test has a clean topic to work with
 	defer deleteSubscription(listener, config)
@@ -102,21 +104,7 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
-	config := &types.Configuration{
-		ClientID:            os.Getenv("AZURE_CLIENT_ID"),
-		ClientSecret:        os.Getenv("AZURE_CLIENT_SECRET"),
-		ResourceGroup:       os.Getenv("AZURE_RESOURCE_GROUP"),
-		SubscriptionID:      os.Getenv("AZURE_SUBSCRIPTION_ID"),
-		TenantID:            os.Getenv("AZURE_TENANT_ID"),
-		ServiceBusNamespace: os.Getenv("AZURE_SERVICEBUS_NAMESPACE"),
-		Hostname:            "Test",
-		ModuleName:          helpers.RandomName(8),
-		SubscribesToEvent:   "ExampleEvent",
-		LogLevel:            "Debug",
-		Job: &types.JobConfig{
-			RetryCount: 1337,
-		},
-	}
+
 	listener := NewListener(ctx, config)
 	// Remove topic to ensure each test has a clean topic to work with
 	defer deleteSubscription(listener, config)

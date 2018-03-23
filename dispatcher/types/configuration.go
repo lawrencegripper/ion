@@ -30,12 +30,12 @@ type JobConfig struct {
 
 // StorageConfig configures the information about the jobs which will be run
 type StorageConfig struct {
-	BlobStorageAccessKey string
-	BlobStorageName      string
-	MongoDbHostName      string
-	MongoDbPassword      string
-	MongoDbCollection    string
-	MongoDbPort          string
+	BlobStorageAccessKey string `description:"~~Todo~~"`
+	BlobStorageName      string `description:"~~Todo~~"`
+	MongoDbHostName      string `description:"~~Todo~~"`
+	MongoDbPassword      string `description:"~~Todo~~"`
+	MongoDbCollection    string `description:"~~Todo~~"`
+	MongoDbPort          string `description:"~~Todo~~"`
 }
 
 // RedactConfigSecrets strips sensitive data from the config

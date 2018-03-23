@@ -16,6 +16,7 @@ func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) 
 		"--dbcollection=" + c.Storage.MongoDbCollection,
 		"--dbport=" + c.Storage.MongoDbPort,
 		"--publishername=" + c.ModuleName,
+		"--publishertopic=" + c.EventsPublished,
 		"--publisheraccesskey=" + *sbKeys.PrimaryKey,
 		"--publisheraccessrulename=" + *sbKeys.KeyName,
 	}
