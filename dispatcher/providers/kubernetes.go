@@ -204,8 +204,8 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	})
 
 	if err != nil {
-		err := message.Reject()
-		log.WithError(err).Error("Error occurred rejecting message")
+		message.Reject()
+		log.WithError(err).Error("Error occurred scheduling k8s job")
 		return err
 	}
 
