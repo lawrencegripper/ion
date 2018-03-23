@@ -1,10 +1,9 @@
 package providers
 
 import (
-	"math/rand"
 	"testing"
-	"time"
 
+	"github.com/lawrencegripper/mlops/dispatcher/helpers"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,7 +32,7 @@ func TestIntegrationKuberentesDispatch(t *testing.T) {
 	}
 
 	message := MockMessage{
-		MessageID: randAlphaNumericSeq(12),
+		MessageID: helpers.RandomName(12),
 	}
 
 	err = p.Dispatch(message)
@@ -61,19 +60,4 @@ func TestIntegrationKuberentesDispatch(t *testing.T) {
 		t.Error("Expected to only find 1 job")
 	}
 
-}
-
-var lettersLower = []rune("abcdefghijklmnopqrstuvwxyz")
-
-func randAlphaNumericSeq(n int) string {
-	return randFromSelection(n, lettersLower)
-}
-
-func randFromSelection(length int, choices []rune) string {
-	b := make([]rune, length)
-	rand.Seed(time.Now().UnixNano())
-	for i := range b {
-		b[i] = choices[rand.Intn(len(choices))]
-	}
-	return string(b)
 }

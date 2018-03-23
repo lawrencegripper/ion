@@ -23,8 +23,10 @@ func main() {
 	}
 
 	config := &types.Configuration{
-		Hostname:  hostName,
-		JobConfig: &types.JobConfig{},
+		Hostname: hostName,
+		JobConfig: &types.JobConfig{
+			JobMaxRunningTimeMins: 10,
+		},
 	}
 
 	rootCmd := &flaeg.Command{

@@ -282,7 +282,7 @@ func (m MockMessage) Accept() error {
 	return nil
 }
 
-// Reject mark the message as failed and requeue
+// Release mark the message as failed and requeue
 func (m MockMessage) Reject() error {
 	m.Rejected()
 	return nil

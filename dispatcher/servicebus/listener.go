@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/Azure/go-autorest/autorest/to"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/azure/azure-sdk-for-go/services/resources/mgmt/2017-05-10/resources"
@@ -19,6 +21,7 @@ const serviceBusRootKeyName = "RootManageSharedAccessKey"
 
 // Listener provides a connection to service bus and methods for creating required subscriptions and topics
 type Listener struct {
+	subsClient           *servicebus.SubscriptionsClient
 	Endpoint             string
 	SubscriptionName     string
 	SubscriptionAmqpPath string
@@ -61,6 +64,8 @@ func NewListener(ctx context.Context, config *types.Configuration) *Listener {
 	namespaceClient.Authorizer = auth
 	groupsClient := resources.NewGroupsClient(config.SubscriptionID)
 	groupsClient.Authorizer = auth
+
+	listener.subsClient = &subsClient
 
 	// Check if resource group exists
 	_, err := groupsClient.Get(ctx, config.ResourceGroup)
@@ -120,13 +125,18 @@ func NewListener(ctx context.Context, config *types.Configuration) *Listener {
 
 	if err != nil && sub.Response.StatusCode == http.StatusNotFound {
 		log.WithField("config", types.RedactConfigSecrets(config)).Debugf("subscription %v doesn't exist.. creating", subName)
+		subDef := servicebus.SBSubscription{
+			SBSubscriptionProperties: &servicebus.SBSubscriptionProperties{
+				MaxDeliveryCount: to.Int32Ptr(int32(config.JobConfig.JobRetryCount)),
+			},
+		}
 		sub, err = subsClient.CreateOrUpdate(
 			ctx,
 			config.ResourceGroup,
 			config.ServiceBusNamespace,
 			config.SubscribesToEvent,
 			subName,
-			servicebus.SBSubscription{},
+			subDef,
 		)
 		if err != nil {
 			log.WithField("config", types.RedactConfigSecrets(config)).Panicf("Failed creating subscription: %v", err)

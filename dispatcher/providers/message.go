@@ -55,8 +55,15 @@ func (m *AmqpMessage) Accept() error {
 	return nil
 }
 
-// Reject mark the message as failed and requeue
+// Reject mark message to be requeued
 func (m *AmqpMessage) Reject() error {
-	m.OriginalMessage.Reject()
+	// Todo: fix this!
+	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
+	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
+	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
+	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
+	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
+	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
+	m.OriginalMessage.Release()
 	return nil
 }
