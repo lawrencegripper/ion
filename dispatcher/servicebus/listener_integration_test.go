@@ -89,7 +89,7 @@ func TestIntegrationNewListener(t *testing.T) {
 // todo: Fix this integration test
 // Currently calling reject causes the message to be deadlettered in SB and never redelivered.
 // dispite the fact it's delivery count is under the maxDeliveryCount value.
-func TestIntegrationRequeueRejectedMessages(t *testing.T) {
+func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
 	}
@@ -100,7 +100,7 @@ func TestIntegrationRequeueRejectedMessages(t *testing.T) {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 	config := &types.Configuration{
 		ClientID:            os.Getenv("AZURE_CLIENT_ID"),
@@ -139,9 +139,10 @@ func TestIntegrationRequeueRejectedMessages(t *testing.T) {
 		t.Error("first delivery has wrong count")
 	}
 
-	message.Release()
+	message.Reject()
 
-	checkUntil := time.Now().Add(time.Minute * 8)
+	// Currently fails here as the rejected message is put in the deadletter queue.
+	checkUntil := time.Now().Add(time.Second * 12)
 	checkCtx, cancel := context.WithDeadline(context.Background(), checkUntil)
 	defer cancel()
 
@@ -154,6 +155,7 @@ func TestIntegrationRequeueRejectedMessages(t *testing.T) {
 		t.Error("redelivered message value different from original")
 	}
 
+	// Todo: Currently unable to handle this here. Release doesn't increment the deliverycount reject deadletters the message
 	if messageSecondDelivery.Header.DeliveryCount != 1 {
 		t.Error("redelivered message count doens't have correct delivery count set")
 	}
