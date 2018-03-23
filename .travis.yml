@@ -23,7 +23,7 @@ script:
   - go test -v -race -short ./sidecar/...
   - gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline 15m ./... 
 
-jobs:
-  include:
-    - stage: k8s integration testing
-      script: travis_wait bash -f ./dispatcher/scripts/kube_int_tests.sh
+# jobs:
+#   include:
+#     - stage: k8s integration testing
+#       script: travis_wait bash -f ./dispatcher/scripts/kube_int_tests.sh
