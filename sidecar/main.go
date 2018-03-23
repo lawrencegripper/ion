@@ -7,29 +7,17 @@ import (
 	"strings"
 
 	"github.com/containous/flaeg"
+	"github.com/lawrencegripper/mlops/sidecar/app"
+	"github.com/lawrencegripper/mlops/sidecar/azure"
+	"github.com/lawrencegripper/mlops/sidecar/common"
 	log "github.com/sirupsen/logrus"
 )
 
-//Configuration represents the input configuration schema
-type Configuration struct {
-	SharedSecret            string `description:"A shared secret to authenticate client requests with"`
-	BlobStorageAccessKey    string `description:"A access token for an external blob storage provider"`
-	BlobStorageAccountName  string `description:"Blob storage account name"`
-	DBName                  string `description:"The name of database to store metadata"`
-	DBPassword              string `description:"The password to access the metadata database"`
-	DBCollection            string `description:"The document collection name on the metadata database"`
-	DBPort                  int    `description:"The database port"`
-	PublisherName           string `description:"The name or namespace for the publisher"`
-	PublisherTopic          string `description:"The topic to publish events on"`
-	PublisherAccessKey      string `description:"An access key for the publisher"`
-	PublisherAccessRuleName string `description:"The rule name associated with the given access key"`
-	LogFile                 string `description:"File to log output to"`
-	LogLevel                string `description:"Logging level, possible values {debug, info, warn, error}"`
-}
+const hidden = "**********"
 
 func main() {
 
-	config := &Configuration{}
+	config := &common.Configuration{}
 
 	rootCmd := &flaeg.Command{
 		Name:                  "start",
@@ -50,7 +38,10 @@ func main() {
 				config.PublisherName == "" ||
 				config.PublisherTopic == "" ||
 				config.PublisherAccessKey == "" ||
-				config.PublisherAccessRuleName == "" {
+				config.PublisherAccessRuleName == "" ||
+				config.EventID == "" ||
+				config.ParentEventID == "" ||
+				config.CorrelationID == "" {
 				return fmt.Errorf("Missing configuration. Use '--printconfig' to show current config on start")
 			}
 			runApp(config)
@@ -65,18 +56,18 @@ func main() {
 	}
 }
 
-func runApp(config *Configuration) {
-	mongoDB, err := NewMongoDB(config.DBName, config.DBPassword, config.DBCollection, config.DBPort)
+func runApp(config *common.Configuration) {
+	mongoDB, err := azure.NewMongoDB(config.DBName, config.DBPassword, config.DBCollection, config.DBPort)
 	if err != nil {
 		panic(fmt.Errorf("Failed to connect to mongodb with error: %+v", err))
 	}
 
-	serviceBus, err := NewServiceBus(config.PublisherName, config.PublisherTopic, config.PublisherAccessKey, config.PublisherAccessRuleName)
+	serviceBus, err := azure.NewServiceBus(config.PublisherName, config.PublisherTopic, config.PublisherAccessKey, config.PublisherAccessRuleName)
 	if err != nil {
 		panic(fmt.Errorf("Failed to connect to servicebus with error: %+v", err))
 	}
 
-	azureBlob, err := NewAzureBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey)
+	azureBlob, err := azure.NewAzureBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey)
 	if err != nil {
 		panic(fmt.Errorf("Failed to connect to azure blob storage with error: %+v", err))
 	}
@@ -106,18 +97,26 @@ func runApp(config *Configuration) {
 		logger.Level = log.WarnLevel
 	}
 
-	app := App{}
+	app := app.App{}
 	app.Setup(
 		config.SharedSecret,
 		config.BlobStorageAccessKey,
+		config.EventID,
+		config.CorrelationID,
+		config.ParentEventID,
 		mongoDB,
 		serviceBus,
 		azureBlob,
 		logger,
 	)
 
+	port := 8080
+	if config.ServerPort != 0 {
+		port = config.ServerPort
+	}
+
 	defer app.Close()
-	app.Run(":8080")
+	app.Run(fmt.Sprintf(":%d", port))
 }
 
 func prettyPrintStruct(item interface{}) string {
@@ -125,10 +124,10 @@ func prettyPrintStruct(item interface{}) string {
 	return string(b)
 }
 
-func cleanConfig(c Configuration) Configuration {
-	c.SharedSecret = "**********"
-	c.BlobStorageAccessKey = "**********"
-	c.DBPassword = "**********"
-	c.PublisherAccessKey = "**********"
+func cleanConfig(c common.Configuration) common.Configuration {
+	c.SharedSecret = hidden
+	c.BlobStorageAccessKey = hidden
+	c.DBPassword = hidden
+	c.PublisherAccessKey = hidden
 	return c
 }

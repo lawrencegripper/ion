@@ -1,4 +1,4 @@
-package main
+package azure
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/lawrencegripper/mlops/sidecar/common"
 	"k8s.io/kubernetes/third_party/forked/golang/template"
 )
 
@@ -33,10 +34,10 @@ func NewServiceBus(namespace, topic, key, skn string) (*ServiceBus, error) {
 }
 
 //PublishEvent publishes an event onto a Service Bus topic
-func (s *ServiceBus) PublishEvent(e Event) (int, error) {
+func (s *ServiceBus) PublishEvent(e common.Event) error {
 	b, err := json.Marshal(e)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("error publishing event %+v", err)
+		return fmt.Errorf("error publishing event %+v", err)
 	}
 	req, err := http.NewRequest(http.MethodPost, s.URL, bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
@@ -46,24 +47,24 @@ func (s *ServiceBus) PublishEvent(e Event) (int, error) {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("error publishing event %+v", err)
+		return fmt.Errorf("error publishing event %+v", err)
 	}
 
 	switch res.StatusCode {
 	case http.StatusCreated:
-		return res.StatusCode, nil
+		return nil
 	case http.StatusBadRequest:
-		return res.StatusCode, fmt.Errorf("bad request")
+		return fmt.Errorf("bad request")
 	case http.StatusUnauthorized:
-		return res.StatusCode, fmt.Errorf("authorization failure")
+		return fmt.Errorf("authorization failure")
 	case http.StatusForbidden:
-		return res.StatusCode, fmt.Errorf("quota exceeded or message to large")
+		return fmt.Errorf("quota exceeded or message to large")
 	case http.StatusGone:
-		return res.StatusCode, fmt.Errorf("specified queue or topic does not exist")
+		return fmt.Errorf("specified queue or topic does not exist")
 	case http.StatusInternalServerError:
-		return res.StatusCode, fmt.Errorf("internal error")
+		return fmt.Errorf("internal error")
 	default:
-		return res.StatusCode, fmt.Errorf("unknown status code")
+		return fmt.Errorf("unknown status code")
 	}
 }
 
