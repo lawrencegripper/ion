@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/lawrencegripper/mlops/dispatcher/types"
@@ -27,6 +28,26 @@ func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error)
 	k.createJob = create
 	k.listAllJobs = list
 	return &k, nil
+}
+
+func TestGetJobName(t *testing.T) {
+	messageToSend := MockMessage{
+		MessageID:          mockMessageID,
+		DeliveryCountValue: 15,
+	}
+	jobName := getJobName(messageToSend)
+
+	if !strings.Contains(jobName, "15") {
+		t.Error("Should contain the attempt count")
+	}
+
+	if !strings.Contains(jobName, strings.ToLower(messageToSend.MessageID)) {
+		t.Error("Should contain messageID")
+	}
+	if strings.ToLower(jobName) != jobName {
+		t.Logf("contained upper case")
+		t.FailNow()
+	}
 }
 
 func TestDispatchAddsJob(t *testing.T) {
@@ -61,7 +82,7 @@ func TestDispatchAddsJob(t *testing.T) {
 	}
 }
 
-func TestDispatchedJobHasCorrectLabels(t *testing.T) {
+func TestDispatchedJobConfiguration(t *testing.T) {
 	inMemMockJobStore := []batchv1.Job{}
 
 	create := func(b *batchv1.Job) (*batchv1.Job, error) {
@@ -89,6 +110,11 @@ func TestDispatchedJobHasCorrectLabels(t *testing.T) {
 
 	job := inMemMockJobStore[0]
 
+	CheckLabelsAssignedCorrectly(t, job, messageToSend.MessageID)
+	CheckPodSetup(t, job, k.jobConfig.SidecarImage, k.jobConfig.WorkerImage)
+}
+
+func CheckLabelsAssignedCorrectly(t *testing.T, job batchv1.Job, expectedMessageID string) {
 	testCases := []struct {
 		labelName     string
 		expectedValue string
@@ -99,7 +125,7 @@ func TestDispatchedJobHasCorrectLabels(t *testing.T) {
 		},
 		{
 			labelName:     messageIDLabel,
-			expectedValue: mockMessageID,
+			expectedValue: expectedMessageID,
 		},
 		{
 			labelName:     deliverycountlabel,
@@ -121,7 +147,17 @@ func TestDispatchedJobHasCorrectLabels(t *testing.T) {
 			}
 		})
 	}
+}
 
+func CheckPodSetup(t *testing.T, job batchv1.Job, expectedSidecarImage, expectedWorkerImage string) {
+	sidecar := job.Spec.Template.Spec.Containers[0]
+	if sidecar.Image != expectedSidecarImage {
+		t.Errorf("sidecar image wrong Got: %s Expected: %s", sidecar.Image, expectedSidecarImage)
+	}
+	worker := job.Spec.Template.Spec.Containers[1]
+	if worker.Image != expectedWorkerImage {
+		t.Errorf("worker image wrong Got: %s Expected: %s", worker.Image, expectedWorkerImage)
+	}
 }
 
 func TestReconcileJobCompleted(t *testing.T) {
@@ -218,14 +254,15 @@ func TestReconcileJobFailed(t *testing.T) {
 
 // AmqpMessage Wrapper for amqp
 type MockMessage struct {
-	MessageID string
-	Accepted  func()
-	Rejected  func()
+	MessageID          string
+	DeliveryCountValue int
+	Accepted           func()
+	Rejected           func()
 }
 
 // DeliveryCount get number of times the message has ben delivered
 func (m MockMessage) DeliveryCount() int {
-	return 0
+	return m.DeliveryCountValue
 }
 
 // ID get the ID

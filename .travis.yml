@@ -1,4 +1,5 @@
 language: go
+sudo: required
 
 go:
   - "1.10.x"
@@ -16,6 +17,13 @@ install:
   - cd ./dispatcher && dep ensure -v && cd ..
   - cd ./sidecar && dep ensure -v && cd ..
 
-script: 
-  - go test -race -short -v ./...
-  - gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline 15m ./...
+jobs:
+  include:
+    - stage: dispatcher tests
+      script: go test -v -race -short ./dispatcher/...
+    - stage: sidecar tests
+      script: go test -v -race -short ./sidecar/...
+    - stage: linting
+      script: gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline 15m ./... 
+    - stage: k8s integration testing
+      script: bash -f ./dispatcher/scripts/kube_int_tests.sh

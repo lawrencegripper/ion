@@ -12,7 +12,7 @@
             "remotePath": "",
             "port": 2345,
             "host": "127.0.0.1",
-            "program": "${workspaceRoot}/providers/kubernetes",
+            "program": "${workspaceRoot}/providers",
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "args": [
                 "-test.v",  

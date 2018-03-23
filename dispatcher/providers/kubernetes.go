@@ -1,7 +1,7 @@
 package providers
 
 import (
-	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -39,6 +40,13 @@ type Kubernetes struct {
 
 // NewKubernetesProvider Creates an instance and does basic setup
 func NewKubernetesProvider(config *types.Configuration) (*Kubernetes, error) {
+	if config == nil {
+		return nil, fmt.Errorf("invalid config. Cannot be nil")
+	}
+	if config.JobConfig == nil {
+		return nil, fmt.Errorf("invalid JobConfig. Cannot be nil")
+	}
+
 	k := Kubernetes{}
 	client, err := getClientSet()
 	if err != nil {
@@ -50,7 +58,7 @@ func NewKubernetesProvider(config *types.Configuration) (*Kubernetes, error) {
 	if err != nil {
 		return nil, err
 	}
-	k.Namespace = namespace.Name
+	k.Namespace = namespace
 	k.jobConfig = config.JobConfig
 	k.dispatcherName = config.Hostname
 	k.inflightJobStore = map[string]Message{}
@@ -65,6 +73,9 @@ func NewKubernetesProvider(config *types.Configuration) (*Kubernetes, error) {
 
 // Reconcile will review the state of running jobs and accept or reject messages accordingly
 func (k *Kubernetes) Reconcile() error {
+	if k == nil {
+		return fmt.Errorf("invalid properties. Provider cannot be nil")
+	}
 	// Todo: investigate using the field selector to limit the returned data to only
 	// completed or failed jobs
 	jobs, err := k.listAllJobs()
@@ -114,7 +125,7 @@ func (k *Kubernetes) Reconcile() error {
 					log.WithFields(log.Fields{
 						"message": sourceMessage,
 						"job":     j,
-					}).Error("Failed to reject message")
+					}).Error("failed to reject message")
 					return err
 				}
 			}
@@ -127,7 +138,7 @@ func (k *Kubernetes) Reconcile() error {
 					log.WithFields(log.Fields{
 						"message": sourceMessage,
 						"job":     j,
-					}).Error("Failed to accept message")
+					}).Error("failed to accept message")
 					return err
 				}
 			}
@@ -139,6 +150,13 @@ func (k *Kubernetes) Reconcile() error {
 
 // Dispatch creates a job on kubernetes for the message
 func (k *Kubernetes) Dispatch(message Message) error {
+	if message == nil {
+		return fmt.Errorf("invalid input. Message cannot be nil")
+	}
+	if k == nil {
+		return fmt.Errorf("invalid properties. Provider cannot be nil")
+	}
+
 	k.inflightJobStore[message.ID()] = message
 	labels := map[string]string{
 		dispatcherNameLabel: k.dispatcherName,
@@ -190,19 +208,24 @@ func homeDir() string {
 }
 
 func getClientSet() (*kubernetes.Clientset, error) {
-	var kubeconfig *string
-	if home := homeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
-
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		log.WithError(err).Error("Getting kubeconf from current context")
-		return nil, err
+		log.WithError(err).Warn("failed getting in-cluster config attempting to use kubeconfig from homedir")
+		var kubeconfig string
+		if home := homeDir(); home != "" {
+			kubeconfig = filepath.Join(home, ".kube", "config")
+		}
+
+		if _, err := os.Stat(kubeconfig); os.IsNotExist(err) {
+			log.WithError(err).Panic("kubeconfig not found in homedir")
+		}
+
+		// use the current context in kubeconfig
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			log.WithError(err).Panic("getting kubeconf from current context")
+			return nil, err
+		}
 	}
 
 	// create the clientset
@@ -215,25 +238,25 @@ func getClientSet() (*kubernetes.Clientset, error) {
 	return clientset, nil
 }
 
-func createNamespaceForModule(moduleName string, client *kubernetes.Clientset) (*apiv1.Namespace, error) {
+func createNamespaceForModule(moduleName string, client *kubernetes.Clientset) (string, error) {
 	// create a namespace for the module
 	// Todo: add regex validation to ensure namespace is valid in k8 before submitting
 	// a DNS-1123 label must consist of lower case alphanumeric characters or '-', and
 	// must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?'
 	namespace := namespacePrefix + strings.ToLower(moduleName)
-	n, err := client.CoreV1().Namespaces().Create(&apiv1.Namespace{
+	_, err := client.CoreV1().Namespaces().Create(&apiv1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
 	})
 
 	if err != nil && !errors.IsAlreadyExists(err) {
-		return nil, err
+		return "", err
 	}
 
-	return n, nil
+	return namespace, nil
 }
 
 func getJobName(m Message) string {
-	return m.ID() + "-attempt" + string(m.DeliveryCount())
+	return strings.ToLower(m.ID()) + "-a" + strconv.Itoa(m.DeliveryCount())
 }
