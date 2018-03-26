@@ -100,7 +100,6 @@ func runApp(config *common.Configuration) {
 	app := app.App{}
 	app.Setup(
 		config.SharedSecret,
-		config.BlobStorageAccessKey,
 		config.EventID,
 		config.CorrelationID,
 		config.ParentEventID,

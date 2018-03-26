@@ -8,15 +8,17 @@ type MetaDB interface {
 	Close()
 }
 
-//BlobStorage is responsible for getting information about blobs stored externally
-type BlobStorage interface {
-	GetBlobAuthURL(url string) (string, error)
-	CreateBlobContainer(id string) (string, error)
+//BlobProvider is responsible for getting information about blobs stored externally
+type BlobProvider interface {
+	Resolve(resourcePath string) (string, error)
+	Create(resourcePath string) (string, error)
+	List(resourcePath string) ([]string, error)
+	Delete(resourcePath string) error
 }
 
-//Publisher is responsible for publishing events to a remote system
-type Publisher interface {
-	PublishEvent(e Event) error
+//EventPublisher is responsible for publishing events to a remote system
+type EventPublisher interface {
+	Publish(e Event) error
 	Close()
 }
 

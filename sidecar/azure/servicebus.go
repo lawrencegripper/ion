@@ -33,8 +33,8 @@ func NewServiceBus(namespace, topic, key, skn string) (*ServiceBus, error) {
 	return sb, nil
 }
 
-//PublishEvent publishes an event onto a Service Bus topic
-func (s *ServiceBus) PublishEvent(e common.Event) error {
+//Publish publishes an event onto a Service Bus topic
+func (s *ServiceBus) Publish(e common.Event) error {
 	b, err := json.Marshal(e)
 	if err != nil {
 		return fmt.Errorf("error publishing event %+v", err)

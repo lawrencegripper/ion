@@ -4,6 +4,9 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"regexp"
+	"strings"
+	"sync"
 )
 
 //CompareHash compares a secret string against a hash
@@ -41,4 +44,56 @@ func MustNotBeNil(objs ...interface{}) {
 			panic("required obj is nil")
 		}
 	}
+}
+
+//StripBlobStore removes details specific to the metadata store from any metadata
+func StripBlobStore(docs []MetaDoc) ([]MetaDoc, error) {
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(len(docs))
+
+	defer waitGroup.Wait()
+
+	rx, err := regexp.Compile(`^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/[a-zA-Z0-9]+/`)
+	if err != nil {
+		return nil, fmt.Errorf("error thrown compiling regex: %+v", err)
+	}
+
+	strip := make(chan MetaDoc)
+	strippedDocs := make([]MetaDoc, 0)
+	for _, doc := range docs {
+		go func(doc MetaDoc) {
+			defer waitGroup.Done()
+			strippedMeta := map[string]string{}
+			for k, v := range doc.Metadata {
+				match := rx.FindString(v)
+				if match == "" {
+					strippedMeta[k] = v
+				} else {
+					strippedMeta[k] = strings.Replace(v, match, "", 1)
+				}
+			}
+			doc.Metadata = strippedMeta
+			strip <- doc
+		}(doc)
+	}
+
+	for i := 0; i < len(docs); i++ {
+		doc := <-strip
+		strippedDocs = append(strippedDocs, doc)
+	}
+
+	return strippedDocs, nil
+}
+
+//NormalizeResourcePath transforms a resource path into an expected format
+func NormalizeResourcePath(resPath string) (string, error) {
+	if resPath[0] == '/' {
+		resPath = resPath[1:]
+	}
+	segs := strings.Split(resPath, "/")
+	if len(segs) < 2 {
+		return "", fmt.Errorf("%s is not a valid resource path", resPath)
+	}
+	resPath = strings.Replace(resPath, "//", "/", -1)
+	return resPath, nil
 }

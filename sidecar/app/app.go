@@ -4,24 +4,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	c "github.com/lawrencegripper/mlops/sidecar/common"
 	log "github.com/sirupsen/logrus"
+	"github.com/vulcand/oxy/forward"
 )
 
+//TODO: API versioning
+
 const secretHeaderKey = "secret"
+const requestIDHeaderKey = "request-id"
 
 //App is the sidecar application
 type App struct {
 	Router    *mux.Router
 	MetaDB    c.MetaDB
-	Publisher c.Publisher
-	Blob      c.BlobStorage
+	Publisher c.EventPublisher
+	Blob      c.BlobProvider
 	Logger    *log.Logger
+	Proxy     *forward.Forwarder
 
 	secretHash    string
-	blobAccessKey string
 	parentEventID string
 	correlationID string
 	eventID       string
@@ -30,20 +35,22 @@ type App struct {
 //Setup initializes application
 func (a *App) Setup(
 	secret,
-	blobAccessKey,
 	eventID,
 	correlationID,
 	parentEventID string,
 	metaDB c.MetaDB,
-	publisher c.Publisher,
-	blob c.BlobStorage,
+	publisher c.EventPublisher,
+	blob c.BlobProvider,
 	logger *log.Logger) {
 
-	c.MustNotBeEmpty(secret, blobAccessKey, eventID, correlationID, parentEventID)
-	c.MustNotBeNil(metaDB, publisher, blob, logger)
+	a.Proxy, _ = forward.New(
+		forward.Stream(true),
+	)
+
+	c.MustNotBeEmpty(secret, eventID, correlationID, parentEventID)
+	c.MustNotBeNil(metaDB, publisher, blob, logger, a.Proxy)
 
 	a.secretHash = c.Hash(secret)
-	a.blobAccessKey = blobAccessKey
 	a.eventID = eventID
 	a.correlationID = correlationID
 	a.parentEventID = parentEventID
@@ -55,41 +62,76 @@ func (a *App) Setup(
 
 	a.Router = mux.NewRouter()
 	a.setupRoutes()
+
+	a.Logger.Info("Sidecar initialized!")
 }
 
 //setupRoutes initializes the API routing
 func (a *App) setupRoutes() {
+	// Adds a simple shared secret check to each request
 	auth := AddAuth(a.secretHash)
+	// Adds logging to each request
 	log := AddLog(a.Logger)
+	// Adds a identity header to each request
 	self := AddIdentity(a.eventID)
 	parent := AddIdentity(a.parentEventID)
 
-	// Gets all metadata associated with correlation ID
-	getAllMeta := http.HandlerFunc(a.GetAllMeta)
-	a.Router.Handle("/meta", log(auth(getAllMeta))).Methods("GET")
+	// GET /meta
+	// Returns all metadata currently stored as part of this chain
+	getMeta := http.HandlerFunc(a.GetAllMeta)
+	a.Router.Handle("/meta", log(auth(getMeta))).Methods("GET")
 
-	// Gets specific metadata associated with source ID
-	getMetaInputs := http.HandlerFunc(a.GetMetaByID)
-	a.Router.Handle("/meta/inputs", parent(log(auth(getMetaInputs)))).Methods("GET")
+	// GET /parent/meta
+	// Returns only metadata stored by the parent of this module
+	getParentMeta := http.HandlerFunc(a.GetMetaByID)
+	a.Router.Handle("/parent/meta", log(auth(parent(getParentMeta)))).Methods("GET")
 
-	// Update metadata associated with this event ID
-	updateMeta := http.HandlerFunc(a.UpdateMeta)
-	a.Router.Handle("/meta/outputs", log(auth(updateMeta))).Methods("POST")
+	// POST /self/meta
+	// Stores metadata against this modules meta store
+	updateSelfMeta := http.HandlerFunc(a.UpdateMeta)
+	a.Router.Handle("/self/meta", log(auth(updateSelfMeta))).Methods("PUT")
 
-	// Get existing metadata data associated with this event ID
-	getMetaOutputs := http.HandlerFunc(a.GetMetaByID)
-	a.Router.Handle("/meta/outputs", self(log(auth(getMetaOutputs)))).Methods("GET")
+	// GET /self/meta
+	// Returns the metadata currently in this modules meta store
+	getSelfMeta := http.HandlerFunc(a.GetMetaByID)
+	a.Router.Handle("/self/meta", log(auth(self(getSelfMeta)))).Methods("GET")
 
-	// Get an authenticated URL for the given blob resource
-	getBlobInputs := http.HandlerFunc(a.GetBlobInputs)
-	a.Router.Handle("/blob/inputs", log(auth(getBlobInputs))).Methods("GET")
+	// GET /parent/blob
+	// Returns a named blob from the parent's blob store
+	getParentBlob := http.HandlerFunc(AddProxy(a, nil,
+		a.Blob.Resolve,
+		respondWithNothing))
+	a.Router.Handle("/parent/blob", log(auth(parent(getParentBlob)))).Methods("GET")
 
-	// Create new blob storage location if one doesn't exist and return authenticated URL
-	getBlobOutputs := http.HandlerFunc(a.GetBlobOutputs)
-	a.Router.Handle("/blob/outputs", log(auth(getBlobOutputs))).Methods("GET")
+	// GET /self/blob
+	// Returns a named blob from this modules blob store
+	getSelfBlob := http.HandlerFunc(AddProxy(a, nil,
+		a.Blob.Resolve,
+		respondWithNothing))
+	a.Router.Handle("/self/blob", log(auth(self(getSelfBlob)))).Methods("GET")
 
-	// Publish a new event
-	publishEventHandler := http.HandlerFunc(a.PublishEvent)
+	// DELETE /self/blob
+	// Returns a named blob from this modules blob store
+	deleteSelfBlobs := http.HandlerFunc(a.DeleteBlobs)
+	a.Router.Handle("/self/blob", log(auth(self(deleteSelfBlobs)))).Methods("DELETE")
+
+	// PUT /self/blob
+	// Stores a blob in this modules blob store
+	addSelfBlob := http.HandlerFunc(AddProxy(a, map[string]string{
+		"x-ms-blob-type": "BlockBlob",
+	},
+		a.Blob.Create,
+		respondWithCreatedURI))
+	a.Router.Handle("/self/blob", log(auth(self(addSelfBlob)))).Methods("PUT")
+
+	// GET /self/blobs
+	// Returns a list of blobs currently stored in this modules blob store
+	listSelfBlobs := http.HandlerFunc(a.ListBlobs)
+	a.Router.Handle("/self/blobs", log(auth(self(listSelfBlobs)))).Methods("GET")
+
+	// POST /events
+	// Publishes a new event to the messaging system
+	publishEventHandler := http.HandlerFunc(a.Publish)
 	a.Router.Handle("/events", log(auth(publishEventHandler))).Methods("POST")
 }
 
@@ -98,10 +140,18 @@ func (a *App) Run(addr string) {
 	log.Fatal(http.ListenAndServe(addr, a.Router))
 }
 
+//Close cleans up any external resources
+func (a *App) Close() {
+	a.Logger.Info("Closing sidecar")
+
+	defer a.MetaDB.Close()
+	defer a.Publisher.Close()
+}
+
 //GetMetaByID gets the metadata document with the associated ID
 // nolint: errcheck
 func (a *App) GetMetaByID(w http.ResponseWriter, r *http.Request) {
-	id := r.Header.Get("request-id")
+	id := r.Header.Get(requestIDHeaderKey)
 	if id == "" {
 		id = a.eventID
 	}
@@ -112,7 +162,8 @@ func (a *App) GetMetaByID(w http.ResponseWriter, r *http.Request) {
 		respondWithError(err, http.StatusNotFound, w)
 		return
 	}
-	err = json.NewEncoder(w).Encode(doc.Metadata)
+	docs, _ := c.StripBlobStore([]c.MetaDoc{*doc})
+	err = json.NewEncoder(w).Encode(docs[0].Metadata)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -128,6 +179,7 @@ func (a *App) GetAllMeta(w http.ResponseWriter, r *http.Request) {
 		respondWithError(err, http.StatusNotFound, w)
 		return
 	}
+	docs, _ = c.StripBlobStore(docs)
 	err = json.NewEncoder(w).Encode(docs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
@@ -161,9 +213,42 @@ func (a *App) UpdateMeta(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-//PublishEvent posts an event to the event topic
+//ListBlobs returns a list of blobs stored by the current module
+func (a *App) ListBlobs(w http.ResponseWriter, r *http.Request) {
+	resource := a.eventID
+	blobs, err := a.Blob.List(resource)
+	if err != nil {
+		respondWithError(err, http.StatusNotFound, w)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(blobs)
+	if err != nil {
+		respondWithError(err, http.StatusInternalServerError, w)
+		return
+	}
+}
+
+//DeleteBlobs deletes a named blob resource
+func (a *App) DeleteBlobs(w http.ResponseWriter, r *http.Request) {
+	resource := r.URL.Query().Get("res")
+	id := r.Header.Get(requestIDHeaderKey)
+	if id == "" || resource == "" {
+		respondWithError(fmt.Errorf("resource or id could not be found in request"), http.StatusBadRequest, w)
+		return
+	}
+	resourceID := id + "/" + resource
+	err := a.Blob.Delete(resourceID)
+	if err != nil {
+		respondWithError(err, http.StatusNotFound, w)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+//Publish posts an event to the event topic
 // nolint: errcheck
-func (a *App) PublishEvent(w http.ResponseWriter, r *http.Request) {
+func (a *App) Publish(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var eventData map[string]string
 	err := decoder.Decode(&eventData)
@@ -172,8 +257,6 @@ func (a *App) PublishEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-
-	//EVENT HEADERCHECK AGAINST VALID
 	//TODO: validate event before publishing
 	event := c.Event{
 		PreviousStages: nil,
@@ -181,80 +264,12 @@ func (a *App) PublishEvent(w http.ResponseWriter, r *http.Request) {
 		Data:           eventData,
 		Type:           "EVENTTYPE",
 	}
-	err = a.Publisher.PublishEvent(event)
+	err = a.Publisher.Publish(event)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-}
-
-//GetBlobInputs gets a storage access key for blob storage
-// nolint: errcheck
-func (a *App) GetBlobInputs(w http.ResponseWriter, r *http.Request) {
-	url := r.URL.Query().Get("url")
-	if url == "" {
-		respondWithError(fmt.Errorf("querystring parameter 'url' is required"), http.StatusBadRequest, w)
-		return
-	}
-	authURL, err := a.Blob.GetBlobAuthURL(url)
-	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
-		return
-	}
-	w.Write([]byte(authURL))
-}
-
-//GetBlobOutputs returns an authenticated URL to an output blob container
-// nolint: errcheck
-func (a *App) GetBlobOutputs(w http.ResponseWriter, r *http.Request) {
-	url, err := a.Blob.CreateBlobContainer(a.eventID)
-	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
-		return
-	}
-	w.Write([]byte(url))
-}
-
-//Close cleans up any external resources
-func (a *App) Close() {
-	defer a.MetaDB.Close()
-	defer a.Publisher.Close()
-}
-
-//AddAuth enforces a shared secret between client and server for authentication
-func AddAuth(secretHash string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			secret := r.Header.Get(secretHeaderKey)
-			err := c.CompareHash(secret, secretHash)
-			if err != nil {
-				respondWithError(err, http.StatusUnauthorized, w)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-//AddIdentity adds an identity header to each requests
-func AddIdentity(id string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.Header.Set("request-id", id)
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-//AddLog logs each request (Warning - performance impact)
-func AddLog(logger *log.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger.Debugf("request received: %+v", r)
-			next.ServeHTTP(w, r)
-		})
-	}
 }
 
 //respondWithError returns a JSON formatted HTTP error
@@ -266,4 +281,17 @@ func respondWithError(err error, code int, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(errRes)
+}
+
+//respondWithCreatedURI returns the URL for a newly created resource
+func respondWithCreatedURI(resourceURI string, w StatusCodeResponseWriter) {
+	if w.statusCode == http.StatusCreated {
+		uri := strings.Split(resourceURI, "?")
+		w.Write([]byte(uri[0]))
+	}
+}
+
+//responds with nothing
+func respondWithNothing(resource string, w StatusCodeResponseWriter) {
+	return
 }
