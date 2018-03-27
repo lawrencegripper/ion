@@ -8,8 +8,9 @@ import (
 
 	"github.com/containous/flaeg"
 	"github.com/lawrencegripper/mlops/sidecar/app"
-	"github.com/lawrencegripper/mlops/sidecar/azure"
-	"github.com/lawrencegripper/mlops/sidecar/common"
+	"github.com/lawrencegripper/mlops/sidecar/blob/azurestorage"
+	"github.com/lawrencegripper/mlops/sidecar/events/servicebus"
+	"github.com/lawrencegripper/mlops/sidecar/meta/mongodb"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,7 +18,7 @@ const hidden = "**********"
 
 func main() {
 
-	config := &common.Configuration{}
+	config := &app.Configuration{}
 
 	rootCmd := &flaeg.Command{
 		Name:                  "start",
@@ -56,18 +57,18 @@ func main() {
 	}
 }
 
-func runApp(config *common.Configuration) {
-	mongoDB, err := azure.NewMongoDB(config.DBName, config.DBPassword, config.DBCollection, config.DBPort)
+func runApp(config *app.Configuration) {
+	mongoDB, err := mongodb.NewMongoDB(config.DBName, config.DBPassword, config.DBCollection, config.DBPort)
 	if err != nil {
 		panic(fmt.Errorf("Failed to connect to mongodb with error: %+v", err))
 	}
 
-	serviceBus, err := azure.NewServiceBus(config.PublisherName, config.PublisherTopic, config.PublisherAccessKey, config.PublisherAccessRuleName)
+	serviceBus, err := servicebus.NewServiceBus(config.PublisherName, config.PublisherTopic, config.PublisherAccessKey, config.PublisherAccessRuleName)
 	if err != nil {
 		panic(fmt.Errorf("Failed to connect to servicebus with error: %+v", err))
 	}
 
-	azureBlob, err := azure.NewAzureBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey)
+	azureBlob, err := azurestorage.NewBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey)
 	if err != nil {
 		panic(fmt.Errorf("Failed to connect to azure blob storage with error: %+v", err))
 	}
@@ -123,7 +124,7 @@ func prettyPrintStruct(item interface{}) string {
 	return string(b)
 }
 
-func cleanConfig(c common.Configuration) common.Configuration {
+func cleanConfig(c app.Configuration) app.Configuration {
 	c.SharedSecret = hidden
 	c.BlobStorageAccessKey = hidden
 	c.DBPassword = hidden

@@ -1,4 +1,4 @@
-package common
+package app
 
 //Configuration represents the input configuration schema
 type Configuration struct {

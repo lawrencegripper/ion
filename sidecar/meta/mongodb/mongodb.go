@@ -1,4 +1,4 @@
-package azure
+package mongodb
 
 import (
 	"crypto/tls"
@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/lawrencegripper/mlops/sidecar/common"
+	"github.com/lawrencegripper/mlops/sidecar/types"
 	mongo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -40,17 +40,17 @@ func NewMongoDB(name, password, collection string, port int) (*MongoDB, error) {
 
 	col := session.DB(name).C(collection)
 
-	mongoDB := &MongoDB{
+	MongoDB := &MongoDB{
 		Session:    session,
 		Collection: col,
 	}
 
-	return mongoDB, nil
+	return MongoDB, nil
 }
 
 //GetMetaDocByID returns a single document matching a given document ID
-func (db *MongoDB) GetMetaDocByID(docID string) (*common.MetaDoc, error) {
-	doc := common.MetaDoc{}
+func (db *MongoDB) GetMetaDocByID(docID string) (*types.MetaDoc, error) {
+	doc := types.MetaDoc{}
 	err := db.Collection.Find(bson.M{"id": docID}).One(&doc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", docID, err)
@@ -59,8 +59,8 @@ func (db *MongoDB) GetMetaDocByID(docID string) (*common.MetaDoc, error) {
 }
 
 //GetMetaDocAll returns all the documents matching a given correlationID
-func (db *MongoDB) GetMetaDocAll(correlationID string) ([]common.MetaDoc, error) {
-	docs := []common.MetaDoc{}
+func (db *MongoDB) GetMetaDocAll(correlationID string) ([]types.MetaDoc, error) {
+	docs := []types.MetaDoc{}
 	err := db.Collection.Find(bson.M{"correlationId": correlationID}).All(&docs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get documents with correlation ID %s, error: %+v", correlationID, err)
@@ -69,7 +69,7 @@ func (db *MongoDB) GetMetaDocAll(correlationID string) ([]common.MetaDoc, error)
 }
 
 //AddOrUpdateMetaDoc appends a new entry to an existing document
-func (db *MongoDB) AddOrUpdateMetaDoc(doc *common.MetaDoc) error {
+func (db *MongoDB) AddOrUpdateMetaDoc(doc *types.MetaDoc) error {
 	b, err := json.Marshal(*doc)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
@@ -82,7 +82,7 @@ func (db *MongoDB) AddOrUpdateMetaDoc(doc *common.MetaDoc) error {
 
 	selector := bson.M{"id": doc.ID}
 	update := bson.M{"$set": doc}
-	db.Collection.Upsert(selector, update)
+	_, err = db.Collection.Upsert(selector, update)
 	if err != nil {
 		return fmt.Errorf("error updating document: %+v", err)
 	}

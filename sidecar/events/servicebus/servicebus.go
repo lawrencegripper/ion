@@ -1,4 +1,4 @@
-package azure
+package servicebus
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lawrencegripper/mlops/sidecar/common"
+	"github.com/lawrencegripper/mlops/sidecar/types"
 	"k8s.io/kubernetes/third_party/forked/golang/template"
 )
 
@@ -34,7 +34,7 @@ func NewServiceBus(namespace, topic, key, skn string) (*ServiceBus, error) {
 }
 
 //Publish publishes an event onto a Service Bus topic
-func (s *ServiceBus) Publish(e common.Event) error {
+func (s *ServiceBus) Publish(e types.Event) error {
 	b, err := json.Marshal(e)
 	if err != nil {
 		return fmt.Errorf("error publishing event %+v", err)

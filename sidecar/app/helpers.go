@@ -1,4 +1,4 @@
-package common
+package app
 
 import (
 	"crypto/md5"
@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/lawrencegripper/mlops/sidecar/types"
 )
 
 //CompareHash compares a secret string against a hash
@@ -47,7 +49,7 @@ func MustNotBeNil(objs ...interface{}) {
 }
 
 //StripBlobStore removes details specific to the metadata store from any metadata
-func StripBlobStore(docs []MetaDoc) ([]MetaDoc, error) {
+func StripBlobStore(docs []types.MetaDoc) ([]types.MetaDoc, error) {
 	var waitGroup sync.WaitGroup
 	waitGroup.Add(len(docs))
 
@@ -58,10 +60,10 @@ func StripBlobStore(docs []MetaDoc) ([]MetaDoc, error) {
 		return nil, fmt.Errorf("error thrown compiling regex: %+v", err)
 	}
 
-	strip := make(chan MetaDoc)
-	strippedDocs := make([]MetaDoc, 0)
+	strip := make(chan types.MetaDoc)
+	strippedDocs := make([]types.MetaDoc, 0)
 	for _, doc := range docs {
-		go func(doc MetaDoc) {
+		go func(doc types.MetaDoc) {
 			defer waitGroup.Done()
 			strippedMeta := map[string]string{}
 			for k, v := range doc.Metadata {
