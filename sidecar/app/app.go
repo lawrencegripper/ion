@@ -2,21 +2,19 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
+	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/lawrencegripper/mlops/sidecar/types"
 	log "github.com/sirupsen/logrus"
-	"github.com/vulcand/oxy/forward"
 )
 
-//TODO: API versioning
-
 const requestID string = "request-id"
-const contentType string = "Content-Type"
-const applicationJSON string = "application/json"
+
+//TODO:
+// - API versioning
+// - Stop eventID being globally unique in metastore
 
 //App is the sidecar application
 type App struct {
@@ -25,7 +23,6 @@ type App struct {
 	Publisher types.EventPublisher
 	Blob      types.BlobProvider
 	Logger    *log.Logger
-	Proxy     *forward.Forwarder
 
 	secretHash    string
 	parentEventID string
@@ -44,12 +41,8 @@ func (a *App) Setup(
 	blob types.BlobProvider,
 	logger *log.Logger) {
 
-	a.Proxy, _ = forward.New(
-		forward.Stream(true),
-	)
-
 	MustNotBeEmpty(secret, eventID, correlationID, parentEventID)
-	MustNotBeNil(Meta, publisher, blob, logger, a.Proxy)
+	MustNotBeNil(Meta, publisher, blob, logger)
 
 	a.secretHash = Hash(secret)
 	a.eventID = eventID
@@ -77,60 +70,56 @@ func (a *App) setupRoutes() {
 	self := AddIdentity(a.eventID)
 	// Adds parent identity header
 	parent := AddIdentity(a.parentEventID)
-	// Adds get blob resolver
-	get := AddResolver(a.Blob.ResolveGet)
-	// Adds create blob resolver
-	create := AddResolver(a.Blob.ResolveCreate)
 
 	// GET /meta
 	// Returns all metadata currently stored as part of this chain
 	getMeta := http.HandlerFunc(a.GetAllMeta)
-	a.Router.Handle("/meta", log(auth(getMeta))).Methods("GET")
+	a.Router.Handle("/meta", log(auth(getMeta))).Methods(http.MethodGet)
 
 	// GET /parent/meta
 	// Returns only metadata stored by the parent of this module
 	getParentMeta := http.HandlerFunc(a.GetMetaByID)
-	a.Router.Handle("/parent/meta", log(auth(parent(getParentMeta)))).Methods("GET")
+	a.Router.Handle("/parent/meta", log(auth(parent(getParentMeta)))).Methods(http.MethodGet)
 
 	// POST /self/meta
 	// Stores metadata against this modules meta store
 	updateSelfMeta := http.HandlerFunc(a.UpdateMeta)
-	a.Router.Handle("/self/meta", log(auth(updateSelfMeta))).Methods("PUT")
+	a.Router.Handle("/self/meta", log(auth(updateSelfMeta))).Methods(http.MethodPut)
 
 	// GET /self/meta
 	// Returns the metadata currently in this modules meta store
 	getSelfMeta := http.HandlerFunc(a.GetMetaByID)
-	a.Router.Handle("/self/meta", log(auth(self(getSelfMeta)))).Methods("GET")
+	a.Router.Handle("/self/meta", log(auth(self(getSelfMeta)))).Methods(http.MethodGet)
 
 	// GET /parent/blob
 	// Returns a named blob from the parent's blob store
-	getParentBlobProxy := http.HandlerFunc(AddProxy(a.Proxy, nil))
-	a.Router.Handle("/parent/blob", log(auth(parent(get(getParentBlobProxy))))).Methods("GET")
+	getParentBlob := http.HandlerFunc(a.GetBlob)
+	a.Router.Handle("/parent/blob", log(auth(parent(getParentBlob)))).Methods(http.MethodGet)
 
 	// GET /self/blob
 	// Returns a named blob from this modules blob store
-	getSelfBlobProxy := http.HandlerFunc(AddProxy(a.Proxy, nil))
-	a.Router.Handle("/self/blob", log(auth(self(get(getSelfBlobProxy))))).Methods("GET")
+	getSelfBlob := http.HandlerFunc(a.GetBlob)
+	a.Router.Handle("/self/blob", log(auth(self(getSelfBlob)))).Methods(http.MethodGet)
 
 	// PUT /self/blob
 	// Stores a blob in this modules blob store
-	addSelfBlobProxy := http.HandlerFunc(AddProxy(a.Proxy, respondWithCreatedURI))
-	a.Router.Handle("/self/blob", log(auth(self(create(addSelfBlobProxy))))).Methods("PUT")
+	addSelfBlob := http.HandlerFunc(a.CreateBlob)
+	a.Router.Handle("/self/blob", log(auth(self(addSelfBlob)))).Methods(http.MethodPut)
 
 	// DELETE /self/blob
 	// Deletes a named blob from this modules blob store
 	deleteSelfBlobs := http.HandlerFunc(a.DeleteBlobs)
-	a.Router.Handle("/self/blob", log(auth(self(deleteSelfBlobs)))).Methods("DELETE")
+	a.Router.Handle("/self/blob", log(auth(self(deleteSelfBlobs)))).Methods(http.MethodDelete)
 
 	// GET /self/blobs
 	// Returns a list of blobs currently stored in this modules blob store
 	listSelfBlobs := http.HandlerFunc(a.ListBlobs)
-	a.Router.Handle("/self/blobs", log(auth(self(listSelfBlobs)))).Methods("GET")
+	a.Router.Handle("/self/blobs", log(auth(self(listSelfBlobs)))).Methods(http.MethodGet)
 
 	// POST /events
 	// Publishes a new event to the messaging system
 	publishEventHandler := http.HandlerFunc(a.Publish)
-	a.Router.Handle("/events", log(auth(publishEventHandler))).Methods("POST")
+	a.Router.Handle("/events", log(auth(publishEventHandler))).Methods(http.MethodPost)
 }
 
 //Run and block on web server
@@ -154,7 +143,7 @@ func (a *App) GetMetaByID(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		id = a.eventID
 	}
-	w.Header().Set(contentType, applicationJSON)
+	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
 	doc, err := a.Meta.GetMetaDocByID(id)
 	if err != nil {
 		respondWithError(err, http.StatusNotFound, w)
@@ -171,7 +160,7 @@ func (a *App) GetMetaByID(w http.ResponseWriter, r *http.Request) {
 //GetAllMeta get all the metadata documents with the associated correlation ID
 // nolint: errcheck
 func (a *App) GetAllMeta(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set(contentType, applicationJSON)
+	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
 	docs, err := a.Meta.GetMetaDocAll(a.correlationID)
 	if err != nil {
 		respondWithError(err, http.StatusNotFound, w)
@@ -210,6 +199,52 @@ func (a *App) UpdateMeta(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+//GetBlob gets a blob object
+func (a *App) GetBlob(w http.ResponseWriter, r *http.Request) {
+	resID, err := getResourceID(r)
+	if err != nil {
+		respondWithError(err, http.StatusBadRequest, w)
+		return
+	}
+	if a.Blob.Proxy() != nil {
+		r.RequestURI = "" // This is a hack to bypass this issue: https://github.com/vulcand/oxy/issues/57
+		a.Blob.Proxy().Get(resID, w, r)
+		return
+	}
+	blob, err := a.Blob.Get(resID)
+	if err != nil {
+		respondWithError(err, http.StatusNotFound, w)
+		return
+	}
+	defer blob.Close()
+	bytes, err := ioutil.ReadAll(blob)
+	if err != nil {
+		respondWithError(err, http.StatusInternalServerError, w)
+		return
+	}
+	w.Write(bytes)
+}
+
+//CreateBlob creates a new blob and returns a path to it
+func (a *App) CreateBlob(w http.ResponseWriter, r *http.Request) {
+	resID, err := getResourceID(r)
+	if err != nil {
+		respondWithError(err, http.StatusBadRequest, w)
+		return
+	}
+	if a.Blob.Proxy() != nil {
+		r.RequestURI = "" // This is a hack to bypass this issue: https://github.com/vulcand/oxy/issues/57
+		a.Blob.Proxy().Create(resID, w, r)
+		return
+	}
+	path, err := a.Blob.Create(resID, r.Body)
+	if err != nil {
+		respondWithError(err, http.StatusInternalServerError, w)
+		return
+	}
+	w.Write([]byte(path))
+}
+
 //ListBlobs returns a list of blobs stored by the current module
 func (a *App) ListBlobs(w http.ResponseWriter, r *http.Request) {
 	resource := a.eventID
@@ -218,7 +253,7 @@ func (a *App) ListBlobs(w http.ResponseWriter, r *http.Request) {
 		respondWithError(err, http.StatusNotFound, w)
 		return
 	}
-	w.Header().Set(contentType, applicationJSON)
+	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
 	err = json.NewEncoder(w).Encode(blobs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
@@ -273,25 +308,7 @@ func respondWithError(err error, code int, w http.ResponseWriter) {
 		StatusCode: code,
 		Message:    err.Error(),
 	}
-	w.Header().Set(contentType, applicationJSON)
+	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(errRes)
-}
-
-//respondWithCreatedURI returns the URL for a newly created resource
-func respondWithCreatedURI(w *StatusCodeResponseWriter) {
-	if w.statusCode == http.StatusCreated {
-		resID := w.ResponseWriter.Header().Get("resource-id")
-		if resID != "" {
-			uri := strings.Split(resID, "?") // remove SAS token
-			if len(uri) < 2 {
-				respondWithError(fmt.Errorf("invalid URL '%s' provided by blob provider", uri), http.StatusInternalServerError, w)
-				return
-			}
-			_, err := w.Write([]byte(uri[0]))
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
 }

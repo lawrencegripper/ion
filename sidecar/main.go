@@ -12,6 +12,7 @@ import (
 	"github.com/lawrencegripper/mlops/sidecar/events/servicebus"
 	"github.com/lawrencegripper/mlops/sidecar/meta/mongodb"
 	log "github.com/sirupsen/logrus"
+	"github.com/vulcand/oxy/forward"
 )
 
 const hidden = "**********"
@@ -68,7 +69,11 @@ func runApp(config *app.Configuration) {
 		panic(fmt.Errorf("Failed to connect to servicebus with error: %+v", err))
 	}
 
-	azureBlob, err := azurestorage.NewBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey)
+	proxy, _ := forward.New(
+		forward.Stream(true),
+	)
+
+	azureBlob, err := azurestorage.NewBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey, proxy)
 	if err != nil {
 		panic(fmt.Errorf("Failed to connect to azure blob storage with error: %+v", err))
 	}

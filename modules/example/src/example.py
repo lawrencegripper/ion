@@ -72,7 +72,8 @@ def upload_image_to_blob(image_file_path):
         data = in_file.read()
         headers = {"secret": shared_secret}
         filename = image_file_path.split("/")[-1]
-        rint = randint(0, 9)
+        # We don't have permission to overwrite existing data so let's try and make this unique
+        rint = randint(0, 1000)
         filename = str(rint) + filename
         print("uploading {}".format(filename))
         res = requests.put("{}?res={}".format(self_blob_url, filename),

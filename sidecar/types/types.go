@@ -1,6 +1,10 @@
 package types
 
-import "net/http"
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+)
 
 //MetaProvider is a document storage DB for holding metadata
 type MetaProvider interface {
@@ -10,18 +14,22 @@ type MetaProvider interface {
 	Close()
 }
 
-//Resolver is responsible for resolving a HTTP request to be proxied
-type Resolver func(resID string, r *http.Request) (*http.Request, error)
-
-//BlobProxy is responsible for proxying a HTTP request
-type BlobProxy interface {
+//Proxy represents a proxy capable of serving a HTTP request
+type Proxy interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
+}
+
+//BlobProxy is responsible for proxying HTTP requests against the Azure storage REST API
+type BlobProxy interface {
+	Create(resourcePath string, w http.ResponseWriter, r *http.Request)
+	Get(resourcePath string, w http.ResponseWriter, r *http.Request)
 }
 
 //BlobProvider is responsible for getting information about blobs stored externally
 type BlobProvider interface {
-	ResolveGet(resourcePath string, r *http.Request) (*http.Request, error)
-	ResolveCreate(resourcePath string, r *http.Request) (*http.Request, error)
+	Proxy() BlobProxy
+	Create(resourcePath string, blob io.ReadCloser) (string, error)
+	Get(resourcePath string) (io.ReadCloser, error)
 	List(resourcePath string) ([]string, error)
 	Delete(resourcePath string) (bool, error)
 	Close()
@@ -54,4 +62,28 @@ type Event struct {
 type ErrorResponse struct {
 	StatusCode int    `json:"statusCode"`
 	Message    string `json:"message"`
+}
+
+//Send returns a structured error object
+func (e *ErrorResponse) Send(w http.ResponseWriter) {
+	w.Header().Set(ContentType, ContentTypeApplicationJSON)
+	w.WriteHeader(e.StatusCode)
+	_ = json.NewEncoder(w).Encode(e.Message)
+}
+
+//StatusCodeResponseWriter is used to expose the HTTP status code for a ResponseWriter
+type StatusCodeResponseWriter struct {
+	http.ResponseWriter
+	StatusCode int
+}
+
+//NewStatusCodeResponseWriter creates new StatusCodeResponseWriter
+func NewStatusCodeResponseWriter(w http.ResponseWriter) *StatusCodeResponseWriter {
+	return &StatusCodeResponseWriter{w, http.StatusOK}
+}
+
+//WriteHeader hijacks a ResponseWriter.WriteHeader call and stores the status code
+func (w *StatusCodeResponseWriter) WriteHeader(code int) {
+	w.StatusCode = code
+	w.ResponseWriter.WriteHeader(code)
 }
