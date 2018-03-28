@@ -19,4 +19,7 @@ type Configuration struct {
 	ParentEventID           string `description:"Previous event ID"`
 	CorrelationID           string `description:"CorrelationID used to correlate this module with others"`
 	ServerPort              int    `description:"The port for the web server to listen on"`
+	BlobProvider            string `description:"The name of the blob provider to use"`
+	MetaProvider            string `description:"The name of the meta provider to use"`
+	EventProvider           string `description:"The name of the events provider to use"`
 }

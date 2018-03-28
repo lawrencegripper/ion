@@ -22,15 +22,14 @@ import (
 )
 
 const secret string = "secret"
+const eventID string = "2"
+const parentEventID string = "1"
+const correlationID string = "0"
+const tempDir string = "temp"
 
 var app a.App
 
 func TestMain(m *testing.M) {
-
-	// Define configuration
-	eventID := "2"
-	parentEventID := "1"
-	correlationID := "0"
 
 	initialMeta := map[string][]types.MetaDoc{
 		correlationID: []types.MetaDoc{
@@ -80,10 +79,15 @@ func TestMain(m *testing.M) {
 	}
 	metaProvider := inmemory.NewInMemoryMetaProvider(initialMeta)
 
-	tempDir := "temp"
-	tempFile := path.Join(tempDir, parentEventID, "test.txt")
 	os.MkdirAll(tempDir, 0644)
-	_ = ioutil.WriteFile(tempFile, []byte("hello world"), 0644)
+	parentDir := path.Join(tempDir, parentEventID)
+	os.MkdirAll(parentDir, 0644)
+	tempFile := path.Join(parentDir, "test.txt")
+	os.MkdirAll(tempDir, 0644)
+	err := ioutil.WriteFile(tempFile, []byte("hello world"), 0644)
+	if err != nil {
+		panic(err)
+	}
 	blobProvider := fs.NewFileSystemBlobProvider(tempDir)
 	publisher := mock.NewMockEventPublisher()
 
@@ -227,7 +231,6 @@ func TestUpdateMetaDoc(t *testing.T) {
 		getStatusCode    int
 		route            string
 		eventID          string
-		correlationID    string
 		patch            map[string]string
 	}{
 		{
@@ -237,8 +240,6 @@ func TestUpdateMetaDoc(t *testing.T) {
 				"Title":  "Effective C++",
 				"Author": "Scott Meyers",
 			},
-			eventID:       "2",
-			correlationID: "0",
 			getStatusCode: 200,
 		},
 	}
@@ -247,14 +248,14 @@ func TestUpdateMetaDoc(t *testing.T) {
 		updateReq, _ := http.NewRequest("PUT", test.route, bytes.NewReader(b))
 		updateReq.Header.Add("secret", secret)
 
-		doc, _ := app.Meta.GetMetaDocByID(test.eventID)
+		doc, _ := app.Meta.GetMetaDocByID(eventID)
 		doc.Metadata["Title"] = "Effective C++"
 		doc.Metadata["Author"] = "Scott Meyers"
 
 		updateRes := executeRequest(updateReq)
 		checkError(t, i, checkResponseCode(test.updateStatusCode, updateRes.Code))
 
-		docAfter, _ := app.Meta.GetMetaDocByID(test.eventID)
+		docAfter, _ := app.Meta.GetMetaDocByID(eventID)
 
 		for k, v := range docAfter.Metadata {
 			if v != doc.Metadata[k] {
@@ -315,6 +316,7 @@ func TestCreateBlob(t *testing.T) {
 			content: "13780787113102610",
 		},
 	}
+	createdFiles := make([]string, 0)
 	for i, test := range testCases {
 		b := []byte(test.content)
 		req, _ := http.NewRequest("PUT", "/self/blob?res="+test.path, bytes.NewReader(b))
@@ -322,6 +324,12 @@ func TestCreateBlob(t *testing.T) {
 		res := executeRequest(req)
 
 		checkError(t, i, checkResponseCode(test.code, res.Code))
+		createdFiles = append(createdFiles, test.path)
+	}
+	for _, file := range createdFiles {
+		dir, _ := path.Split(file)
+		path := path.Join(tempDir, eventID, dir)
+		_ = os.RemoveAll(path)
 	}
 }
 
