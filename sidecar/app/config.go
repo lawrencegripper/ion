@@ -16,9 +16,9 @@ type Configuration struct {
 	ParentEventID           string               `description:"Previous event ID"`
 	CorrelationID           string               `description:"CorrelationID used to correlate this module with others"`
 	ServerPort              int                  `description:"The port for the web server to listen on"`
-	FileSystemBlobProvider  *filesystem.Config   `description:"The name of the blob provider to use" export:"true"`
-	AzureBlobProvider       *azurestorage.Config `description:"The name of the blob provider to use" export:"true"`
-	MongoDBMetaProvider     *mongodb.Config      `description:"The name of the blob provider to use" export:"true"`
-	ServiceBusEventProvider *servicebus.Config   `description:"The name of the blob provider to use" export:"true"`
-	PrintConfig             bool                 `description:"The name of the blob provider to use" export:"true"`
+	FileSystemBlobProvider  *filesystem.Config   `description:"File system blob provider" export:"true"`
+	AzureBlobProvider       *azurestorage.Config `description:"Azure Storage Blob provider" export:"true"`
+	MongoDBMetaProvider     *mongodb.Config      `description:"MongoDB metastore provider" export:"true"`
+	ServiceBusEventProvider *servicebus.Config   `description:"ServiceBus event publisher" export:"true"`
+	PrintConfig             bool                 `description:"Set to print config on start" export:"true"`
 }
