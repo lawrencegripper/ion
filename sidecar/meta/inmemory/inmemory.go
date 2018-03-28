@@ -6,18 +6,23 @@ import (
 	"github.com/lawrencegripper/mlops/sidecar/types"
 )
 
+//Config used to setup a InMemoryMetaProvider metastore provider
+type Config struct {
+	Initial map[string][]types.MetaDoc
+}
+
 //InMemoryMetaProvider is an in-memory implementation of a metastore
 type InMemoryMetaProvider struct {
 	docs map[string][]types.MetaDoc
 }
 
 //NewInMemoryMetaProvider returns a new InMemoryMetaProvider object
-func NewInMemoryMetaProvider(initial map[string][]types.MetaDoc) *InMemoryMetaProvider {
-	if initial == nil {
-		initial = make(map[string][]types.MetaDoc)
+func NewInMemoryMetaProvider(config *Config) *InMemoryMetaProvider {
+	if config.Initial == nil {
+		config.Initial = make(map[string][]types.MetaDoc)
 	}
 	return &InMemoryMetaProvider{
-		docs: initial,
+		docs: config.Initial,
 	}
 }
 

@@ -9,13 +9,19 @@ import (
 	"github.com/lawrencegripper/mlops/sidecar/types"
 )
 
+//Config to setup a FileSystem blob provider
+type Config struct {
+	BaseDir string `description:"Base directory to use store blob data"`
+}
+
 //FileSystem is a local file system based implementation of a blob provider
 type FileSystem struct {
 	baseDir string
 }
 
 //NewFileSystemBlobProvider creates a new FileSystem blob provider object
-func NewFileSystemBlobProvider(baseDir string) *FileSystem {
+func NewFileSystemBlobProvider(config *Config) *FileSystem {
+	baseDir := config.BaseDir
 	_ = os.Mkdir(baseDir, 0644)
 	return &FileSystem{
 		baseDir: baseDir,

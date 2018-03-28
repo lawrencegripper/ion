@@ -12,6 +12,14 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+//Config used to setup a MongoDB metastore provider
+type Config struct {
+	Name       string `description:"MongoDB database name"`
+	Password   string `description:"MongoDB database password"`
+	Collection string `description:"MongoDB database collection to use"`
+	Port       int    `description:"MongoDB server port"`
+}
+
 //MongoDB handles the connection to an external Mongo database
 type MongoDB struct {
 	Session    *mongo.Session
@@ -19,13 +27,13 @@ type MongoDB struct {
 }
 
 //NewMongoDB creates a new MongoDB object
-func NewMongoDB(name, password, collection string, port int) (*MongoDB, error) {
+func NewMongoDB(config *Config) (*MongoDB, error) {
 	dialInfo := &mongo.DialInfo{
-		Addrs:    []string{fmt.Sprintf("%s.documents.azure.com:%d", name, port)},
+		Addrs:    []string{fmt.Sprintf("%s.documents.azure.com:%d", config.Name, config.Port)},
 		Timeout:  60 * time.Second,
-		Database: name,
-		Username: name,
-		Password: password,
+		Database: config.Name,
+		Username: config.Name,
+		Password: config.Password,
 		DialServer: func(addr *mongo.ServerAddr) (net.Conn, error) {
 			return tls.Dial("tcp", addr.String(), &tls.Config{})
 		},
@@ -38,7 +46,7 @@ func NewMongoDB(name, password, collection string, port int) (*MongoDB, error) {
 
 	session.SetSafe(&mongo.Safe{})
 
-	col := session.DB(name).C(collection)
+	col := session.DB(config.Name).C(config.Collection)
 
 	MongoDB := &MongoDB{
 		Session:    session,

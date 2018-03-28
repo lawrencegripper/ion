@@ -15,6 +15,14 @@ import (
 	"k8s.io/kubernetes/third_party/forked/golang/template"
 )
 
+//Config to setup a ServiceBus event publisher
+type Config struct {
+	Namespace             string `description:"ServiceBus namespace"`
+	Topic                 string `description:"ServiceBus topic name"`
+	Key                   string `description:"ServiceBus access key"`
+	AuthorizationRuleName string `description:"ServiceBus authorization rule name"`
+}
+
 //ServiceBus handles the connection to an external Service Bus
 type ServiceBus struct {
 	URL string
@@ -23,11 +31,11 @@ type ServiceBus struct {
 }
 
 //NewServiceBus creates a new Service Bus object
-func NewServiceBus(namespace, topic, key, skn string) (*ServiceBus, error) {
+func NewServiceBus(config *Config) (*ServiceBus, error) {
 	sb := &ServiceBus{
-		URL: fmt.Sprintf("https://%s.servicebus.windows.net/%s/messages", namespace, topic),
-		SAS: key,
-		SKN: skn,
+		URL: fmt.Sprintf("https://%s.servicebus.windows.net/%s/messages", config.Namespace, config.Topic),
+		SAS: config.Key,
+		SKN: config.AuthorizationRuleName,
 	}
 	//TODO: validate connection for fast failure
 	return sb, nil

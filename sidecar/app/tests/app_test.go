@@ -77,7 +77,9 @@ func TestMain(m *testing.M) {
 			},
 		},
 	}
-	metaProvider := inmemory.NewInMemoryMetaProvider(initialMeta)
+	metaProvider := inmemory.NewInMemoryMetaProvider(&inmemory.Config{
+		Initial: initialMeta,
+	})
 
 	os.MkdirAll(tempDir, 0644)
 	parentDir := path.Join(tempDir, parentEventID)
@@ -88,7 +90,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	blobProvider := fs.NewFileSystemBlobProvider(tempDir)
+	blobProvider := fs.NewFileSystemBlobProvider(&fs.Config{
+		BaseDir: "temp",
+	})
 	publisher := mock.NewMockEventPublisher()
 
 	logger := logrus.New()

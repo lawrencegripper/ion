@@ -1,22 +1,24 @@
 package types
 
-//ContentType represents the 'Content-Type' HTTP header key
-const ContentType string = "Content-Type"
+const (
+	//ContentType represents the 'Content-Type' HTTP header key
+	ContentType string = "Content-Type"
 
-//ContentTypeApplicationJSON represents the 'Content-Type' HTTP header value "application/json"
-const ContentTypeApplicationJSON string = "application/json"
+	//ContentTypeApplicationJSON represents the 'Content-Type' HTTP header value "application/json"
+	ContentTypeApplicationJSON string = "application/json"
 
-//MetaProviderMongoDB is a lowercase name for the MongoDB metadata provider
-const MetaProviderMongoDB string = "mongodb"
+	//MetaProviderMongoDB is a lowercase name for the MongoDB metadata provider
+	MetaProviderMongoDB string = "mongodb"
 
-//MetaProviderInMemory is a lowercase name for the in-memory metadata provider
-const MetaProviderInMemory string = "inmemory"
+	//MetaProviderInMemory is a lowercase name for the in-memory metadata provider
+	MetaProviderInMemory string = "inmemory"
 
-//BlobProviderAzureStorage is a lowercase name for the azure blob storage blob provider
-const BlobProviderAzureStorage string = "azureblob"
+	//BlobProviderAzureStorage is a lowercase name for the azure blob storage blob provider
+	BlobProviderAzureStorage string = "azureblob"
 
-//BlobProviderFileSystem is a lowercase name for the file system blob provider
-const BlobProviderFileSystem string = "filesystem"
+	//BlobProviderFileSystem is a lowercase name for the file system blob provider
+	BlobProviderFileSystem string = "filesystem"
 
-//EventProviderServiceBus is a lowercase name for the file system blob provider
-const EventProviderServiceBus string = "servicebus"
+	//EventProviderServiceBus is a lowercase name for the file system blob provider
+	EventProviderServiceBus string = "servicebus"
+)

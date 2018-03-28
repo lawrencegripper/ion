@@ -8,9 +8,17 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/vulcand/oxy/forward"
 )
 
 //TODO: Cache auth token for reuse
+
+//Config to setup a BlobStorage blob provider
+type Config struct {
+	BlobAccountName string `description:"Azure Blob Storage account name"`
+	BlobAccountKey  string `description:"Azure Blob Storage account key"`
+	UseProxy        bool   `description:"Enable proxy"`
+}
 
 //BlobStorage is responsible for handling the connections to Azure Blob Storage
 // nolint: golint
@@ -20,8 +28,8 @@ type BlobStorage struct {
 }
 
 //NewBlobStorage creates a new Azure Blob Storage object
-func NewBlobStorage(accountName, accountKey string, proxy types.Proxy) (*BlobStorage, error) {
-	blobClient, err := storage.NewBasicClient(accountName, accountKey)
+func NewBlobStorage(config *Config) (*BlobStorage, error) {
+	blobClient, err := storage.NewBasicClient(config.BlobAccountName, config.BlobAccountKey)
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage blobClient: %+v", err)
 	}
@@ -29,7 +37,10 @@ func NewBlobStorage(accountName, accountKey string, proxy types.Proxy) (*BlobSto
 	asb := &BlobStorage{
 		blobClient: blob,
 	}
-	if proxy != nil {
+	if config.UseProxy {
+		proxy, _ := forward.New(
+			forward.Stream(true),
+		)
 		asb.proxy = NewAzureBlobProxy(proxy, asb)
 	}
 	return asb, nil

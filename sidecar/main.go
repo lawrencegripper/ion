@@ -6,8 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lawrencegripper/mlops/sidecar/meta/inmemory"
-
 	"github.com/containous/flaeg"
 	"github.com/lawrencegripper/mlops/sidecar/app"
 	"github.com/lawrencegripper/mlops/sidecar/blob/azurestorage"
@@ -16,18 +14,11 @@ import (
 	"github.com/lawrencegripper/mlops/sidecar/meta/mongodb"
 	"github.com/lawrencegripper/mlops/sidecar/types"
 	log "github.com/sirupsen/logrus"
-	"github.com/vulcand/oxy/forward"
 )
 
-const hidden = "**********"
-const defaultPort = 8080
-
-//TODO: Currently this must respect the switch statements, when config is
-//updated we can have a standard interface and configuration for providers
-//which will release this coupling
-const defaultBlobProvider = types.BlobProviderAzureStorage
-const defaultMetaProvider = types.MetaProviderMongoDB
-const defaultEventProvider = types.EventProviderServiceBus
+const (
+	defaultPort = 8080
+)
 
 func main() {
 
@@ -40,23 +31,11 @@ func main() {
 		DefaultPointersConfig: config,
 		Run: func() error {
 			addDefaults(config)
-			fmt.Println("Running sidecar")
-			fmt.Println("---------------")
-			fmt.Println(prettyPrintStruct(cleanConfig(*config)))
-			if config.SharedSecret == "" ||
-				config.BlobStorageAccessKey == "" ||
-				config.BlobStorageAccountName == "" ||
-				config.DBName == "" ||
-				config.DBPassword == "" ||
-				config.DBCollection == "" ||
-				config.DBPort == 0 ||
-				config.PublisherName == "" ||
-				config.PublisherTopic == "" ||
-				config.PublisherAccessKey == "" ||
-				config.PublisherAccessRuleName == "" ||
-				config.EventID == "" ||
-				config.ParentEventID == "" ||
-				config.CorrelationID == "" {
+			fmt.Println("Running sidecar...")
+			if config.PrintConfig {
+				fmt.Println(prettyPrintStruct(*config))
+			}
+			if config.SharedSecret == "" || config.EventID == "" || config.ParentEventID == "" || config.CorrelationID == "" {
 				return fmt.Errorf("Missing configuration. Use '--printconfig' to show current config on start")
 			}
 			runApp(config)
@@ -73,7 +52,6 @@ func main() {
 
 func runApp(config *app.Configuration) {
 
-	//TODO: Sort configuration out - should be specific to providers
 	metaProvider := getMetaProvider(config)
 	blobProvider := getBlobProvider(config)
 	eventProvider := getEventProvider(config)
@@ -124,90 +102,73 @@ func prettyPrintStruct(item interface{}) string {
 	return string(b)
 }
 
-func cleanConfig(c app.Configuration) app.Configuration {
-	c.SharedSecret = hidden
-	c.BlobStorageAccessKey = hidden
-	c.DBPassword = hidden
-	c.PublisherAccessKey = hidden
-	return c
-}
-
 func addDefaults(c *app.Configuration) {
 	if c.ServerPort == 0 {
 		c.ServerPort = defaultPort
 	}
-	if c.MetaProvider == "" {
-		c.MetaProvider = defaultMetaProvider
-	}
-	if c.BlobProvider == "" {
-		c.BlobProvider = defaultBlobProvider
-	}
-	if c.EventProvider == "" {
-		c.EventProvider = defaultEventProvider
-	}
 }
 
 func getMetaProvider(config *app.Configuration) types.MetaProvider {
-	switch strings.ToLower(config.MetaProvider) {
-	case types.MetaProviderMongoDB:
-		mongoDB, err := mongodb.NewMongoDB(config.DBName, config.DBPassword, config.DBCollection, config.DBPort)
+	metaProviders := make([]types.MetaProvider, 0)
+	if config.MongoDBMetaProvider != nil {
+		c := config.MongoDBMetaProvider
+		mongoDB, err := mongodb.NewMongoDB(c)
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish metadata store with provider '%s', error: %+v", types.MetaProviderMongoDB, err))
 		}
-		return mongoDB
-	case types.MetaProviderInMemory:
-		inmemoryDB := inmemory.NewInMemoryMetaProvider(nil)
-		return inmemoryDB
-	default:
-		mongoDB, err := mongodb.NewMongoDB(config.DBName, config.DBPassword, config.DBCollection, config.DBPort)
-		if err != nil {
-			panic(fmt.Errorf("Failed to connect to mongodb with error: %+v", err))
-		}
-		return mongoDB
+		metaProviders = append(metaProviders, mongoDB)
 	}
+	// Do this rather than return a subset (first) of the providers to encourage quick failure
+	if len(metaProviders) > 1 {
+		panic("Only 1 metadata provider can be supplied")
+	}
+	if len(metaProviders) == 0 {
+		panic("No metadata provider supplied, please add one.")
+	}
+	return metaProviders[0]
 }
 
 func getBlobProvider(config *app.Configuration) types.BlobProvider {
-	switch strings.ToLower(config.BlobProvider) {
-	case types.BlobProviderAzureStorage:
-		//TODO: Proxy should be driven by config
-		proxy, _ := forward.New(
-			forward.Stream(true),
-		)
-		azureBlob, err := azurestorage.NewBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey, proxy)
+	blobProviders := make([]types.BlobProvider, 0)
+	if config.AzureBlobProvider != nil {
+		c := config.AzureBlobProvider
+		azureBlob, err := azurestorage.NewBlobStorage(c)
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
 		}
-		return azureBlob
-	case types.BlobProviderFileSystem:
-		//TODO: baseDir driven by provider specific config
-		filesystemBlob := filesystem.NewFileSystemBlobProvider("blobs")
-		return filesystemBlob
-	default:
-		proxy, _ := forward.New(
-			forward.Stream(true),
-		)
-		azureBlob, err := azurestorage.NewBlobStorage(config.BlobStorageAccountName, config.BlobStorageAccessKey, proxy)
-		if err != nil {
-			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
-		}
-		return azureBlob
+		blobProviders = append(blobProviders, azureBlob)
 	}
+	if config.FileSystemBlobProvider != nil {
+		c := config.FileSystemBlobProvider
+		filesystemBlob := filesystem.NewFileSystemBlobProvider(c)
+		blobProviders = append(blobProviders, filesystemBlob)
+	}
+	// Do this rather than return a subset (first) of the providers to encourage quick failure
+	if len(blobProviders) > 1 {
+		panic("Only 1 metadata provider can be supplied")
+	}
+	if len(blobProviders) == 0 {
+		panic("No metadata provider supplied, please add one.")
+	}
+	return blobProviders[0]
 }
 
 func getEventProvider(config *app.Configuration) types.EventPublisher {
-	switch strings.ToLower(config.EventProvider) {
-	case types.EventProviderServiceBus:
-		serviceBus, err := servicebus.NewServiceBus(config.PublisherName, config.PublisherTopic, config.PublisherAccessKey, config.PublisherAccessRuleName)
+	eventProviders := make([]types.EventPublisher, 0)
+	if config.ServiceBusEventProvider != nil {
+		c := config.ServiceBusEventProvider
+		serviceBus, err := servicebus.NewServiceBus(c)
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish event publisher with provider '%s', error: %+v", types.EventProviderServiceBus, err))
 		}
-		return serviceBus
-	default:
-		serviceBus, err := servicebus.NewServiceBus(config.PublisherName, config.PublisherTopic, config.PublisherAccessKey, config.PublisherAccessRuleName)
-		if err != nil {
-			panic(fmt.Errorf("Failed to establish event publisher with provider '%s', error: %+v", types.EventProviderServiceBus, err))
-		}
-		return serviceBus
+		eventProviders = append(eventProviders, serviceBus)
 	}
+	// Do this rather than return a subset (first) of the providers to encourage quick failure
+	if len(eventProviders) > 1 {
+		panic("Only 1 metadata provider can be supplied")
+	}
+	if len(eventProviders) == 0 {
+		panic("No metadata provider supplied, please add one.")
+	}
+	return eventProviders[0]
 }
