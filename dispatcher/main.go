@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -48,9 +49,10 @@ func main() {
 			if config.Job == nil {
 				panic("Job config can't be nil. Use '-h' to see options")
 			}
-			if config.Storage == nil {
-				panic("Storage config can't be nil. Use '-h' to see options")
+			if config.Sidecar == nil {
+				panic("Sidecar config can't be nil. Use '-h' to see options")
 			}
+			//Todo: validate sidecar config
 
 			ctx := context.Background()
 
@@ -60,7 +62,12 @@ func main() {
 			if err != nil {
 				log.WithError(err).Panic("Couldn't create kubernetes provider")
 			}
-			go func() {
+
+			var wg sync.WaitGroup
+
+			wg.Add(2)
+			go func(wg *sync.WaitGroup) {
+				defer wg.Done()
 				for {
 					message, err := listener.AmqpReceiver.Receive(ctx)
 					if err != nil {
@@ -78,18 +85,20 @@ func main() {
 						log.WithError(err).Error("Couldn't dispatch message to kubernetes provider")
 					}
 				}
-			}()
+			}(&wg)
 
-			go func() {
+			go func(wg *sync.WaitGroup) {
+				defer wg.Done()
 				for {
 					err := provider.Reconcile()
 					if err != nil {
 						// Todo: Should this panic here? Should we tolerate a few failures (k8s upgade causing masters not to be vailable for example?)
-						log.WithError(err).Panic("Failed to reconsile ....")
+						log.WithError(err).Panic("Failed to reconcile ....")
 					}
 					time.Sleep(time.Second * 15)
 				}
-			}()
+			}(&wg)
+			wg.Wait()
 
 			return nil
 		},

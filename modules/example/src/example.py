@@ -122,6 +122,23 @@ def print_env():
     print("...............")
     print()
 
+def check_sidecar(errors):
+    headers = {"secret": shared_secret}
+    count = 0
+    retryCount = 5
+    retryDelay = 5
+    for i in range(0, retryCount):
+        try:
+            res = requests.get(parent_meta_url, headers=headers)
+            return
+        except Exception:
+            count += 1
+            print("Sidecar connect retry count: {}".format(count))
+            if count < retryCount:
+                time.sleep(retryDelay)
+    errors.append("failed to connect to sidecar, is it running!?")
+    return
+
 # Setup
 # ---
 # Please ensure the sidecar is running and that it has been configured properly.
@@ -133,8 +150,18 @@ def print_env():
 # SHARED_SECRET=secret SIDECAR_PORT=8080 python3 example.py
 #
 
-shared_secret = os.environ["SHARED_SECRET"]
-port = os.environ["SIDECAR_PORT"]
+shared_secret = ""
+port = ""
+errors = []
+if "SHARED_SECRET" in os.environ:
+    shared_secret = os.environ["SHARED_SECRET"]
+else:
+    errors.append("SHARED_SECRET environment variable not set!")
+
+if "SIDECAR_PORT" in os.environ:
+    port = os.environ["SIDECAR_PORT"]
+else:
+    errors.append("SIDECAR_PORT environment variable not set!")
 
 # Global vars
 sidecar_endpoint = "http://localhost:" + port
@@ -156,6 +183,15 @@ self_meta_url = sidecar_endpoint + "/self/meta"
 # events to trigger downstream jobs. We can use the events endpoint
 # for this.
 events_url = sidecar_endpoint + "/events"
+
+# Test whether the sidecar is ready
+check_sidecar(errors)
+
+# Check error conditions
+for err in errors:
+    print("Error: {}".format(err))
+if len(errors) > 0:
+    sys.exit()
 
 # Print the current environment
 print_env()

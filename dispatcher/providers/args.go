@@ -1,6 +1,8 @@
 package providers
 
 import (
+	"strconv"
+
 	"github.com/azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
 	"github.com/lawrencegripper/mlops/dispatcher/messaging"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
@@ -9,16 +11,23 @@ import (
 // GetSharedSidecarArgs gets the shared arguments used by the sidecar container
 func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) []string {
 	return []string{
-		"--blobstorageaccesskey=" + c.Storage.BlobStorageAccessKey,
-		"--blobstorageaccountname=" + c.Storage.BlobStorageName,
-		"--dbname=" + c.Storage.MongoDbHostName,
-		"--dbpassword=" + c.Storage.MongoDbPassword,
-		"--dbcollection=" + c.Storage.MongoDbCollection,
-		"--dbport=" + c.Storage.MongoDbPort,
-		"--publishername=" + c.ModuleName,
-		"--publishertopic=" + c.EventsPublished,
-		"--publisheraccesskey=" + *sbKeys.PrimaryKey,
-		"--publisheraccessrulename=" + *sbKeys.KeyName,
+		"--azureblobprovider=true",
+		"--azureblobprovider.blobaccountname=" + c.Sidecar.AzureBlobProvider.BlobAccountName,
+		"--azureblobprovider.blobaccountkey=" + c.Sidecar.AzureBlobProvider.BlobAccountKey,
+		"--azureblobprovider.useproxy=" + strconv.FormatBool(c.Sidecar.AzureBlobProvider.UseProxy),
+		"--mongodbmetaprovider=true",
+		"--mongodbmetaprovider.name=" + c.Sidecar.MongoDBMetaProvider.Name,
+		"--mongodbmetaprovider.password=" + c.Sidecar.MongoDBMetaProvider.Password,
+		"--mongodbmetaprovider.collection=" + c.Sidecar.MongoDBMetaProvider.Collection,
+		"--mongodbmetaprovider.port=" + strconv.Itoa(c.Sidecar.MongoDBMetaProvider.Port),
+		"--servicebuseventprovider=true",
+		"--servicebuseventprovider.Namespace=" + c.ModuleName,
+		"--servicebuseventprovider.Topic=" + c.EventsPublished,
+		"--servicebuseventprovider.key=" + *sbKeys.PrimaryKey,
+		"--servicebuseventprovider.authorizationrulename=" + *sbKeys.KeyName,
+		"--serverport=" + strconv.Itoa(c.Sidecar.ServerPort),
+		"--loglevel=" + c.LogLevel,
+		"--printconfig=" + strconv.FormatBool(c.Sidecar.PrintConfig),
 	}
 }
 

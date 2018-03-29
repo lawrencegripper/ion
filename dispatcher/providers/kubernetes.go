@@ -39,6 +39,7 @@ type Kubernetes struct {
 	dispatcherName   string
 	Namespace        string
 	sidecarArgs      []string
+	sidecarEnvVars   map[string]interface{}
 }
 
 // NewKubernetesProvider Creates an instance and does basic setup
@@ -52,6 +53,10 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 
 	k := Kubernetes{}
 	k.sidecarArgs = sharedSidecarArgs
+	k.sidecarEnvVars = map[string]interface{}{
+		"SIDECAR_PORT": config.Sidecar.ServerPort,
+	}
+
 	client, err := getClientSet()
 	if err != nil {
 		return nil, err
@@ -173,6 +178,20 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		deliverycountlabel:  strconv.Itoa(message.DeliveryCount()),
 	}
 
+	workerEnvVars := []apiv1.EnvVar{
+		apiv1.EnvVar{
+			Name:  "SHARED_SECRET",
+			Value: message.ID(), //Todo: source from common place with args
+		},
+	}
+	for k, v := range k.sidecarEnvVars {
+		envVar := apiv1.EnvVar{
+			Name:  k,
+			Value: fmt.Sprintf("%v", v),
+		}
+		workerEnvVars = append(workerEnvVars, envVar)
+	}
+
 	_, err = k.createJob(&batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   getJobName(message),
@@ -193,8 +212,10 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							Args:  fullSidecarArgs,
 						},
 						{
-							Name:  "worker",
-							Image: k.jobConfig.WorkerImage,
+							Name:            "worker",
+							Image:           k.jobConfig.WorkerImage,
+							Env:             workerEnvVars,
+							ImagePullPolicy: apiv1.PullAlways,
 						},
 					},
 					RestartPolicy: apiv1.RestartPolicyNever,
