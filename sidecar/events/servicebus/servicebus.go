@@ -26,15 +26,21 @@ type Config struct {
 //ServiceBus handles the connection to an external Service Bus
 type ServiceBus struct {
 	URL string
-	SAS string
+	Key string
 	SKN string
+}
+
+type brokerProperties struct {
+	correlationID string
+	messageID     string
+	TimeToLive    time.Duration
 }
 
 //NewServiceBus creates a new Service Bus object
 func NewServiceBus(config *Config) (*ServiceBus, error) {
 	sb := &ServiceBus{
 		URL: fmt.Sprintf("https://%s.servicebus.windows.net/%s/messages", config.Namespace, config.Topic),
-		SAS: config.Key,
+		Key: config.Key,
 		SKN: config.AuthorizationRuleName,
 	}
 	//TODO: validate connection for fast failure
@@ -49,7 +55,14 @@ func (s *ServiceBus) Publish(e types.Event) error {
 	}
 	req, err := http.NewRequest(http.MethodPost, s.URL, bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", generateSAS(s.URL, s.SKN, s.SAS))
+	req.Header.Set("Authorization", generateSAS(s.URL, s.SKN, s.Key))
+
+	var props brokerProperties
+	p, err := json.Marshal(&props)
+	if err != nil {
+		return fmt.Errorf("error publishing event %+v", err)
+	}
+	req.Header.Set("BrokerProperties", string(p))
 
 	//TODO: optimize
 	client := &http.Client{}
@@ -57,6 +70,8 @@ func (s *ServiceBus) Publish(e types.Event) error {
 	if err != nil {
 		return fmt.Errorf("error publishing event %+v", err)
 	}
+
+	fmt.Printf("%+v", res)
 
 	switch res.StatusCode {
 	case http.StatusCreated:

@@ -21,4 +21,7 @@ const (
 
 	//EventProviderServiceBus is a lowercase name for the file system blob provider
 	EventProviderServiceBus string = "servicebus"
+
+	//EventType is the key in the metadata to extract the event type using
+	EventType string = "eventType"
 )

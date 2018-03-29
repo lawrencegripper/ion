@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -287,16 +288,23 @@ func (a *App) Publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
+	eventType := eventData[types.EventType]
+	if eventType == "" {
+		respondWithError(fmt.Errorf("metadata must contain an event type with the key '%s'", types.EventType), http.StatusBadRequest, w)
+		return
+	}
+	delete(eventData, types.EventType)
 	//TODO: validate event before publishing
 	event := types.Event{
-		PreviousStages: nil,
+		PreviousStages: []string{},
+		CorrelationID:  a.correlationID,
 		ParentEventID:  a.eventID,
 		Data:           eventData,
-		Type:           "EVENTTYPE",
+		Type:           eventType,
 	}
 	err = a.Publisher.Publish(event)
 	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
+		respondWithError(err, http.StatusInternalServerError, w) //TODO: Return proper error codes
 		return
 	}
 	w.WriteHeader(http.StatusCreated)

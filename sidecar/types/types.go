@@ -49,12 +49,13 @@ type MetaDoc struct {
 	Metadata      map[string]string `bson:"metadata" json:"metadata"`
 }
 
-//Event is a message for downstream services
+// Event the basic event data format
 type Event struct {
 	ID             string            `json:"id"`
 	Type           string            `json:"type"`
 	PreviousStages []string          `json:"previousStages"`
 	ParentEventID  string            `json:"parentId"`
+	CorrelationID  string            `json:"correlationId"`
 	Data           map[string]string `json:"data"`
 }
 
