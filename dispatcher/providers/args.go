@@ -3,7 +3,7 @@ package providers
 import (
 	"strconv"
 
-	"github.com/azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
+	"github.com/Azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
 	"github.com/lawrencegripper/mlops/dispatcher/messaging"
 	"github.com/lawrencegripper/mlops/dispatcher/types"
 )
