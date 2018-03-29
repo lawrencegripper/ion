@@ -1,45 +1,49 @@
-# Default values for helm.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
 replicaCount: 1
 
-image:
-  repository: nginx
-  tag: stable
-  pullPolicy: IfNotPresent
+azure:
+  clientID: ""
+  clientSecret: ""
+  tenantID: ""
+  subscriptionID: ""
+  resourceGroup: ""
+  blob:
+    accountName: ""
+    accountKey: ""
+    useProxy: false
 
-service:
-  type: ClusterIP
-  port: 80
+deployment:
+  label: ion
+  name: ion-deployment
 
-ingress:
-  enabled: false
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  path: /
-  hosts:
-    - chart-example.local
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+dispatcher:
+  image: dotjson/ion-dispatcher
+  tag: latest
+  name: dispatcher
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #  cpu: 100m
-  #  memory: 128Mi
-  # requests:
-  #  cpu: 100m
-  #  memory: 128Mi
+job:
+  maxRunningTimeMins: 10
+  retryCount: 5
+  subscribesToEvent: ""
 
-nodeSelector: {}
+sidecar:
+  image: dotjson/ion-sidecar
+  port: 8080
+  printConfig: false
 
-tolerations: []
+module:
+  image: dotjson/ion-python-example-module
+  name: pyex
+  eventsPublised: ""
 
-affinity: {}
+mongodb:
+  name: ""
+  collection: ""
+  password: ""
+  port: 27017
+
+servicebus:
+  namespace: ""
+
+logs:
+  level: info
+  sensitive: false
