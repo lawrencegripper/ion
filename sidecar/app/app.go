@@ -82,7 +82,7 @@ func (a *App) setupRoutes() {
 	getParentMeta := http.HandlerFunc(a.GetMetaByID)
 	a.Router.Handle("/parent/meta", log(auth(parent(getParentMeta)))).Methods(http.MethodGet)
 
-	// POST /self/meta
+	// PUT /self/meta
 	// Stores metadata against this modules meta store
 	updateSelfMeta := http.HandlerFunc(a.UpdateMeta)
 	a.Router.Handle("/self/meta", log(auth(updateSelfMeta))).Methods(http.MethodPut)
