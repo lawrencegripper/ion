@@ -137,6 +137,9 @@ func (k *Kubernetes) Reconcile() error {
 					}).Error("failed to reject message")
 					return err
 				}
+
+				//Remove the message from the inflight message store
+				delete(k.inflightJobStore, messageID)
 			}
 
 			// Job succeeded - accept the message so it is removed from the queue
@@ -150,6 +153,9 @@ func (k *Kubernetes) Reconcile() error {
 					}).Error("failed to accept message")
 					return err
 				}
+
+				//Remove the message from the inflight message store
+				delete(k.inflightJobStore, messageID)
 			}
 		}
 	}

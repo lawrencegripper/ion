@@ -1,5 +1,17 @@
 package autorest
 
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/http/cookiejar"
+	"runtime"
+	"time"
+)
+
 // Copyright 2017 Microsoft Corporation
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,17 +26,17 @@ package autorest
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-import (
-	"bytes"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"net/http/cookiejar"
-	"runtime"
-	"time"
-)
+// import (
+// 	"bytes"
+// 	"fmt"
+// 	"io"
+// 	"io/ioutil"
+// 	"log"
+// 	"net/http"
+// 	"net/http/cookiejar"
+// 	"runtime"
+// 	"time"
+// )
 
 const (
 	// DefaultPollingDelay is a reasonable delay between polling requests.

@@ -246,6 +246,10 @@ func TestReconcileJobCompleted(t *testing.T) {
 	if !acceptedMessage {
 		t.Error("Failed to accept message during reconcilation. Expected message to be marked as accepted as job is complete")
 	}
+
+	if len(k.inflightJobStore) != 0 {
+		t.Error("Reconcile should remove jobs from the inmemory store once it has accepted or rejected them")
+	}
 }
 
 func TestReconcileJobFailed(t *testing.T) {
@@ -291,6 +295,10 @@ func TestReconcileJobFailed(t *testing.T) {
 
 	if !rejectedMessage {
 		t.Error("Failed to accept message during reconcilation. Expected message to be marked as accepted as job is complete")
+	}
+
+	if len(k.inflightJobStore) != 0 {
+		t.Error("Reconcile should remove jobs from the inmemory store once it has accepted or rejected them")
 	}
 }
 

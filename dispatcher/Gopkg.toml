@@ -3,7 +3,7 @@
   version = "9.10.0"
 
 [[constraint]]
-  name = "github.com/azure/azure-sdk-for-go"
+  name = "github.com/Azure/azure-sdk-for-go"
   version = "12.5.0-beta"
 
 [[constraint]]
