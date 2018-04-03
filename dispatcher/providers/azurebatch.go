@@ -28,14 +28,12 @@ type AzureBatch struct {
 	ctx                context.Context
 	cancelOps          context.CancelFunc
 
-	jobConfig     *types.JobConfig
-	batchConfig   *types.AzureBatchConfig
-	poolClient    *batch.PoolClient
-	jobClient     *batch.JobClient
-	taskClient    *batch.TaskClient
-	fileClient    *batch.FileClient
-	resourceGroup string
-	region        string
+	jobConfig   *types.JobConfig
+	batchConfig *types.AzureBatchConfig
+	poolClient  *batch.PoolClient
+	jobClient   *batch.JobClient
+	taskClient  *batch.TaskClient
+	fileClient  *batch.FileClient
 
 	// Used to allow mocking of the batch api for testing
 	createTask func(taskDetails batch.TaskAddParameter) (autorest.Response, error)
@@ -50,7 +48,9 @@ func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []stri
 	b.batchConfig = config.AzureBatch
 	b.jobConfig = config.Job
 	b.dispatcherName = config.Hostname
-	b.ctx = context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	b.ctx = ctx
+	b.cancelOps = cancel
 
 	auth := helpers.GetAzureADAuthorizer(config)
 
@@ -273,8 +273,6 @@ type batchPodComponents struct {
 	PodName         string
 	TaskID          string
 }
-
-const batchManagementEndpoint = "https://batch.core.windows.net/"
 
 func fixContentTypeInspector() autorest.PrepareDecorator {
 	return func(p autorest.Preparer) autorest.Preparer {

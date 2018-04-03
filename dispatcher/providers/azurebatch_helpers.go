@@ -3,7 +3,6 @@ package providers
 // NewServicePrincipalTokenFromCredentials creates a new ServicePrincipalToken using values of the
 import (
 	"bytes"
-	"crypto/md5"
 	"fmt"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	"html/template"
@@ -24,7 +23,7 @@ func createOrGetPool(p *AzureBatch, auth autorest.Authorizer) {
 	poolClient.Authorizer = auth
 	poolClient.RetryAttempts = 0
 	poolClient.RequestInspector = fixContentTypeInspector()
-
+	p.poolClient = &poolClient
 	pool, err := poolClient.Get(p.ctx, p.batchConfig.PoolID, "*", "", nil, nil, nil, nil, "", "", nil, nil)
 
 	// If we observe an error which isn't related to the pool not existing panic.
@@ -140,25 +139,6 @@ func createOrGetJob(p *AzureBatch, auth autorest.Authorizer) {
 
 func getBatchBaseURL(config *types.AzureBatchConfig) string {
 	return fmt.Sprintf("https://%s.%s.batch.azure.com", config.BatchAccountName, config.BatchAccountLocation)
-}
-
-func getTaskIDForPod(pod *v1.Pod) string {
-	ID := []byte(fmt.Sprintf("%s-%s", pod.Namespace, pod.Name))
-	return string(fmt.Sprintf("%x", md5.Sum(ID)))
-}
-
-func convertTaskStatusToPodPhase(t batch.TaskState) (podPhase v1.PodPhase) {
-	switch t {
-	case batch.TaskStatePreparing:
-		podPhase = v1.PodPending
-	case batch.TaskStateActive:
-		podPhase = v1.PodPending
-	case batch.TaskStateRunning:
-		podPhase = v1.PodRunning
-	case batch.TaskStateCompleted:
-		podPhase = v1.PodSucceeded
-	}
-	return
 }
 
 func getLaunchCommand(container v1.Container) (cmd string) {
