@@ -29,6 +29,9 @@ const (
 	namespacePrefix     = "mlop-"
 )
 
+//Check providers match interface at compile time
+var _ Provider = &Kubernetes{}
+
 // Kubernetes schedules jobs onto k8s from the queue and monitors their progress
 type Kubernetes struct {
 	createJob        func(*batchv1.Job) (*batchv1.Job, error)
@@ -78,6 +81,11 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 		return k.client.BatchV1().Jobs(k.Namespace).List(metav1.ListOptions{})
 	}
 	return &k, nil
+}
+
+// InProgressCount provides a count of the currently running jobs
+func (k *Kubernetes) InProgressCount() int {
+	return len(k.inflightJobStore)
 }
 
 // Reconcile will review the state of running jobs and accept or reject messages accordingly
