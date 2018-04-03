@@ -3,6 +3,8 @@ package providers
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"github.com/Azure/azure-sdk-for-go/services/batch/2017-09-01.6.0/batch"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
@@ -12,7 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 	apiv1 "k8s.io/api/core/v1"
-	"net/http"
 )
 
 //Check providers match interface at compile time
@@ -38,7 +39,7 @@ type AzureBatch struct {
 
 	// Used to allow mocking of the batch api for testing
 	createTask func(taskDetails batch.TaskAddParameter) (autorest.Response, error)
-	listTasks  func() ([]batch.CloudTask, error)
+	listTasks  func() (*[]batch.CloudTask, error)
 }
 
 // NewAzureBatchProvider creates a provider for azure batch.
@@ -70,19 +71,20 @@ func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []stri
 	b.createTask = func(taskDetails batch.TaskAddParameter) (autorest.Response, error) {
 		return b.taskClient.Add(b.ctx, b.dispatcherName, taskDetails, nil, nil, nil, nil)
 	}
-	b.listTasks = func() ([]batch.CloudTask, error) {
+	b.listTasks = func() (*[]batch.CloudTask, error) {
 		res, err := b.taskClient.List(b.ctx, b.dispatcherName, "", "", "", nil, nil, nil, nil, nil)
 		if err != nil {
-			return []batch.CloudTask{}, err
+			return &[]batch.CloudTask{}, err
 		}
 
 		for res.NotDone() {
 			err = res.Next()
 			if err != nil {
-				return []batch.CloudTask{}, err
+				return &[]batch.CloudTask{}, err
 			}
 		}
-		return res.Values(), nil
+		currentTasks := res.Values()
+		return &currentTasks, nil
 	}
 
 	return &b, nil
@@ -136,6 +138,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		},
 	}
 
+	// Todo: Pull this out into a standalone package once stabilized
 	podCommand, err := getPodCommand(batchPodComponents{
 		Containers: containers,
 		PodName:    message.ID(),
@@ -158,8 +161,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 			},
 		},
 	}
-	b.taskClient.Add(b.ctx, b.batchConfig.JobID, task, nil, nil, nil, nil)
-
+	_, err = b.createTask(task)
 	if err != nil {
 		log.WithError(err).Error("failed scheduling azurebatch task")
 		mErr := message.Reject()
@@ -183,8 +185,11 @@ func (b *AzureBatch) Reconcile() error {
 	if err != nil {
 		return err
 	}
+	if tasks == nil {
+		return fmt.Errorf("task list returned nil")
+	}
 
-	for _, t := range tasks {
+	for _, t := range *tasks {
 		messageIDPtr := t.ID
 		if messageIDPtr == nil {
 			log.WithField("task", t).Error("task seen with nil messageid... skipping")
@@ -199,7 +204,7 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		// Job succeeded - accept the message so it is removed from the queue
-		if t.State == batch.TaskStateCompleted && t.ExecutionInfo.ExitCode == to.Int32Ptr(0) {
+		if t.State == batch.TaskStateCompleted && *t.ExecutionInfo.ExitCode == 0 {
 			err := sourceMessage.Accept()
 
 			if err != nil {
@@ -220,7 +225,7 @@ func (b *AzureBatch) Reconcile() error {
 			continue
 		}
 
-		if t.State == batch.TaskStateCompleted && t.ExecutionInfo.ExitCode != to.Int32Ptr(0) {
+		if t.State == batch.TaskStateCompleted && *t.ExecutionInfo.ExitCode != 0 {
 			err := sourceMessage.Reject()
 
 			if err != nil {

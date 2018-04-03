@@ -28,7 +28,7 @@ docker volume create {{$podName}}_{{.Name}}
 {{end}}
 
 {{/* Run the containers in the Pod. Attaching to shared namespace */}}
-{{range $index, $container := .Containers}}
+{{range $index, $container := .Containers}} 
 docker run -d --network container:$networkContainerID --ipc container:$networkContainerID \
     {{- range $index, $envs := $container.Env}}
 -e "{{$envs.Name}}:{{$envs.Value}}" \

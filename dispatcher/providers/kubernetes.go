@@ -126,9 +126,6 @@ func (k *Kubernetes) Reconcile() error {
 				log.WithField("job", j).Info("job seen which dispatcher stared but doesn't have source message... likely following a dispatcher restart")
 				continue
 			}
-
-			log.WithField("job", j).Error("serious reconcile logic error. Malformed job of processing bug. ")
-			continue
 		}
 
 		// Todo: Handle jobs which have overrun their Max execution time

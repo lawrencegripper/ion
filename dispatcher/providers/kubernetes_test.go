@@ -9,13 +9,7 @@ import (
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
-
 	batchv1 "k8s.io/api/batch/v1"
-)
-
-const (
-	mockDispatcherName = "mockdispatchername"
-	mockMessageID      = "examplemessageID"
 )
 
 func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error), list func() (*batchv1.JobList, error)) (*Kubernetes, error) {
