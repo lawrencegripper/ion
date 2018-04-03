@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
 //Config to setup a FileSystem blob provider

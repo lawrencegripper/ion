@@ -11,10 +11,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/containous/flaeg"
-	"github.com/lawrencegripper/mlops/dispatcher/messaging"
-	"github.com/lawrencegripper/mlops/dispatcher/providers"
-	"github.com/lawrencegripper/mlops/dispatcher/servicebus"
-	"github.com/lawrencegripper/mlops/dispatcher/types"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/dispatcher/providers"
+	"github.com/lawrencegripper/ion/dispatcher/servicebus"
+	"github.com/lawrencegripper/ion/dispatcher/types"
 )
 
 func main() {

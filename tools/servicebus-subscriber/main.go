@@ -14,7 +14,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/lawrencegripper/mlops/dispatcher/types"
+	"github.com/lawrencegripper/ion/dispatcher/types"
 	"pack.ag/amqp"
 )
 

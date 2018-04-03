@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
 //AzureBlobProxy represents an Azure blob proxy object

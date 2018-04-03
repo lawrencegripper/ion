@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
 

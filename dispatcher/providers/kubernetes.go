@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lawrencegripper/mlops/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
 
 	"github.com/Azure/go-autorest/autorest/to"
 
-	"github.com/lawrencegripper/mlops/dispatcher/types"
+	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"

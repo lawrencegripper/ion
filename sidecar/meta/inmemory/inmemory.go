@@ -3,7 +3,7 @@ package inmemory
 import (
 	"fmt"
 
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
 //Config used to setup a InMemoryMetaProvider metastore provider

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lawrencegripper/mlops/dispatcher/messaging"
-	"github.com/lawrencegripper/mlops/dispatcher/types"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
 
 	batchv1 "k8s.io/api/batch/v1"

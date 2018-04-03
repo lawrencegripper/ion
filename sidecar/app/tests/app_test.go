@@ -13,11 +13,11 @@ import (
 	"reflect"
 	"testing"
 
-	a "github.com/lawrencegripper/mlops/sidecar/app"
-	fs "github.com/lawrencegripper/mlops/sidecar/blob/filesystem"
-	"github.com/lawrencegripper/mlops/sidecar/events/mock"
-	"github.com/lawrencegripper/mlops/sidecar/meta/inmemory"
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	a "github.com/lawrencegripper/ion/sidecar/app"
+	fs "github.com/lawrencegripper/ion/sidecar/blob/filesystem"
+	"github.com/lawrencegripper/ion/sidecar/events/mock"
+	"github.com/lawrencegripper/ion/sidecar/meta/inmemory"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	"github.com/sirupsen/logrus"
 )
 

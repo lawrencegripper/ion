@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	"github.com/vulcand/oxy/forward"
 )
 
