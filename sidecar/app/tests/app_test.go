@@ -270,6 +270,9 @@ func TestUpdateMetaDoc(t *testing.T) {
 }
 
 func TestGetBlob(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
 	testCases := []struct {
 		route   string
 		path    string
@@ -304,6 +307,9 @@ func TestGetBlob(t *testing.T) {
 }
 
 func TestCreateBlob(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
 	testCases := []struct {
 		path    string
 		code    int
@@ -338,6 +344,9 @@ func TestCreateBlob(t *testing.T) {
 }
 
 func TestListBlob(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
 	testCases := []struct {
 		code  int
 		paths []string
@@ -377,6 +386,9 @@ func TestListBlob(t *testing.T) {
 }
 
 func TestDeleteBlob(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
 	testCases := []struct {
 		code int
 		path string
