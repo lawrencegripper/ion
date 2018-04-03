@@ -4,7 +4,7 @@ FROM golang:1.10.0 as builder
 ADD https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 /usr/bin/dep
 RUN chmod +x /usr/bin/dep
 
-WORKDIR /go/src/github.com/lawrencegripper/mlops/dispatcher/
+WORKDIR /go/src/github.com/lawrencegripper/ion/dispatcher/
 COPY Gopkg.toml Gopkg.lock ./
 RUN dep ensure -v --vendor-only
 
@@ -16,5 +16,5 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /root/
 
-COPY --from=builder /go/src/github.com/lawrencegripper/mlops/dispatcher .
+COPY --from=builder /go/src/github.com/lawrencegripper/ion/dispatcher .
 ENTRYPOINT ["./dispatcher"]
