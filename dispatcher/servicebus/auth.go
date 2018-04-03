@@ -4,7 +4,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/lawrencegripper/mlops/dispatcher/types"
+	"github.com/lawrencegripper/ion/dispatcher/types"
 	"github.com/sirupsen/logrus"
 )
 

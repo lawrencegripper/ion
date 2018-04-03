@@ -1,10 +1,10 @@
 package app
 
 import (
-	"github.com/lawrencegripper/mlops/sidecar/blob/azurestorage"
-	"github.com/lawrencegripper/mlops/sidecar/blob/filesystem"
-	"github.com/lawrencegripper/mlops/sidecar/events/servicebus"
-	"github.com/lawrencegripper/mlops/sidecar/meta/mongodb"
+	"github.com/lawrencegripper/ion/sidecar/blob/azurestorage"
+	"github.com/lawrencegripper/ion/sidecar/blob/filesystem"
+	"github.com/lawrencegripper/ion/sidecar/events/servicebus"
+	"github.com/lawrencegripper/ion/sidecar/meta/mongodb"
 )
 
 //Configuration represents the input configuration schema

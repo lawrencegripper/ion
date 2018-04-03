@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/containous/flaeg"
-	"github.com/lawrencegripper/mlops/sidecar/app"
-	"github.com/lawrencegripper/mlops/sidecar/blob/azurestorage"
-	"github.com/lawrencegripper/mlops/sidecar/blob/filesystem"
-	"github.com/lawrencegripper/mlops/sidecar/events/servicebus"
-	"github.com/lawrencegripper/mlops/sidecar/meta/mongodb"
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/app"
+	"github.com/lawrencegripper/ion/sidecar/blob/azurestorage"
+	"github.com/lawrencegripper/ion/sidecar/blob/filesystem"
+	"github.com/lawrencegripper/ion/sidecar/events/servicebus"
+	"github.com/lawrencegripper/ion/sidecar/meta/mongodb"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
 

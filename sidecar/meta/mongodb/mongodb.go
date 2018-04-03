@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	mongo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )

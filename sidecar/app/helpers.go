@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
 //CompareHash compares a secret string against a hash

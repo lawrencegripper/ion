@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -82,7 +82,7 @@ func (a *App) setupRoutes() {
 	getParentMeta := http.HandlerFunc(a.GetMetaByID)
 	a.Router.Handle("/parent/meta", log(auth(parent(getParentMeta)))).Methods(http.MethodGet)
 
-	// POST /self/meta
+	// PUT /self/meta
 	// Stores metadata against this modules meta store
 	updateSelfMeta := http.HandlerFunc(a.UpdateMeta)
 	a.Router.Handle("/self/meta", log(auth(updateSelfMeta))).Methods(http.MethodPut)

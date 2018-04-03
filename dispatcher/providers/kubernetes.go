@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lawrencegripper/mlops/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
 
 	"github.com/Azure/go-autorest/autorest/to"
 
-	"github.com/lawrencegripper/mlops/dispatcher/types"
+	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
@@ -39,6 +39,7 @@ type Kubernetes struct {
 	dispatcherName   string
 	Namespace        string
 	sidecarArgs      []string
+	sidecarEnvVars   map[string]interface{}
 }
 
 // NewKubernetesProvider Creates an instance and does basic setup
@@ -52,6 +53,10 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 
 	k := Kubernetes{}
 	k.sidecarArgs = sharedSidecarArgs
+	k.sidecarEnvVars = map[string]interface{}{
+		"SIDECAR_PORT": config.Sidecar.ServerPort,
+	}
+
 	client, err := getClientSet()
 	if err != nil {
 		return nil, err
@@ -132,6 +137,9 @@ func (k *Kubernetes) Reconcile() error {
 					}).Error("failed to reject message")
 					return err
 				}
+
+				//Remove the message from the inflight message store
+				delete(k.inflightJobStore, messageID)
 			}
 
 			// Job succeeded - accept the message so it is removed from the queue
@@ -145,6 +153,9 @@ func (k *Kubernetes) Reconcile() error {
 					}).Error("failed to accept message")
 					return err
 				}
+
+				//Remove the message from the inflight message store
+				delete(k.inflightJobStore, messageID)
 			}
 		}
 	}
@@ -173,6 +184,20 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		deliverycountlabel:  strconv.Itoa(message.DeliveryCount()),
 	}
 
+	workerEnvVars := []apiv1.EnvVar{
+		apiv1.EnvVar{
+			Name:  "SHARED_SECRET",
+			Value: message.ID(), //Todo: source from common place with args
+		},
+	}
+	for k, v := range k.sidecarEnvVars {
+		envVar := apiv1.EnvVar{
+			Name:  k,
+			Value: fmt.Sprintf("%v", v),
+		}
+		workerEnvVars = append(workerEnvVars, envVar)
+	}
+
 	_, err = k.createJob(&batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   getJobName(message),
@@ -193,8 +218,10 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							Args:  fullSidecarArgs,
 						},
 						{
-							Name:  "worker",
-							Image: k.jobConfig.WorkerImage,
+							Name:            "worker",
+							Image:           k.jobConfig.WorkerImage,
+							Env:             workerEnvVars,
+							ImagePullPolicy: apiv1.PullAlways,
 						},
 					},
 					RestartPolicy: apiv1.RestartPolicyNever,

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
 //Config to setup a FileSystem blob provider
@@ -22,7 +22,7 @@ type FileSystem struct {
 //NewFileSystemBlobProvider creates a new FileSystem blob provider object
 func NewFileSystemBlobProvider(config *Config) *FileSystem {
 	baseDir := config.BaseDir
-	_ = os.Mkdir(baseDir, 0644)
+	_ = os.Mkdir(baseDir, 0777)
 	return &FileSystem{
 		baseDir: baseDir,
 	}
@@ -46,7 +46,7 @@ func (f *FileSystem) Create(resourcePath string, blob io.ReadCloser) (string, er
 		return "", err
 	}
 	path := path.Join(f.baseDir, resourcePath)
-	err = ioutil.WriteFile(path, bytes, 0644)
+	err = ioutil.WriteFile(path, bytes, 0777)
 	if err != nil {
 		return "", err
 	}
@@ -95,7 +95,7 @@ func createDirIfNotExist(path string) error {
 	_, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = os.Mkdir(path, 0644)
+			err = os.Mkdir(path, 0777)
 			if err != nil {
 				return err
 			}

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lawrencegripper/mlops/dispatcher/helpers"
-	"github.com/lawrencegripper/mlops/dispatcher/types"
+	"github.com/lawrencegripper/ion/dispatcher/helpers"
+	"github.com/lawrencegripper/ion/dispatcher/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

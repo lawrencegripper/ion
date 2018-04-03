@@ -2,6 +2,15 @@
 
 
 [[projects]]
+  name = "github.com/Azure/azure-sdk-for-go"
+  packages = [
+    "services/resources/mgmt/2017-05-10/resources",
+    "services/servicebus/mgmt/2017-04-01/servicebus"
+  ]
+  revision = "21b68149ccf7c16b3f028bb4c7fd0ab458fe308f"
+  version = "v12.5.0-beta"
+
+[[projects]]
   name = "github.com/Azure/go-autorest"
   packages = [
     "autorest",
@@ -13,15 +22,6 @@
   ]
   revision = "fc3b03a2d2d1f43fad3007038bd16f044f870722"
   version = "v9.10.0"
-
-[[projects]]
-  name = "github.com/azure/azure-sdk-for-go"
-  packages = [
-    "services/resources/mgmt/2017-05-10/resources",
-    "services/servicebus/mgmt/2017-04-01/servicebus"
-  ]
-  revision = "21b68149ccf7c16b3f028bb4c7fd0ab458fe308f"
-  version = "v12.5.0-beta"
 
 [[projects]]
   name = "github.com/containous/flaeg"
@@ -375,6 +375,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fd5d145a5b916e7afea33747f00da24461f6acedf7ff264ff067dc2ba4bdae9f"
+  inputs-digest = "2fe474271582a890eccd61e6575579bc9051aa758dd6d2e76f8817547dab0afd"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/lawrencegripper/mlops/sidecar/types"
+import "github.com/lawrencegripper/ion/sidecar/types"
 
 //MockEventPublisher is a mock event publisher implementation
 type MockEventPublisher struct {

@@ -72,11 +72,12 @@ func (m *AmqpMessage) Reject() error {
 
 // EventData deserialize json value to type
 func (m *AmqpMessage) EventData() (Event, error) {
-	a := Event{}
-	err := json.Unmarshal([]byte(fmt.Sprintf("%v", m.OriginalMessage.Value)), &a)
+	var event Event
+	data := m.OriginalMessage.GetData()
+	err := json.Unmarshal(data, &event)
 	if err != nil {
-		log.WithError(err).WithField("value", m.OriginalMessage.Value).Fatal("Unmarshal failed")
-		return a, err
+		log.WithError(err).WithField("value", m.OriginalMessage.Data).Fatal("Unmarshal failed")
+		return event, err
 	}
-	return a, nil
+	return event, nil
 }

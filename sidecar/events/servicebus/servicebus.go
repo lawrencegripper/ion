@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	"k8s.io/kubernetes/third_party/forked/golang/template"
 )
 

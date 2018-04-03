@@ -1,0 +1,49 @@
+replicaCount: 1
+
+azure:
+  clientID: ""
+  clientSecret: ""
+  tenantID: ""
+  subscriptionID: ""
+  resourceGroup: ""
+  blob:
+    accountName: ""
+    accountKey: ""
+    useProxy: false
+
+deployment:
+  label: ion
+  name: ion-deployment
+
+dispatcher:
+  image: dotjson/ion-dispatcher
+  tag: latest
+  name: dispatcher
+
+job:
+  maxRunningTimeMins: 10
+  retryCount: 5
+  subscribesToEvent: ""
+
+sidecar:
+  image: dotjson/ion-sidecar
+  port: 8080
+  printConfig: false
+
+module:
+  image: dotjson/ion-python-example-module
+  name: pyex
+  eventsPublised: ""
+
+mongodb:
+  name: ""
+  collection: ""
+  password: ""
+  port: 27017
+
+servicebus:
+  namespace: ""
+
+logs:
+  level: info
+  sensitive: false

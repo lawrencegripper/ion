@@ -13,11 +13,11 @@ import (
 	"reflect"
 	"testing"
 
-	a "github.com/lawrencegripper/mlops/sidecar/app"
-	fs "github.com/lawrencegripper/mlops/sidecar/blob/filesystem"
-	"github.com/lawrencegripper/mlops/sidecar/events/mock"
-	"github.com/lawrencegripper/mlops/sidecar/meta/inmemory"
-	"github.com/lawrencegripper/mlops/sidecar/types"
+	a "github.com/lawrencegripper/ion/sidecar/app"
+	fs "github.com/lawrencegripper/ion/sidecar/blob/filesystem"
+	"github.com/lawrencegripper/ion/sidecar/events/mock"
+	"github.com/lawrencegripper/ion/sidecar/meta/inmemory"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -81,12 +81,17 @@ func TestMain(m *testing.M) {
 		Initial: initialMeta,
 	})
 
-	os.MkdirAll(tempDir, 0644)
+	err := os.MkdirAll(tempDir, 0777)
+	if err != nil {
+		panic(err)
+	}
 	parentDir := path.Join(tempDir, parentEventID)
-	os.MkdirAll(parentDir, 0644)
+	err = os.MkdirAll(parentDir, 0777)
+	if err != nil {
+		panic(err)
+	}
 	tempFile := path.Join(parentDir, "test.txt")
-	os.MkdirAll(tempDir, 0644)
-	err := ioutil.WriteFile(tempFile, []byte("hello world"), 0644)
+	err = ioutil.WriteFile(tempFile, []byte("hello world"), 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -270,6 +275,9 @@ func TestUpdateMetaDoc(t *testing.T) {
 }
 
 func TestGetBlob(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
 	testCases := []struct {
 		route   string
 		path    string
@@ -304,6 +312,9 @@ func TestGetBlob(t *testing.T) {
 }
 
 func TestCreateBlob(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
 	testCases := []struct {
 		path    string
 		code    int
@@ -338,6 +349,9 @@ func TestCreateBlob(t *testing.T) {
 }
 
 func TestListBlob(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
 	testCases := []struct {
 		code  int
 		paths []string
@@ -377,6 +391,9 @@ func TestListBlob(t *testing.T) {
 }
 
 func TestDeleteBlob(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
 	testCases := []struct {
 		code int
 		path string
