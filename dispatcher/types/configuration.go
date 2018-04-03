@@ -5,19 +5,20 @@ const redacted = "****"
 // Configuration for the application
 type Configuration struct {
 	Hostname            string
-	LogLevel            string         `short:"l" description:"Log level"`
-	ModuleName          string         `description:"Name of the module"`
-	SubscribesToEvent   string         `description:"Event this modules subscribes to"`
-	EventsPublished     string         `description:"Events this modules can publish"`
-	ServiceBusNamespace string         `description:"Namespace to use for ServiceBus"`
-	ResourceGroup       string         `description:"Azure ResourceGroup to use"`
-	SubscriptionID      string         `description:"SubscriptionID for Azure"`
-	ClientID            string         `description:"ClientID of Service Principal for Azure access"`
-	ClientSecret        string         `description:"Client Secrete of Service Principal for Azure access"`
-	TenantID            string         `description:"TentantID for Azure"`
-	LogSensitiveConfig  bool           `description:"Print out sensitive config when logging"`
-	Job                 *JobConfig     `description:"Configure settings for the jobs to be run"`
-	Sidecar             *SidecarConfig `description:"Configure settings for the sidecar"`
+	LogLevel            string            `short:"l" description:"Log level"`
+	ModuleName          string            `description:"Name of the module"`
+	SubscribesToEvent   string            `description:"Event this modules subscribes to"`
+	EventsPublished     string            `description:"Events this modules can publish"`
+	ServiceBusNamespace string            `description:"Namespace to use for ServiceBus"`
+	ResourceGroup       string            `description:"Azure ResourceGroup to use"`
+	SubscriptionID      string            `description:"SubscriptionID for Azure"`
+	ClientID            string            `description:"ClientID of Service Principal for Azure access"`
+	ClientSecret        string            `description:"Client Secrete of Service Principal for Azure access"`
+	TenantID            string            `description:"TentantID for Azure"`
+	LogSensitiveConfig  bool              `description:"Print out sensitive config when logging"`
+	Job                 *JobConfig        `description:"Configure settings for the jobs to be run"`
+	Sidecar             *SidecarConfig    `description:"Configure settings for the sidecar"`
+	AzureBatch          *AzureBatchConfig `description:"Configure AzureBatch"`
 }
 
 // JobConfig configures the information about the jobs which will be run
@@ -49,6 +50,19 @@ type AzureBlobConfig struct {
 	BlobAccountName string `description:"Azure Blob Storage account name"`
 	BlobAccountKey  string `description:"Azure Blob Storage account key"`
 	UseProxy        bool   `description:"Enable proxy"`
+}
+
+// AzureBatchConfig - Basic azure config used to interact with ARM resources.
+type AzureBatchConfig struct {
+	ClientID             string `description:"~~Todo~~"`
+	ClientSecret         string `description:"~~Todo~~"`
+	SubscriptionID       string `description:"~~Todo~~"`
+	TenantID             string `description:"~~Todo~~"`
+	ResourceGroup        string `description:"~~Todo~~"`
+	PoolID               string `description:"~~Todo~~"`
+	JobID                string `description:"~~Todo~~"`
+	BatchAccountName     string `description:"~~Todo~~"`
+	BatchAccountLocation string `description:"~~Todo~~"`
 }
 
 // RedactConfigSecrets strips sensitive data from the config

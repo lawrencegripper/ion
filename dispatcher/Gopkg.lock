@@ -4,11 +4,13 @@
 [[projects]]
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
+    "services/batch/2017-09-01.6.0/batch",
     "services/resources/mgmt/2017-05-10/resources",
-    "services/servicebus/mgmt/2017-04-01/servicebus"
+    "services/servicebus/mgmt/2017-04-01/servicebus",
+    "version"
   ]
-  revision = "21b68149ccf7c16b3f028bb4c7fd0ab458fe308f"
-  version = "v12.5.0-beta"
+  revision = "56a0b1d2af3b65d5f1f7a330e02faaf48b473c5a"
+  version = "v14.6.0"
 
 [[projects]]
   name = "github.com/Azure/go-autorest"
@@ -20,8 +22,8 @@
     "autorest/to",
     "autorest/validation"
   ]
-  revision = "fc3b03a2d2d1f43fad3007038bd16f044f870722"
-  version = "v9.10.0"
+  revision = "cd2702d0255126f3d64a7cef703e1341f22bc0ac"
+  version = "v10.5.0"
 
 [[projects]]
   name = "github.com/containous/flaeg"
@@ -161,6 +163,12 @@
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
+
+[[projects]]
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -375,6 +383,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2fe474271582a890eccd61e6575579bc9051aa758dd6d2e76f8817547dab0afd"
+  inputs-digest = "bbcd49a72db004ef2a8432ac20515ebcc03124b27f519c3e5ae14359239fbe5f"
   solver-name = "gps-cdcl"
   solver-version = 1
