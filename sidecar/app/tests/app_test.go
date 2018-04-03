@@ -81,12 +81,17 @@ func TestMain(m *testing.M) {
 		Initial: initialMeta,
 	})
 
-	os.MkdirAll(tempDir, 0644)
+	err := os.MkdirAll(tempDir, 0777)
+	if err != nil {
+		panic(err)
+	}
 	parentDir := path.Join(tempDir, parentEventID)
-	os.MkdirAll(parentDir, 0644)
+	err = os.MkdirAll(parentDir, 0777)
+	if err != nil {
+		panic(err)
+	}
 	tempFile := path.Join(parentDir, "test.txt")
-	os.MkdirAll(tempDir, 0644)
-	err := ioutil.WriteFile(tempFile, []byte("hello world"), 0644)
+	err = ioutil.WriteFile(tempFile, []byte("hello world"), 0777)
 	if err != nil {
 		panic(err)
 	}
