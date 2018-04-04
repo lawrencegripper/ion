@@ -28,6 +28,8 @@ type MongoDB struct {
 
 //NewMongoDB creates a new MongoDB object
 func NewMongoDB(config *Config) (*MongoDB, error) {
+	//TODO: Add timeout
+
 	dialInfo := &mongo.DialInfo{
 		Addrs:    []string{fmt.Sprintf("%s.documents.azure.com:%d", config.Name, config.Port)},
 		Timeout:  60 * time.Second,
@@ -56,29 +58,29 @@ func NewMongoDB(config *Config) (*MongoDB, error) {
 	return MongoDB, nil
 }
 
-//GetMetaDocByID returns a single document matching a given document ID
-func (db *MongoDB) GetMetaDocByID(docID string) (*types.MetaDoc, error) {
-	doc := types.MetaDoc{}
-	err := db.Collection.Find(bson.M{"id": docID}).One(&doc)
+//GetMetadataDocumentByID returns a single document matching a given document ID
+func (db *MongoDB) GetMetadataDocumentByID(id string) (*types.Metadata, error) {
+	metadata := types.Metadata{}
+	err := db.Collection.Find(bson.M{"id": id}).One(&metadata)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", docID, err)
+		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", id, err)
 	}
-	return &doc, nil
+	return &metadata, nil
 }
 
-//GetMetaDocAll returns all the documents matching a given correlationID
-func (db *MongoDB) GetMetaDocAll(correlationID string) ([]types.MetaDoc, error) {
-	docs := []types.MetaDoc{}
-	err := db.Collection.Find(bson.M{"correlationId": correlationID}).All(&docs)
+//GetMetadataDocumentsByID returns all the documents matching a given correlationID
+func (db *MongoDB) GetMetadataDocumentsByID(id string) ([]types.Metadata, error) {
+	metadata := []types.Metadata{}
+	err := db.Collection.Find(bson.M{"correlationId": id}).All(&metadata)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get documents with correlation ID %s, error: %+v", correlationID, err)
+		return nil, fmt.Errorf("failed to get documents with correlation ID %s, error: %+v", id, err)
 	}
-	return docs, nil
+	return metadata, nil
 }
 
-//AddOrUpdateMetaDoc appends a new entry to an existing document
-func (db *MongoDB) AddOrUpdateMetaDoc(doc *types.MetaDoc) error {
-	b, err := json.Marshal(*doc)
+//UpsertMetadataDocument appends a new entry to an existing document
+func (db *MongoDB) UpsertMetadataDocument(metadata *types.Metadata) error {
+	b, err := json.Marshal(*metadata)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
 	}
@@ -87,9 +89,8 @@ func (db *MongoDB) AddOrUpdateMetaDoc(doc *types.MetaDoc) error {
 	if err != nil {
 		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
 	}
-
-	selector := bson.M{"id": doc.ID}
-	update := bson.M{"$set": doc}
+	selector := bson.M{"id": metadata.ExecutionID}
+	update := bson.M{"$set": metadata}
 	_, err = db.Collection.Upsert(selector, update)
 	if err != nil {
 		return fmt.Errorf("error updating document: %+v", err)

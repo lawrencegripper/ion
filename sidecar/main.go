@@ -9,7 +9,6 @@ import (
 	"github.com/containous/flaeg"
 	"github.com/lawrencegripper/ion/sidecar/app"
 	"github.com/lawrencegripper/ion/sidecar/blob/azurestorage"
-	"github.com/lawrencegripper/ion/sidecar/blob/filesystem"
 	"github.com/lawrencegripper/ion/sidecar/events/servicebus"
 	"github.com/lawrencegripper/ion/sidecar/meta/mongodb"
 	"github.com/lawrencegripper/ion/sidecar/types"
@@ -35,7 +34,7 @@ func main() {
 			if config.PrintConfig {
 				fmt.Println(prettyPrintStruct(*config))
 			}
-			if config.SharedSecret == "" || config.EventID == "" || config.ParentEventID == "" || config.CorrelationID == "" {
+			if config.SharedSecret == "" || config.EventID == "" || config.ExecutionID == "" {
 				return fmt.Errorf("Missing configuration. Use '--printconfig' to show current config on start")
 			}
 			runApp(config)
@@ -85,8 +84,8 @@ func runApp(config *app.Configuration) {
 	app.Setup(
 		config.SharedSecret,
 		config.EventID,
-		config.CorrelationID,
-		config.ParentEventID,
+		config.ExecutionID,
+		config.ModuleName,
 		metaProvider,
 		eventProvider,
 		blobProvider,
@@ -108,8 +107,8 @@ func addDefaults(c *app.Configuration) {
 	}
 }
 
-func getMetaProvider(config *app.Configuration) types.MetaProvider {
-	metaProviders := make([]types.MetaProvider, 0)
+func getMetaProvider(config *app.Configuration) types.MetadataProvider {
+	metaProviders := make([]types.MetadataProvider, 0)
 	if config.MongoDBMetaProvider != nil {
 		c := config.MongoDBMetaProvider
 		mongoDB, err := mongodb.NewMongoDB(c)
@@ -137,11 +136,6 @@ func getBlobProvider(config *app.Configuration) types.BlobProvider {
 			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
 		}
 		blobProviders = append(blobProviders, azureBlob)
-	}
-	if config.FileSystemBlobProvider != nil {
-		c := config.FileSystemBlobProvider
-		filesystemBlob := filesystem.NewFileSystemBlobProvider(c)
-		blobProviders = append(blobProviders, filesystemBlob)
 	}
 	// Do this rather than return a subset (first) of the providers to encourage quick failure
 	if len(blobProviders) > 1 {

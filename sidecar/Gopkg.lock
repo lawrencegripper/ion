@@ -79,11 +79,16 @@
   version = "v1.0.5"
 
 [[projects]]
+  name = "github.com/twinj/uuid"
+  packages = ["."]
+  revision = "835a10bbd6bce40820349a68b1368a62c3c5617c"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/vulcand/oxy"
   packages = [
     "forward",
-    "testutils",
     "utils"
   ]
   revision = "7f6fe9ff96f956fd9203dcb8f84204f09eabc468"
@@ -123,6 +128,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0b87ca962f7e01ea528b1b36df5ddd5467c1c5251c925deeb82ae4d8a6638d8c"
+  inputs-digest = "2d59debbefd9555297e8b8cd5389561d24d8c70db12a8a65dd79c689e01d7819"
   solver-name = "gps-cdcl"
   solver-version = 1

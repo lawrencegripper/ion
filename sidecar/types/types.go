@@ -6,32 +6,18 @@ import (
 	"net/http"
 )
 
-//MetaProvider is a document storage DB for holding metadata
-type MetaProvider interface {
-	GetMetaDocByID(docID string) (*MetaDoc, error)
-	GetMetaDocAll(correlationID string) ([]MetaDoc, error)
-	AddOrUpdateMetaDoc(doc *MetaDoc) error
+//MetadataProvider is a document storage DB for storing document data
+type MetadataProvider interface {
+	GetMetadataDocumentByID(id string) (*Metadata, error)
+	GetMetadataDocumentsByID(id string) ([]Metadata, error)
+	UpsertMetadataDocument(metadata *Metadata) error
 	Close()
-}
-
-//Proxy represents a proxy capable of serving a HTTP request
-type Proxy interface {
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
-}
-
-//BlobProxy is responsible for proxying HTTP requests against the Azure storage REST API
-type BlobProxy interface {
-	Create(resourcePath string, w http.ResponseWriter, r *http.Request)
-	Get(resourcePath string, w http.ResponseWriter, r *http.Request)
 }
 
 //BlobProvider is responsible for getting information about blobs stored externally
 type BlobProvider interface {
-	Proxy() BlobProxy
-	Create(resourcePath string, blob io.ReadCloser) (string, error)
-	Get(resourcePath string) (io.ReadCloser, error)
-	List(resourcePath string) ([]string, error)
-	Delete(resourcePath string) (bool, error)
+	GetBlobs(outputDir string, filePaths []string) error
+	CreateBlobs(filePaths []string) error
 	Close()
 }
 
@@ -41,21 +27,24 @@ type EventPublisher interface {
 	Close()
 }
 
-//MetaDoc is a single entry in a document
-type MetaDoc struct {
-	ID            string            `bson:"id" json:"id"`
-	CorrelationID string            `bson:"correlationId" json:"correlationId"`
-	ParentEventID string            `bson:"parentId" json:"parentId"`
-	Metadata      map[string]string `bson:"metadata" json:"metadata"`
+type Blob struct {
+	Name string
+	Data io.ReadCloser
 }
 
-// Event the basic event data format
+//Metadata is a single entry in a document
+type Metadata struct {
+	ExecutionID   string            `bson:"id" json:"id"`
+	CorrelationID string            `bson:"correlationId" json:"correlationId"`
+	ParentEventID string            `bson:"parentEventId" json:"parentEventId"`
+	Data          map[string]string `bson:"data" json:"data"`
+}
+
+//Event the basic event data format
 type Event struct {
-	ID             string            `json:"id"`
 	Type           string            `json:"type"`
 	PreviousStages []string          `json:"previousStages"`
-	ParentEventID  string            `json:"parentId"`
-	CorrelationID  string            `json:"correlationId"`
+	ExecutionID    string            `json:"contextId"`
 	Data           map[string]string `json:"data"`
 }
 

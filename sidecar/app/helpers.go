@@ -4,11 +4,13 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 
 	"github.com/lawrencegripper/ion/sidecar/types"
+	"github.com/twinj/uuid"
 )
 
 //CompareHash compares a secret string against a hash
@@ -49,7 +51,7 @@ func MustNotBeNil(objs ...interface{}) {
 }
 
 //StripBlobStore removes details specific to the metadata store from any metadata
-func StripBlobStore(docs []types.MetaDoc) ([]types.MetaDoc, error) {
+func StripBlobStore(docs []types.Metadata) ([]types.Metadata, error) {
 	var waitGroup sync.WaitGroup
 	waitGroup.Add(len(docs))
 
@@ -60,13 +62,13 @@ func StripBlobStore(docs []types.MetaDoc) ([]types.MetaDoc, error) {
 		return nil, fmt.Errorf("error thrown compiling regex: %+v", err)
 	}
 
-	strip := make(chan types.MetaDoc)
-	strippedDocs := make([]types.MetaDoc, 0)
+	strip := make(chan types.Metadata)
+	strippedDocs := make([]types.Metadata, 0)
 	for _, doc := range docs {
-		go func(doc types.MetaDoc) {
+		go func(doc types.Metadata) {
 			defer waitGroup.Done()
 			strippedMeta := map[string]string{}
-			for k, v := range doc.Metadata {
+			for k, v := range doc.Data {
 				match := rx.FindString(v)
 				if match == "" {
 					strippedMeta[k] = v
@@ -74,7 +76,7 @@ func StripBlobStore(docs []types.MetaDoc) ([]types.MetaDoc, error) {
 					strippedMeta[k] = strings.Replace(v, match, "", 1)
 				}
 			}
-			doc.Metadata = strippedMeta
+			doc.Data = strippedMeta
 			strip <- doc
 		}(doc)
 	}
@@ -98,4 +100,29 @@ func NormalizeResourcePath(resPath string) (string, error) {
 	}
 	resPath = strings.Replace(resPath, "//", "/", -1)
 	return resPath, nil
+}
+
+func ClearDir(dirPath string) error {
+	err := os.RemoveAll(dirPath)
+	if err != nil {
+		return fmt.Errorf("failed removing directory path '%s' with error: '%+v'", dirPath, err)
+	}
+	err = os.MkdirAll(dirPath, 0777)
+	if err != nil {
+		return fmt.Errorf("failed creating directory path '%s' with error: '%+v'", dirPath, err)
+	}
+	return nil
+}
+
+func RemoveFile(filePath string) error {
+	err := os.Remove(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to remove file at path '%s' with error: '%+v'", filePath, err)
+	}
+	return nil
+}
+
+func NewExecutionID(moduleName string) string {
+	guid := fmt.Sprintf("%v", uuid.NewV4())
+	return moduleName + "_" + guid
 }
