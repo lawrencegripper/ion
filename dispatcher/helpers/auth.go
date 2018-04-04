@@ -19,8 +19,8 @@ func newServicePrincipalTokenFromCredentials(c *types.Configuration, scope strin
 }
 
 // GetAzureADAuthorizer return an authorizor for Azure SP
-func GetAzureADAuthorizer(c *types.Configuration) autorest.Authorizer {
-	spt, err := newServicePrincipalTokenFromCredentials(c, azure.PublicCloud.ResourceManagerEndpoint)
+func GetAzureADAuthorizer(c *types.Configuration, azureEndpoint string) autorest.Authorizer {
+	spt, err := newServicePrincipalTokenFromCredentials(c, azureEndpoint)
 	if err != nil {
 		logrus.Panicf("Failed to create authorizer: %v", err)
 	}

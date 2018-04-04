@@ -4,7 +4,7 @@
 
 [[constraint]]
   name = "github.com/Azure/azure-sdk-for-go"
-  version = "14.5.0"
+  version = "15.0.0"
 
 [[constraint]]
   name = "github.com/containous/flaeg"

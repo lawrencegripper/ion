@@ -54,10 +54,6 @@ type AzureBlobConfig struct {
 
 // AzureBatchConfig - Basic azure config used to interact with ARM resources.
 type AzureBatchConfig struct {
-	ClientID             string `description:"~~Todo~~"`
-	ClientSecret         string `description:"~~Todo~~"`
-	SubscriptionID       string `description:"~~Todo~~"`
-	TenantID             string `description:"~~Todo~~"`
 	ResourceGroup        string `description:"~~Todo~~"`
 	PoolID               string `description:"~~Todo~~"`
 	JobID                string `description:"~~Todo~~"`

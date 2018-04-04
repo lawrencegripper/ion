@@ -3,7 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"github.com/Azure/go-autorest/autorest/azure"
 
 	"github.com/Azure/azure-sdk-for-go/services/batch/2017-09-01.6.0/batch"
 	"github.com/Azure/go-autorest/autorest"
@@ -42,17 +42,19 @@ type AzureBatch struct {
 
 // NewAzureBatchProvider creates a provider for azure batch.
 func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []string) (*AzureBatch, error) {
-	fmt.Println("Starting create provider")
-
+	if config == nil || config.AzureBatch == nil || config.Job == nil {
+		return nil, fmt.Errorf("Cannot create a provider - invalid configuration, require config, AzureBatch and Job")
+	}
 	b := AzureBatch{}
+	b.inprogressJobStore = make(map[string]messaging.Message)
 	b.batchConfig = config.AzureBatch
 	b.jobConfig = config.Job
-	b.dispatcherName = config.Hostname
+	b.dispatcherName = config.Hostname + "-" + config.ModuleName
 	ctx, cancel := context.WithCancel(context.Background())
 	b.ctx = ctx
 	b.cancelOps = cancel
 
-	auth := helpers.GetAzureADAuthorizer(config)
+	auth := helpers.GetAzureADAuthorizer(config, azure.PublicCloud.BatchManagementEndpoint)
 
 	// Todo: Allow users to pass in/choose a different machine type and init script
 	createOrGetPool(&b, auth)
@@ -60,12 +62,10 @@ func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []stri
 
 	taskclient := batch.NewTaskClientWithBaseURI(getBatchBaseURL(b.batchConfig))
 	taskclient.Authorizer = auth
-	taskclient.RequestInspector = fixContentTypeInspector()
 	b.taskClient = &taskclient
 
 	fileClient := batch.NewFileClientWithBaseURI(getBatchBaseURL(b.batchConfig))
 	fileClient.Authorizer = auth
-	fileClient.RequestInspector = fixContentTypeInspector()
 	b.fileClient = &fileClient
 
 	b.createTask = func(taskDetails batch.TaskAddParameter) (autorest.Response, error) {
@@ -76,14 +76,18 @@ func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []stri
 		if err != nil {
 			return &[]batch.CloudTask{}, err
 		}
-
+		currentTasks := res.Values()
 		for res.NotDone() {
 			err = res.Next()
 			if err != nil {
 				return &[]batch.CloudTask{}, err
 			}
+			pageTasks := res.Values()
+			if pageTasks != nil || len(pageTasks) != 0 {
+				currentTasks = append(currentTasks, pageTasks...)
+			}
 		}
-		currentTasks := res.Values()
+
 		return &currentTasks, nil
 	}
 
@@ -157,7 +161,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		UserIdentity: &batch.UserIdentity{
 			AutoUser: &batch.AutoUserSpecification{
 				ElevationLevel: batch.Admin,
-				Scope:          batch.Task,
+				Scope:          batch.Pool,
 			},
 		},
 	}
@@ -272,15 +276,4 @@ type batchPodComponents struct {
 	Volumes         []v1.Volume
 	PodName         string
 	TaskID          string
-}
-
-func fixContentTypeInspector() autorest.PrepareDecorator {
-	return func(p autorest.Preparer) autorest.Preparer {
-		return autorest.PreparerFunc(func(r *http.Request) (*http.Request, error) {
-			r.Header.Set("Content-Type", "application/json; odata=minimalmetadata")
-			// dump, _ := httputil.DumpRequestOut(r, true)
-			// log.Println(string(dump))
-			return r, nil
-		})
-	}
 }

@@ -3,6 +3,7 @@ package servicebus
 import (
 	"context"
 	"fmt"
+	"github.com/Azure/go-autorest/autorest/azure"
 	"net/http"
 	"net/url"
 	"strings"
@@ -56,7 +57,7 @@ func NewListener(ctx context.Context, config *types.Configuration) *Listener {
 	//Todo: close connection to amqp when context is cancelled/done
 
 	listener := Listener{}
-	auth := helpers.GetAzureADAuthorizer(config)
+	auth := helpers.GetAzureADAuthorizer(config, azure.PublicCloud.ResourceManagerEndpoint)
 	subsClient := servicebus.NewSubscriptionsClient(config.SubscriptionID)
 	subsClient.Authorizer = auth
 	topicsClient := servicebus.NewTopicsClient(config.SubscriptionID)

@@ -5,8 +5,9 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/lawrencegripper/ion/dispatcher/types"
+	log "github.com/sirupsen/logrus"
 	"html/template"
-	"log"
+	"net/http"
 	"strings"
 	"time"
 
@@ -22,7 +23,7 @@ func createOrGetPool(p *AzureBatch, auth autorest.Authorizer) {
 	poolClient := batch.NewPoolClientWithBaseURI(getBatchBaseURL(p.batchConfig))
 	poolClient.Authorizer = auth
 	poolClient.RetryAttempts = 0
-	poolClient.RequestInspector = fixContentTypeInspector()
+	//	poolClient.RequestInspector = fixContentTypeInspector()
 	p.poolClient = &poolClient
 	pool, err := poolClient.Get(p.ctx, p.batchConfig.PoolID, "*", "", nil, nil, nil, nil, "", "", nil, nil)
 
@@ -100,23 +101,19 @@ func createOrGetPool(p *AzureBatch, auth autorest.Authorizer) {
 
 func createOrGetJob(p *AzureBatch, auth autorest.Authorizer) {
 	jobClient := batch.NewJobClientWithBaseURI(getBatchBaseURL(p.batchConfig))
-	jobClient.RequestInspector = fixContentTypeInspector()
-
 	jobClient.Authorizer = auth
-	jobID := p.batchConfig.JobID
-
+	p.jobClient = &jobClient
 	// check if job exists already
-	currentJob, err := jobClient.Get(p.ctx, jobID, "", "", nil, nil, nil, nil, "", "", nil, nil)
+	currentJob, err := jobClient.Get(p.ctx, p.dispatcherName, "", "", nil, nil, nil, nil, "", "", nil, nil)
 
 	if err == nil && currentJob.State == batch.JobStateActive {
-
 		log.Println("Wrapper job already exists...")
 
 	} else if currentJob.Response.StatusCode == 404 {
 
 		log.Println("Wrapper job missing... creating...")
 		wrapperJob := batch.JobAddParameter{
-			ID: &jobID,
+			ID: &p.dispatcherName,
 			PoolInfo: &batch.PoolInformation{
 				PoolID: &p.batchConfig.PoolID,
 			},
@@ -128,7 +125,9 @@ func createOrGetJob(p *AzureBatch, auth autorest.Authorizer) {
 			panic(err)
 		}
 
-		log.Println(res)
+		if res.StatusCode == http.StatusCreated {
+			log.WithField("response", res).Info("Job created")
+		}
 
 		p.jobClient = &jobClient
 	} else {

@@ -9,8 +9,8 @@
     "services/servicebus/mgmt/2017-04-01/servicebus",
     "version"
   ]
-  revision = "56a0b1d2af3b65d5f1f7a330e02faaf48b473c5a"
-  version = "v14.6.0"
+  revision = "56332fec5b308fbb6615fa1af6117394cdba186d"
+  version = "v15.0.0"
 
 [[projects]]
   name = "github.com/Azure/go-autorest"
@@ -383,6 +383,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bbcd49a72db004ef2a8432ac20515ebcc03124b27f519c3e5ae14359239fbe5f"
+  inputs-digest = "2b968783bccc3f96663548003096f8af37de6c9a63f6fb99a03c29e79dc07aa8"
   solver-name = "gps-cdcl"
   solver-version = 1
