@@ -1,0 +1,126 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    application: {{ template "fullname" . }}
+    component: {{ template "name" . }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      application: {{ template "fullname" . }}
+      component: {{ template "name" . }}
+  template:
+    metadata:
+      name: {{ template "fullname" . }}
+      labels:
+        heritage: {{ .Release.Service | quote }}
+        release: {{ .Release.Name | quote }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        application: {{ template "fullname" . }}
+        component: {{ template "name" . }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if and (.Values.tolerations) (ge .Capabilities.KubeVersion.Minor "6") }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ template "fullname" . }}
+        image: "{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        env:
+        - name: DISPATCHER_MODULE_TYPE
+          value: {{ .Values.module.type }}
+        - name: DISPATCHER_MODULE_IMAGE
+          value: "{{ .Values.module.image.name }}:{{ .Values.module.image.tag }}"
+        - name: DISPATCHER_MODULE_EVENTSPUBLISHED
+          value: {{ .Values.module.eventsPublished }}
+        - name: DISPATCHER_LOG_LEVEL
+          value: {{ .Values.log.level }}
+        - name: DISPATCHER_LOG_SENSITIVE
+          value: {{ .Values.log.sensitive | quote }}
+        - name: DISPATCHER_SIDECAR_PORT
+          value: {{ .Values.sidecar.port | quote }}
+        - name: DISPATCHER_SIDECAR_IMAGE
+          value: "{{ .Values.sidecar.image.name }}:{{ .Values.sidecar.image.tag }}"
+        - name: DISPATCHER_SIDECAR_PRINTCONFIG
+          value: {{ .Values.sidecar.printConfig | quote }}
+        - name: DISPATCHER_JOB_MAXRUNNINGTIMEMINS
+          value: {{ .Values.job.maxRunningTimeMins | quote }}
+        - name: DISPATCHER_JOB_RETRYCOUNT
+          value: {{ .Values.job.retryCount | quote }}
+        - name: DISPATCHER_JOB_SUBSCRIBESTOEVENT
+          value: {{ .Values.job.subscribesToEvent }}
+        {{- if .Values.cloud.azure }}
+        - name: DISPATCHER_CLOUD_AZURE_CLIENTID
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: azureClientId
+        - name: DISPATCHER_CLOUD_AZURE_CLIENTSECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: azureClientSecret
+        - name: DISPATCHER_CLOUD_AZURE_TENANTID
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: azureTenantId
+        - name: DISPATCHER_CLOUD_AZURE_SUBSCRIPTIONID
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: azureSubscriptionId
+        - name: DISPATCHER_CLOUD_AZURE_RESOURCEGROUP
+          value: {{ .Values.cloud.azure.resourceGroup }}
+        {{- end }}
+        - name: DISPATCHER_BLOB_PROVIDER
+          value: {{ .Values.blob.provider }}
+        {{- if eq .Values.blob.provider "azure" }}
+        - name: DISPATCHER_BLOB_AZURE_ACCONTNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: blobAzureAccountName
+        - name: DISPATCHER_BLOB_AZURE_ACCONTKEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: blobAzureAccountKey
+        - name: DISPATCHER_BLOB_AZURE_USEPROXY
+          value: {{ .Values.blob.azure.useProxy | quote }}
+        {{- end }}
+        - name: DISPATCHER_STORAGE_PROVIDER
+          value: {{ .Values.storage.provider }}
+        {{- if eq .Values.storage.provider "mongodb" }}
+        - name: DISPATCHER_STORAGE_MONGODB_URI
+          value: {{ .Values.storage.mongodb.uri }}
+        - name: DISPATCHER_STORAGE_MONGODB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: storageMongodbUsername
+        - name: DISPATCHER_STORAGE_MONGODB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: storageMongodbPassword
+        {{- end }}
+        - name: DISPATCHER_AMQP_PROVIDER
+          value: {{ .Values.amqp.provider }}
+        {{- if eq .Values.amqp.provider "servicebus" }}
+        - name: DISPATCHER_AMQP_SERVICEBUS_NAMESPACE
+          value: {{ .Values.amqp.servicebus.namespace }}
+        {{- end }}
