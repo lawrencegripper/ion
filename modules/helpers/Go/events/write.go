@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+
+	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
 )
 
 type Event struct {
@@ -11,15 +13,11 @@ type Event struct {
 	File  string `json:"file"`
 }
 
-const (
-	EventDir = "out/events"
-)
-
 func Fire(events []Event) {
 	i := 0
 	for _, ev := range events {
 		b, _ := json.Marshal(ev)
-		f, _ := os.Create(EventDir + "/event-" + strconv.Itoa(i) + ".json")
+		f, _ := os.Create(env.EventDir + "/event-" + strconv.Itoa(i) + ".json")
 		defer f.Close()
 		f.Write(b)
 		i = i + 1
