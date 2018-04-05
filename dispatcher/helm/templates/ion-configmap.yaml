@@ -1,0 +1,15 @@
+{{- if .Values.module.config }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    application: {{ template "fullname" . }}
+    component: {{ template "name" . }}
+data:
+  module.yml: |-
+{{ .Values.module.config | indent 4 }}
+{{- end }}

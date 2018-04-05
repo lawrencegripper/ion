@@ -1,8 +1,9 @@
 {{- if .Values.rbac.enabled }}
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ template "fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     application: {{ template "fullname" . }}
     component: {{ template "name" . }}
@@ -11,19 +12,23 @@ metadata:
     release: {{ .Release.Name }}
 rules:
   - apiGroups:
-      - ""
+      - batch
+      - extensions
     resources:
       - jobs
     verbs:
+      - create
+      - delete
       - get
       - list
-      - watch
       - update
+      - watch
 ---
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ template "fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     application: {{ template "fullname" . }}
     component: {{ template "name" . }}
@@ -32,7 +37,7 @@ metadata:
     release: {{ .Release.Name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: {{ template "fullname" . }}
 subjects:
   - kind: ServiceAccount

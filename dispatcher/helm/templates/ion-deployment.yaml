@@ -40,28 +40,40 @@ spec:
         resources:
 {{ toYaml .Values.resources | indent 10 }}
         env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: DISPATCHER_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
         - name: DISPATCHER_MODULE_TYPE
           value: {{ .Values.module.type }}
         - name: DISPATCHER_MODULE_IMAGE
           value: "{{ .Values.module.image.name }}:{{ .Values.module.image.tag }}"
         - name: DISPATCHER_MODULE_EVENTSPUBLISHED
           value: {{ .Values.module.eventsPublished }}
+        - name: DISPATCHER_MODULE_MAXRUNNINGTIMEMINS
+          value: {{ .Values.module.maxRunningTimeMins | quote }}
+        - name: DISPATCHER_MODULE_RETRYCOUNT
+          value: {{ .Values.module.retryCount | quote }}
+        - name: DISPATCHER_MODULE_SUBSCRIBESTOEVENT
+          value: {{ .Values.module.subscribesToEvent }}
+        - name: DISPATCHER_MODULE_CONFIG_PATH
+          value: /etc/ion/module/config.yml
+        - name: DISPATCHER_MODULE_SIDECAR_HOST
+          value: {{ .Values.module.sidecar.host | quote }}
+        - name: DISPATCHER_MODULE_SIDECAR_IMAGE
+          value: "{{ .Values.module.sidecar.image.name }}:{{ .Values.module.sidecar.image.tag }}"
+        - name: DISPATCHER_MODULE_SIDECAR_PRINTCONFIG
+          value: {{ .Values.module.sidecar.printConfig | quote }}
         - name: DISPATCHER_LOG_LEVEL
           value: {{ .Values.log.level }}
         - name: DISPATCHER_LOG_SENSITIVE
           value: {{ .Values.log.sensitive | quote }}
-        - name: DISPATCHER_SIDECAR_PORT
-          value: {{ .Values.sidecar.port | quote }}
-        - name: DISPATCHER_SIDECAR_IMAGE
-          value: "{{ .Values.sidecar.image.name }}:{{ .Values.sidecar.image.tag }}"
-        - name: DISPATCHER_SIDECAR_PRINTCONFIG
-          value: {{ .Values.sidecar.printConfig | quote }}
-        - name: DISPATCHER_JOB_MAXRUNNINGTIMEMINS
-          value: {{ .Values.job.maxRunningTimeMins | quote }}
-        - name: DISPATCHER_JOB_RETRYCOUNT
-          value: {{ .Values.job.retryCount | quote }}
-        - name: DISPATCHER_JOB_SUBSCRIBESTOEVENT
-          value: {{ .Values.job.subscribesToEvent }}
         {{- if .Values.cloud.azure }}
         - name: DISPATCHER_CLOUD_AZURE_CLIENTID
           valueFrom:
@@ -86,37 +98,37 @@ spec:
         - name: DISPATCHER_CLOUD_AZURE_RESOURCEGROUP
           value: {{ .Values.cloud.azure.resourceGroup }}
         {{- end }}
-        - name: DISPATCHER_BLOB_PROVIDER
-          value: {{ .Values.blob.provider }}
-        {{- if eq .Values.blob.provider "azure" }}
-        - name: DISPATCHER_BLOB_AZURE_ACCONTNAME
+        - name: DISPATCHER_FILESTORAGE_PROVIDER
+          value: {{ .Values.fileStorage.provider }}
+        {{- if eq .Values.fileStorage.provider "azure" }}
+        - name: DISPATCHER_FILESTORAGE_AZURE_ACCONTNAME
           valueFrom:
             secretKeyRef:
               name: {{ template "fullname" . }}
-              key: blobAzureAccountName
-        - name: DISPATCHER_BLOB_AZURE_ACCONTKEY
+              key: fileStorageAzureAccountName
+        - name: DISPATCHER_FILESTORAGE_AZURE_ACCONTKEY
           valueFrom:
             secretKeyRef:
               name: {{ template "fullname" . }}
-              key: blobAzureAccountKey
-        - name: DISPATCHER_BLOB_AZURE_USEPROXY
-          value: {{ .Values.blob.azure.useProxy | quote }}
+              key: fileStorageAzureAccountKey
+        - name: DISPATCHER_FILESTORAGE_AZURE_USEPROXY
+          value: {{ .Values.fileStorage.azure.useProxy | quote }}
         {{- end }}
-        - name: DISPATCHER_STORAGE_PROVIDER
-          value: {{ .Values.storage.provider }}
-        {{- if eq .Values.storage.provider "mongodb" }}
-        - name: DISPATCHER_STORAGE_MONGODB_URI
-          value: {{ .Values.storage.mongodb.uri }}
-        - name: DISPATCHER_STORAGE_MONGODB_USERNAME
+        - name: DISPATCHER_DBSTORAGE_PROVIDER
+          value: {{ .Values.dbStorage.provider }}
+        {{- if eq .Values.dbStorage.provider "mongodb" }}
+        - name: DISPATCHER_DBSTORAGE_MONGODB_URI
+          value: {{ .Values.dbStorage.mongodb.uri }}
+        - name: DISPATCHER_DBSTORAGE_MONGODB_USERNAME
           valueFrom:
             secretKeyRef:
               name: {{ template "fullname" . }}
-              key: storageMongodbUsername
-        - name: DISPATCHER_STORAGE_MONGODB_PASSWORD
+              key: dbStorageMongodbUsername
+        - name: DISPATCHER_DBSTORAGE_MONGODB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ template "fullname" . }}
-              key: storageMongodbPassword
+              key: dbStorageMongodbPassword
         {{- end }}
         - name: DISPATCHER_AMQP_PROVIDER
           value: {{ .Values.amqp.provider }}
@@ -124,3 +136,15 @@ spec:
         - name: DISPATCHER_AMQP_SERVICEBUS_NAMESPACE
           value: {{ .Values.amqp.servicebus.namespace }}
         {{- end }}
+      {{- if .Values.module.config }}
+        volumeMounts:
+        - name: module-config
+          mountPath: /etc/ion/module
+      volumes:
+      - name: module-config
+        configMap:
+          name: {{ template "fullname" . }}
+          items:
+          - key: module.yml
+            path: config.yml
+      {{- end }}

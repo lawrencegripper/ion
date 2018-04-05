@@ -26,17 +26,33 @@ tolerations: []
 #   value: "value1"
 #   effect: "NoExecute"
 
+rbac:
+  enabled: true
+
+log:
+  level: info
+  sensitive: false
+
 module:
-  type: pyex
+  name: pyex
   image:
     name: dotjson/ion-python-example-module
     tag: latest
     pullPolicy: Always
   eventsPublished: ""
-
-log:
-  level: info
-  sensitive: false
+  maxRunningTimeMins: 10
+  subscribesToEvent: ""
+  retryCount: 5
+  sidecar:
+    host: localhost:8080
+    printConfig: false
+    image:
+      name: dotjson/ion-sidecar
+      tag: latest
+      pullPolicy: Always
+# This is the configuration to be passed to the module.
+# It will be pushed in a config map as such.
+  config: ""
 
 # Only Azure is supported at the moment
 cloud:
@@ -47,37 +63,24 @@ cloud:
     subscriptionId: ""
     resourceGroup: ""
 
-blob:
+fileStorage:
   provider: azure
   azure:
-    accountName: ""
-    accountKey: ""
+    accountName: blob
+    accountKey: thisisanexampleaccountkey
     useProxy: false
 
-storage:
+dbStorage:
   provider: mongodb
   mongodb:
     # A comma separated list of hosts with their ports
-    uri: localhost:27017
-    username: ""
-    password: ""
+    uri: "localhost:27017"
+    username: mongodb
+    password: mongodb
 
 amqp:
   # Azure servicebus is the only supported at the moment
   provider: servicebus
   servicebus:
-    namespace: ""
+    namespace: dispatcher
 
-sidecar:
-  port: 8080
-  printConfig: false
-  image:
-    name: dotjson/ion-sidecar
-    tag: latest
-    pullPolicy: Always
-
-
-job:
-  maxRunningTimeMins: 10
-  retryCount: 5
-  subscribesToEvent: ""
