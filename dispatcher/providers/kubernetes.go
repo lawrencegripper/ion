@@ -193,7 +193,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	}
 
 	workerEnvVars := []apiv1.EnvVar{
-		apiv1.EnvVar{
+		{
 			Name:  "SHARED_SECRET",
 			Value: message.ID(), //Todo: source from common place with args
 		},

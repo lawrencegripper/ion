@@ -50,6 +50,7 @@ func getModuleEnvironmentVars(configLocation string) (map[string]string, error) 
 	if err != nil {
 		return map[string]string{}, err
 	}
+	// nolint:errcheck
 	defer file.Close()
 	envs, err := godotenv.Parse(file)
 	return envs, err
