@@ -115,7 +115,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 	fullSidecarArgs := append(b.sidecarArgs, perJobArgs...)
 
 	workerEnvVars := []apiv1.EnvVar{
-		apiv1.EnvVar{
+		{
 			Name:  "SHARED_SECRET",
 			Value: message.ID(), //Todo: source from common place with args
 		},

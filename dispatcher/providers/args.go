@@ -1,11 +1,12 @@
 package providers
 
 import (
-	"strconv"
-
 	"github.com/Azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
+	"github.com/joho/godotenv"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
+	"os"
+	"strconv"
 )
 
 // GetSharedSidecarArgs gets the shared arguments used by the sidecar container
@@ -43,4 +44,15 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 		"--correlationid=" + eventData.CorrelationID,
 		"--parenteventid=" + eventData.ParentEventID,
 	}, nil
+}
+
+func getModuleEnvironmentVars(configLocation string) (map[string]string, error) {
+	file, err := os.Open(configLocation)
+	if err != nil {
+		return map[string]string{}, err
+	}
+	// nolint:errcheck
+	defer file.Close()
+	envs, err := godotenv.Parse(file)
+	return envs, err
 }
