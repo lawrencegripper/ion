@@ -9,6 +9,7 @@ import (
 	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/events"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/log"
+	"github.com/lawrencegripper/ion/modules/helpers/Go/sidecar"
 )
 
 func downloadFile(url, filepath string) error {
@@ -35,6 +36,8 @@ func downloadFile(url, filepath string) error {
 }
 
 func main() {
+	sidecar.Ready()
+
 	filename := env.OutputDataDir + "/file.raw"
 
 	dat, _ := ioutil.ReadFile(env.InputDataDir + "/link.txt")
@@ -52,6 +55,8 @@ func main() {
 		log.Info(err.Error())
 		return
 	}
+
+	sidecar.Commit()
 
 	events.Fire([]events.Event{
 		events.Event{
