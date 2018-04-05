@@ -22,9 +22,29 @@ def print_env():
     print("Server port: {}".format(port))
     print("Sidecar endpoint: {}".format(sidecar_endpoint))
     print("Ready URL: {}".format(ready_url))
-    print("Commit URL: {}".format(commit_url))
+    print("Done URL: {}".format(done_url))
     print("...............")
     print()
+
+def setup():
+    if not os.path.exists(input_dir):
+        os.makedirs(input_dir)
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    if not os.path.exists(events_dir):
+        os.makedirs(events_dir)
+
+def clean_up():
+    if os.path.exists(input_dir):
+        shutil.rmtree(input_dir, ignore_errors=True)
+
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+    if os.path.exists(events_dir):
+        shutil.rmtree(events_dir, ignore_errors=True)
 
 def ready():
     headers = {"secret": shared_secret}
@@ -35,8 +55,7 @@ def ready():
         try:
             res = requests.get(ready_url, headers=headers)
             if res.status_code != 200:
-                print("Sidecar could not become ready")
-                sys.exit(1)
+                raise ValueError("Sidecar could not become ready")
             return
         except Exception:
             count += 1
@@ -47,11 +66,12 @@ def ready():
     sys.exit(1)
 
 
-def commit():
-    headers = {"secret", shared_secret}
-    res = requests.get(commit_url, headers=headers)
+def done():
+    headers = {"secret": shared_secret}
+    res = requests.get(done_url, headers=headers)
     if res.status_code != 200:
         print("Failed to commit state")
+        print("response: {}".format(res))
         sys.exit(1)
 
 # Setup
@@ -88,42 +108,60 @@ events_dir = "out/events/"
 in_meta_path = "in/meta.json"
 out_meta_path = "out/meta.json"
 ready_url = sidecar_endpoint + "/ready"
-commit_url = sidecar_endpoint + "/commit"
+done_url = sidecar_endpoint + "/done"
+
+clean_up()
+setup()
 
 # Test whether the sidecar is ready
 ready()
 
+# Optionally, use input data:
+# unstructured files are in: in/data
+# structured data is in: in/meta.json
+
 # Print the current environment
 print_env()
 
-# Get input image
-data = ""
-in_file = "imagein.png"
-with open(os.path.join(input_dir, in_file), 'r') as inf:
-    data = inf.read()
-
-# Process the image
+# Do some processing
+print("doing the work...")
 time.sleep(10)
 
-# Write output files
+# Write some output files
 for i in range(0, 5):
-    out_file = "imageout" + str(i) + ".png"
-    with open(os.path.join(output_dir, out_file), "rw") as outf:
+    out_file = "image" + str(i) + ".png"
+    with open(os.path.join(output_dir, out_file), "w") as outf:
+        print("writing file {}".format(outf.name))
         outf.write("face!")
     # Fire an event per face
-    event = {
-        "eventType": "face_detected",
-        "files": out_file
-    }
-    with open(os.path.join(events_dir, "event", str(i)), 'w') as evf:
-        json.dump(data, evf)
+    event = [{
+        "key": "eventType",
+        "value": "face_detected"
+    },
+    {
+        "key": "files",
+        "value": outf.name
+    }]
+    with open(os.path.join(events_dir, "event" + str(i) + ".json"), 'w') as evf:
+        print("writing event {}".format(evf.name))
+        json.dump(event, evf)
 
-# Write metadata
-meta = {
-    "source": "Facebook"
-}
+# Write insight
+insight = [{
+    "key": "source",
+    "value": "facebook"
+},
+{
+    "key": "imageRef",
+    "value": out_file
+}]
 with open(out_meta_path, 'w') as mf:
-    json.dump(data, mf)
+    print("writing insight {}".format(mf.name))
+    json.dump(insight, mf)
 
 # Commit blobs, meta and events
-commit()
+print("commiting state!")
+done()
+print("done")
+
+clean_up()
