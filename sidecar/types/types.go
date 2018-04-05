@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
 )
 
 //MetadataProvider is a document storage DB for storing document data
@@ -22,41 +24,26 @@ type BlobProvider interface {
 
 //EventPublisher is responsible for publishing events to a remote system
 type EventPublisher interface {
-	Publish(e Event) error
+	Publish(e messaging.Event) error
 	Close()
 }
 
 //EventContext is a single entry in a document
 type EventContext struct {
-	EventID       string         `bson:"id" json:"id"`
-	CorrelationID string         `bson:"correlationId" json:"correlationId"`
-	ParentEventID string         `bson:"parentEventId" json:"parentEventId"`
-	Files         []string       `bson:"files" json:"files"`
-	Data          []KeyValuePair `bson:"data" json:"data"`
+	EventID       string                   `bson:"id" json:"id"`
+	CorrelationID string                   `bson:"correlationId" json:"correlationId"`
+	ParentEventID string                   `bson:"parentEventId" json:"parentEventId"`
+	Files         []string                 `bson:"files" json:"files"`
+	Data          []messaging.KeyValuePair `bson:"data" json:"data"`
 }
 
 //Insight todo
 type Insight struct {
-	ExecutionID   string         `bson:"id" json:"id"`
-	CorrelationID string         `bson:"correlationId" json:"correlationId"`
-	EventID       string         `bson:"eventId" json:"eventId"`
-	ParentEventID string         `bson:"parentEventId" json:"parentEventId"`
-	Data          []KeyValuePair `bson:"data" json:"data"`
-}
-
-//KeyValuePair is a key value pair
-type KeyValuePair struct {
-	Key   string      `bson:"key" json:"key"`
-	Value interface{} `bson:"value" json:"value"`
-}
-
-//Event the basic event data format
-type Event struct {
-	EventID        string         `json:"eventID"`
-	Type           string         `json:"type"`
-	PreviousStages []string       `json:"previousStages"`
-	CorrelationID  string         `json:"correlationID"`
-	Data           []KeyValuePair `json:"data"`
+	ExecutionID   string                   `bson:"id" json:"id"`
+	CorrelationID string                   `bson:"correlationId" json:"correlationId"`
+	EventID       string                   `bson:"eventId" json:"eventId"`
+	ParentEventID string                   `bson:"parentEventId" json:"parentEventId"`
+	Data          []messaging.KeyValuePair `bson:"data" json:"data"`
 }
 
 //ErrorResponse is a struct intended as JSON HTTP response

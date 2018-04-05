@@ -159,7 +159,7 @@ func TestAzureIntegration(t *testing.T) {
 	if err != nil {
 		t.Errorf("error reading event from disk '%+v'", err)
 	}
-	var event types.Event
+	var event messaging.Event
 	err = json.Unmarshal(b, &event)
 	if err != nil {
 		t.Errorf("error unmarshalling event '%+v'", err)

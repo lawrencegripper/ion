@@ -30,7 +30,7 @@ func NewEventPublisher(dir string) *EventPublisher {
 }
 
 //Publish is a mock implementation of the Publish method
-func (e *EventPublisher) Publish(event types.Event) error {
+func (e *EventPublisher) Publish(event messaging.Event) error {
 	eventPath := path.Join(e.baseDir, "event"+strconv.Itoa(e.count)+".json")
 	eventJSON, err := json.Marshal(&event)
 	if err != nil {
