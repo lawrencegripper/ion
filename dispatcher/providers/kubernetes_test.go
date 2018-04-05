@@ -139,6 +139,8 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 	}
 
 	k, _ := NewMockKubernetesProvider(create, list)
+	k.sidecarEnvVars = make(map[string]interface{})
+	k.sidecarEnvVars["thing"] = "stuff"
 
 	messageToSend := MockMessage{
 		MessageID: mockMessageID,
@@ -154,6 +156,12 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 
 	CheckLabelsAssignedCorrectly(t, job, messageToSend.MessageID)
 	CheckPodSetup(t, job, k.jobConfig.SidecarImage, k.jobConfig.WorkerImage)
+
+	workerEnvVar := job.Spec.Template.Spec.Containers[1].Env[1]
+	if workerEnvVar.Name != "thing" && workerEnvVar.Value != "stuff" {
+		t.Log(workerEnvVar)
+		t.Error("environment variables not correctly set")
+	}
 }
 
 func CheckLabelsAssignedCorrectly(t *testing.T, job batchv1.Job, expectedMessageID string) {

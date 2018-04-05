@@ -56,6 +56,14 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 	k.sidecarEnvVars = map[string]interface{}{
 		"SIDECAR_PORT": config.Sidecar.ServerPort,
 	}
+	envs, err := getModuleEnvironmentVars(config.ModuleConfigPath)
+	if err != nil {
+		log.WithField("filepath", config.ModuleConfigPath).Error("failed to load addition module config from file")
+	} else {
+		for key, value := range envs {
+			k.sidecarEnvVars[key] = value
+		}
+	}
 
 	client, err := getClientSet()
 	if err != nil {
@@ -185,7 +193,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	}
 
 	workerEnvVars := []apiv1.EnvVar{
-		apiv1.EnvVar{
+		{
 			Name:  "SHARED_SECRET",
 			Value: message.ID(), //Todo: source from common place with args
 		},
