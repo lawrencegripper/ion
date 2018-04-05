@@ -50,7 +50,6 @@ type App struct {
 	executionID     string
 	validEventTypes []string
 	state           int
-	debug           bool
 }
 
 //Setup initializes application
@@ -63,7 +62,6 @@ func (a *App) Setup(
 	meta types.MetadataProvider,
 	publisher types.EventPublisher,
 	blob types.BlobProvider,
-	debug bool,
 	logger *log.Logger) {
 
 	MustNotBeEmpty(secret, eventID)
@@ -88,7 +86,6 @@ func (a *App) Setup(
 		panic(fmt.Errorf("error creating output event directory '%s', error: '%+v'", outputEventsDir, err))
 	}
 
-	a.debug = debug
 	a.state = STATE_NEW
 	a.secretHash = Hash(secret)
 	a.moduleName = moduleName
@@ -150,7 +147,7 @@ func (a *App) Close() {
 
 //OnReady is called to initiate the modules environment (i.e. download any required blobs, etc.)
 func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
-	if a.state != STATE_NEW && !a.debug {
+	if a.state != STATE_NEW {
 		errStr := "/ready called whilst Sidecar is not in the 'STATE_NEW' state."
 		respondWithError(fmt.Errorf(errStr), http.StatusBadRequest, w)
 		a.Logger.Error(errStr)
@@ -213,7 +210,7 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 
 //OnDone is called when the module is finished and wishes to commit their state to an external provider
 func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
-	if a.state != STATE_READY && !a.debug {
+	if a.state != STATE_READY {
 		errStr := "/done called whilst Sidecar is not in the 'STATE_READY' state."
 		respondWithError(fmt.Errorf(errStr), http.StatusBadRequest, w)
 		a.Logger.Error(errStr)

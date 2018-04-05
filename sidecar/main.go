@@ -34,7 +34,7 @@ func main() {
 			if config.PrintConfig {
 				fmt.Println(prettyPrintStruct(*config))
 			}
-			if config.SharedSecret == "" || config.EventID == "" || config.ExecutionID == "" {
+			if config.SharedSecret == "" || config.EventID == "" || config.CorrelationID == "" {
 				return fmt.Errorf("Missing configuration. Use '--printconfig' to show current config on start")
 			}
 			runApp(config)
@@ -84,13 +84,12 @@ func runApp(config *app.Configuration) {
 	app.Setup(
 		config.SharedSecret,
 		config.EventID,
-		config.ExecutionID,
-		config.ParentEventID,
+		config.CorrelationID,
 		config.ModuleName,
+		config.ValidEventTypes,
 		metaProvider,
 		eventProvider,
 		blobProvider,
-		false,
 		logger,
 	)
 
@@ -135,7 +134,6 @@ func getBlobProvider(config *app.Configuration) types.BlobProvider {
 		c := config.AzureBlobProvider
 		azureBlob, err := azurestorage.NewBlobStorage(c, strings.Join([]string{
 			config.EventID,
-			config.ParentEventID,
 			config.ModuleName}, "-"))
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
