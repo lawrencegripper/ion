@@ -59,3 +59,8 @@ The components the Sidecar uses are configurable, if you wish to add support for
 
 For more details on sidecar: please refer to the [Sidecar docs](sidecar/README.md)
 
+## Developing
+
+Ensure you have go setup correctly then run `go get github.com/lawrencegripper/ion` to pull the source into your gopath
+
+To check changes using the same process as the CI build run `docker build ci.Dockerfile .` at the root directory and check the output for any errors
