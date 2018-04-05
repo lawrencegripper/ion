@@ -229,14 +229,32 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							Name:  "sidecar",
 							Image: k.jobConfig.SidecarImage,
 							Args:  fullSidecarArgs,
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name: "ionvolume",
+									MountPath: "/ion",
+								},
+							},
 						},
 						{
 							Name:            "worker",
 							Image:           k.jobConfig.WorkerImage,
 							Env:             workerEnvVars,
 							ImagePullPolicy: apiv1.PullAlways,
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name: "ionvolume",
+									MountPath: "/ion",
+								},
+							},
 						},
 					},
+					Volumes: []apiv1.Volume{
+						apiv1.Volume{
+							Name: "ionvolume",
+							VolumeSource: apiv1.EmptyDirVolumeSource{},
+						},
+					}
 					RestartPolicy: apiv1.RestartPolicyNever,
 				},
 			},
