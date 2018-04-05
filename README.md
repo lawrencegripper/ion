@@ -1,6 +1,6 @@
 ![](docs/ion-logo.png)
 
-[![Build Status](https://travis-ci.org/lawrencegripper/mlops.svg?branch=master)](https://travis-ci.org/lawrencegripper/mlops)
+[![Build Status](https://travis-ci.org/lawrencegripper/ion.svg?branch=master)](https://travis-ci.org/lawrencegripper/ion)
 
 > **Warning**: Ion is currently under initial development - please **do not** use in production and have patience whilst we flesh things out!
 
