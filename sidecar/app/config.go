@@ -12,7 +12,7 @@ type Configuration struct {
 	ModuleName              string               `description:"The module's name"`
 	EventID                 string               `description:"The unique ID for this module"`
 	CorrelationID           string               `description:"The correlation ID"`
-	ValidEventTypes         []string             `description:"Valid event type names"`
+	ValidEventTypes         string               `description:"Valid event type names as a comma delimited list"`
 	ServerPort              int                  `description:"The port for the web server to listen on"`
 	AzureBlobProvider       *azurestorage.Config `description:"Azure Storage Blob provider" export:"true"`
 	MongoDBMetaProvider     *mongodb.Config      `description:"MongoDB metastore provider" export:"true"`
