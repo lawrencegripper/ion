@@ -63,4 +63,6 @@ For more details on sidecar: please refer to the [Sidecar docs](sidecar/README.m
 
 Ensure you have go setup correctly then run `go get github.com/lawrencegripper/ion` to pull the source into your gopath
 
-To check changes using the same process as the CI build run `docker build ci.Dockerfile .` at the root directory and check the output for any errors
+To check changes using the same process as the CI build run `./ci.sh` at the root directory and check the output for any errors.
+
+This will check the `/dispatcher` and `/sidecar` directories. If you add an additional folder/service copy the structure of `ci-dispatcher.Dockerfile` to for your new path and add a new line into `./ci.sh` to invoke it.

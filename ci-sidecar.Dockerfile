@@ -6,8 +6,6 @@ RUN chmod +x /usr/bin/dep
 RUN go get -u github.com/alecthomas/gometalinter
 RUN gometalinter --install
 
-WORKDIR /go/src/github.com/lawrencegripper/ion/
-
 #Restore dep for sidecar
 WORKDIR /go/src/github.com/lawrencegripper/ion/sidecar
 COPY ./sidecar/Gopkg.lock .

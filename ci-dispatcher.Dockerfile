@@ -6,8 +6,6 @@ RUN chmod +x /usr/bin/dep
 RUN go get -u github.com/alecthomas/gometalinter
 RUN gometalinter --install
 
-WORKDIR /go/src/github.com/lawrencegripper/ion/
-
 #Restore dep for dispatcher
 WORKDIR /go/src/github.com/lawrencegripper/ion/dispatcher
 COPY ./dispatcher/Gopkg.lock .
