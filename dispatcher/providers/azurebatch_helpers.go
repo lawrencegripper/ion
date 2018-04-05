@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
-	"html/template"
 	"net/http"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/Azure/go-autorest/autorest"
@@ -54,7 +54,7 @@ func createOrGetPool(p *AzureBatch, auth autorest.Authorizer) {
 			TargetDedicatedNodes: to.Int32Ptr(1),
 			StartTask: &batch.StartTask{
 				ResourceFiles: &[]batch.ResourceFile{
-					batch.ResourceFile{
+					{
 						BlobSource: to.StringPtr("https://raw.githubusercontent.com/Azure/batch-shipyard/f0c9656ca2ccab1a6314f617ff13ea686056f51b/contrib/packer/ubuntu-16.04/bootstrap.sh"),
 						FilePath:   to.StringPtr("bootstrap.sh"),
 						FileMode:   to.StringPtr("777"),
