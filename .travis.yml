@@ -6,8 +6,6 @@ services:
 
 go:
   - "1.10.x"
-  - "1.9.x"
-  - tip
 
 before_install:
   # Setup dependency management tool
@@ -16,11 +14,7 @@ before_install:
   - go get -u github.com/alecthomas/gometalinter
   - gometalinter --install
 
-install:
-  - cd ./dispatcher && dep ensure -v && cd ..
-
 script:
-  - echo "Using stages instead..."
   - cd ./dispatcher && dep ensure -v && cd .. && cd ./sidecar && dep ensure -v && cd ..
   - go test -v -race -short ./dispatcher/...
   - go test -v -race -short ./sidecar/...

@@ -12,6 +12,7 @@ import (
 // GetSharedSidecarArgs gets the shared arguments used by the sidecar container
 func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) []string {
 	return []string{
+		"--moduleName=" + c.ModuleName,
 		"--azureblobprovider=true",
 		"--azureblobprovider.blobaccountname=" + c.Sidecar.AzureBlobProvider.BlobAccountName,
 		"--azureblobprovider.blobaccountkey=" + c.Sidecar.AzureBlobProvider.BlobAccountKey,
