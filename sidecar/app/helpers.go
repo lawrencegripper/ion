@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/lawrencegripper/ion/sidecar/types"
 	"github.com/twinj/uuid"
 )
 
@@ -66,7 +67,12 @@ func RemoveFile(filePath string) error {
 	return nil
 }
 
-func NewExecutionID(moduleName string) string {
+func NewGuid() string {
 	guid := fmt.Sprintf("%v", uuid.NewV4())
-	return moduleName + "_" + guid
+	return guid
+}
+
+func Remove(s []types.KeyValuePair, i int) []types.KeyValuePair {
+	s[len(s)-1], s[i] = s[i], s[len(s)-1]
+	return s[:len(s)-1]
 }

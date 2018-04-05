@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -17,8 +18,8 @@ import (
 )
 
 const (
-	requestID       string = "request-id"
 	inputBlobDir    string = "in/data"
+	inputMetaFile   string = "in/meta.json"
 	outputBlobDir   string = "out/data"
 	outputMetaFile  string = "out/meta.json"
 	outputEventsDir string = "out/events"
@@ -44,7 +45,6 @@ type App struct {
 
 	moduleName      string
 	secretHash      string
-	parentEventID   string
 	correlationID   string
 	eventID         string
 	executionID     string
@@ -57,16 +57,16 @@ type App struct {
 func (a *App) Setup(
 	secret,
 	eventID,
-	executionID,
-	parentEventID,
+	correlationID,
 	moduleName string,
+	validEventTypes []string,
 	meta types.MetadataProvider,
 	publisher types.EventPublisher,
 	blob types.BlobProvider,
 	debug bool,
 	logger *log.Logger) {
 
-	MustNotBeEmpty(secret, eventID, parentEventID, executionID)
+	MustNotBeEmpty(secret, eventID)
 	MustNotBeNil(meta, publisher, blob, logger)
 
 	// Create output directories
@@ -93,8 +93,10 @@ func (a *App) Setup(
 	a.secretHash = Hash(secret)
 	a.moduleName = moduleName
 	a.eventID = eventID
-	a.executionID = executionID
-	a.parentEventID = parentEventID
+	a.correlationID = correlationID
+	a.validEventTypes = validEventTypes
+
+	a.executionID = NewGuid()
 
 	a.Meta = meta
 	a.Publisher = publisher
@@ -136,6 +138,7 @@ func (a *App) Close() {
 
 	// Clear output directories
 	_ = os.RemoveAll(inputBlobDir)
+	_ = os.Remove(outputMetaFile)
 	_ = os.RemoveAll(outputBlobDir)
 	_ = os.RemoveAll(outputEventsDir)
 	_ = os.Remove(outputMetaFile)
@@ -155,36 +158,50 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 	}
 	a.Logger.WithFields(
 		logrus.Fields{
-			"executionID":   a.executionID,
-			"eventID":       a.eventID,
-			"parentEventID": a.parentEventID,
-			"timestamp":     time.Now(),
+			"executionID": a.executionID,
+			"eventID":     a.eventID,
+			"timestamp":   time.Now(),
 		}).Info("OnReady() called")
 
 	// Get the context of this execution
-	context, err := a.getContext(a.executionID)
+	context, err := a.getContext()
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
-	if context.ParentEventID != a.parentEventID {
-		respondWithError(fmt.Errorf("parent event ID mismatch between event and context"), http.StatusInternalServerError, w)
-		return
-	}
-	a.correlationID = context.CorrelationID
+	if context == nil {
+		a.Logger.WithFields(
+			logrus.Fields{
+				"executionID": a.executionID,
+				"eventID":     a.eventID,
+				"timestamp":   time.Now(),
+			}).Debug("No context passed, assuming first or orphan")
+	} else {
+		// Download the necessary files for the module
+		err = a.Blob.GetBlobs("in/data", context.Files)
+		if err != nil {
+			respondWithError(err, http.StatusInternalServerError, w)
+			return
+		}
 
-	// Download the necessary files for the module
-	err = a.Blob.GetBlobs("in/data", context.Files)
-	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
-		return
+		if len(context.Data) > 0 {
+			b, err := json.Marshal(context.Data)
+			if err != nil {
+				respondWithError(err, http.StatusInternalServerError, w)
+				return
+			}
+			err = ioutil.WriteFile(inputMetaFile, b, 0777)
+			if err != nil {
+				respondWithError(err, http.StatusInternalServerError, w)
+				return
+			}
+		}
 	}
 
 	a.Logger.WithFields(
 		logrus.Fields{
 			"correlationID": a.correlationID,
 			"executionID":   a.executionID,
-			"parentEventID": a.parentEventID,
 			"eventID":       a.eventID,
 			"timestamp":     time.Now(),
 		}).Info("OnReady() complete")
@@ -206,48 +223,44 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		logrus.Fields{
 			"correlationID": a.correlationID,
 			"executionID":   a.executionID,
-			"parentEventID": a.parentEventID,
 			"eventID":       a.eventID,
 			"timestamp":     time.Now(),
 		}).Info("OnDone() called")
 
 	// Synchronize blob data with external blob store
-	blobsPath := path.Join("out", "data")
-	err := a.commitBlob(blobsPath)
+	err := a.commitBlob(outputBlobDir)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local blob directory
-	err = ClearDir(blobsPath)
+	err = ClearDir(outputBlobDir)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 
 	// Synchronize metadata with external document store
-	metadataPath := path.Join("out", "meta.json")
-	err = a.commitMeta(metadataPath)
+	err = a.commitMeta(outputMetaFile)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local metadata document
-	err = RemoveFile(metadataPath)
+	err = RemoveFile(outputMetaFile)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 
 	// Synchronize events with external event system
-	eventsPath := path.Join("out", "events")
-	err = a.commitEvents(eventsPath)
+	err = a.commitEvents(outputEventsDir)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local events directory
-	err = ClearDir(eventsPath)
+	err = ClearDir(outputEventsDir)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -257,7 +270,6 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		logrus.Fields{
 			"correlationID": a.correlationID,
 			"executionID":   a.executionID,
-			"parentEventID": a.parentEventID,
 			"eventID":       a.eventID,
 			"timestamp":     time.Now(),
 		}).Info("OnDone() complete")
@@ -301,7 +313,13 @@ func (a *App) commitMeta(metadataPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
 	}
-	err = a.Meta.Append(a.executionID, m)
+	insight := types.Insight{
+		ExecutionID:   a.executionID,
+		CorrelationID: a.correlationID,
+		EventID:       a.eventID,
+		Data:          m,
+	}
+	err = a.Meta.CreateInsight(&insight)
 	if err != nil {
 		return fmt.Errorf("failed to add metadata document '%+v' with error: '%+v'", m, err)
 	}
@@ -319,7 +337,8 @@ func (a *App) commitEvents(eventsPath string) error {
 	}
 	for _, file := range files {
 		fileName := file.Name()
-		f, err := os.Open(fileName)
+		eventFilePath := path.Join(outputEventsDir, fileName)
+		f, err := os.Open(eventFilePath)
 		defer f.Close()
 		if err != nil {
 			return fmt.Errorf("failed to read file '%s' with error: '%+v'", fileName, err)
@@ -335,8 +354,12 @@ func (a *App) commitEvents(eventsPath string) error {
 		var eventType string
 		for i, kvp := range kvps {
 			if kvp.Key == types.EventType {
-				eventType = kvp.Value.(string)
-				kvps = remove(kvps, i)
+				var ok bool
+				eventType, ok = kvp.Value.(string)
+				if !ok {
+					continue
+				}
+				kvps = Remove(kvps, i)
 				break
 			}
 		}
@@ -344,11 +367,16 @@ func (a *App) commitEvents(eventsPath string) error {
 			return fmt.Errorf("all events must contain an 'eventType' field, error: '%+v'", err)
 		}
 
-		var files []string
+		var files string
 		for i, kvp := range kvps {
 			if kvp.Key == types.IncludedFiles {
-				files = kvp.Value.([]string)
-				kvps = remove(kvps, i)
+				fmt.Printf("kvp: %+v", kvp)
+				var ok bool
+				files, ok = kvp.Value.(string)
+				if !ok {
+					continue
+				}
+				kvps = Remove(kvps, i)
 				break
 			}
 		}
@@ -366,27 +394,27 @@ func (a *App) commitEvents(eventsPath string) error {
 		if !isValid {
 			return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
 		}
+		fileSlice := strings.Split(files, ",")
 
 		// Create new event
-		executionID := NewExecutionID(a.moduleName)
+		eventID := NewGuid()
 		event := types.Event{
 			PreviousStages: []string{},
-			ParentEventID:  a.parentEventID,
-			ExecutionID:    executionID,
+			EventID:        eventID,
 			Type:           eventType,
 		}
 
 		// Create new context document
-		contextMetadata := types.Metadata{
-			ExecutionID:   executionID,
+		eventContext := types.Metadata{
+			EventID:       eventID,
 			CorrelationID: a.correlationID,
 			ParentEventID: a.eventID,
-			Files:         files,
+			Files:         fileSlice,
 			Data:          kvps,
 		}
-		err = a.Meta.Create(&contextMetadata)
+		err = a.Meta.CreateEventContext(&eventContext)
 		if err != nil {
-			return fmt.Errorf("failed to add context '%+v' with error '%+v'", contextMetadata, err)
+			return fmt.Errorf("failed to add context '%+v' with error '%+v'", eventContext, err)
 		}
 		err = a.Publisher.Publish(event)
 		if err != nil {
@@ -396,17 +424,10 @@ func (a *App) commitEvents(eventsPath string) error {
 	return nil
 }
 
-func remove(s []types.KeyValuePair, i int) []types.KeyValuePair {
-	s[len(s)-1], s[i] = s[i], s[len(s)-1]
-	return s[:len(s)-1]
-}
-
 //getContext get context metadata document
-func (a *App) getContext(executionID string) (*types.Metadata, error) {
-	context, err := a.Meta.GetByID(executionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed getting context document using ID '%s' with error: '%+v'", executionID, err)
-	}
+func (a *App) getContext() (*types.Metadata, error) {
+	context, _ := a.Meta.GetEventContextByID(a.eventID)
+	//TODO: Fail on error conditions other than not found
 	return context, nil
 }
 

@@ -58,8 +58,8 @@ func NewMongoDB(config *Config) (*MongoDB, error) {
 	return MongoDB, nil
 }
 
-//GetByID returns a single document matching a given document ID
-func (db *MongoDB) GetByID(id string) (*types.Metadata, error) {
+//GetEventContextByID returns a single document matching a given document ID
+func (db *MongoDB) GetEventContextByID(id string) (*types.Metadata, error) {
 	metadata := types.Metadata{}
 	err := db.Collection.Find(bson.M{"id": id}).One(&metadata)
 	if err != nil {
@@ -68,8 +68,8 @@ func (db *MongoDB) GetByID(id string) (*types.Metadata, error) {
 	return &metadata, nil
 }
 
-//Create creats a new metadata document
-func (db *MongoDB) Create(metadata *types.Metadata) error {
+//CreateEventContext creats a new metadata document
+func (db *MongoDB) CreateEventContext(metadata *types.Metadata) error {
 	b, err := json.Marshal(*metadata)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
@@ -79,7 +79,7 @@ func (db *MongoDB) Create(metadata *types.Metadata) error {
 	if err != nil {
 		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
 	}
-	selector := bson.M{"id": metadata.ExecutionID}
+	selector := bson.M{"id": metadata.EventID}
 	update := bson.M{"$set": metadata}
 	_, err = db.Collection.Upsert(selector, update)
 	if err != nil {
@@ -88,9 +88,9 @@ func (db *MongoDB) Create(metadata *types.Metadata) error {
 	return nil
 }
 
-//Append data to an existing metadata document
-func (db *MongoDB) Append(id string, kvps []types.KeyValuePair) error {
-	b, err := json.Marshal(kvps)
+//CreateInsight creates an insights document
+func (db *MongoDB) CreateInsight(insight *types.Insight) error {
+	b, err := json.Marshal(*insight)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
 	}
@@ -99,13 +99,11 @@ func (db *MongoDB) Append(id string, kvps []types.KeyValuePair) error {
 	if err != nil {
 		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
 	}
-	selector := bson.M{"id": id}
-	for _, kvp := range kvps {
-		update := bson.M{"$push": bson.M{"data": kvp}}
-		err = db.Collection.Update(selector, update)
-		if err != nil {
-			return fmt.Errorf("error updating document: %+v", err)
-		}
+	selector := bson.M{"id": insight.ExecutionID}
+	update := bson.M{"$set": insight}
+	_, err = db.Collection.Upsert(selector, update)
+	if err != nil {
+		return fmt.Errorf("error creates document: %+v", err)
 	}
 	return nil
 }

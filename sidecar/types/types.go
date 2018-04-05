@@ -7,9 +7,9 @@ import (
 
 //MetadataProvider is a document storage DB for storing document data
 type MetadataProvider interface {
-	GetByID(id string) (*Metadata, error)
-	Create(metadata *Metadata) error
-	Append(id string, data []KeyValuePair) error
+	GetEventContextByID(id string) (*Metadata, error)
+	CreateEventContext(metadata *Metadata) error
+	CreateInsight(insight *Insight) error
 	Close()
 }
 
@@ -26,12 +26,22 @@ type EventPublisher interface {
 	Close()
 }
 
+//TODO: Rename to eventContext
 //Metadata is a single entry in a document
 type Metadata struct {
-	ExecutionID   string         `bson:"id" json:"id"`
+	EventID       string         `bson:"id" json:"id"`
 	CorrelationID string         `bson:"correlationId" json:"correlationId"`
 	ParentEventID string         `bson:"parentEventId" json:"parentEventId"`
 	Files         []string       `bson:"files" json:"files"`
+	Data          []KeyValuePair `bson:"data" json:"data"`
+}
+
+//Insight todo
+type Insight struct {
+	ExecutionID   string         `bson:"id" json:"id"`
+	CorrelationID string         `bson:"correlationId" json:"correlationId"`
+	EventID       string         `bson:"eventId" json:"eventId"`
+	ParentEventID string         `bson:"parentEventId" json:"parentEventId"`
 	Data          []KeyValuePair `bson:"data" json:"data"`
 }
 
@@ -43,10 +53,10 @@ type KeyValuePair struct {
 
 //Event the basic event data format
 type Event struct {
+	EventID        string         `json:"eventID"`
 	Type           string         `json:"type"`
 	PreviousStages []string       `json:"previousStages"`
-	ParentEventID  string         `json:"parentEventID"`
-	ExecutionID    string         `json:"contextId"`
+	CorrelationID  string         `json:"correlationID"`
 	Data           []KeyValuePair `json:"data"`
 }
 

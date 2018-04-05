@@ -12,7 +12,8 @@ type Configuration struct {
 	ModuleName              string               `description:"The module's name"`
 	EventID                 string               `description:"The unique ID for this module"`
 	ExecutionID             string               `description:"Execution ID is used to get the context of this job"`
-	ParentEventID           string               `descritpion:"The parent event ID"`
+	ParentEventID           string               `description:"The parent event ID"`
+	CorrelationID           string               `description:"The correlation ID"`
 	ServerPort              int                  `description:"The port for the web server to listen on"`
 	AzureBlobProvider       *azurestorage.Config `description:"Azure Storage Blob provider" export:"true"`
 	MongoDBMetaProvider     *mongodb.Config      `description:"MongoDB metastore provider" export:"true"`
