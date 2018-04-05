@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Azure/go-autorest/autorest"
@@ -10,6 +11,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/batch/2017-09-01.6.0/batch"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
+	apiv1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -30,6 +32,38 @@ func NewMockAzureBatchProvider(createTask func(taskDetails batch.TaskAddParamete
 	b.createTask = createTask
 	b.listTasks = listTasks
 	return &b, nil
+}
+
+func TestPod2DockerGeneratesValidOutputEncoding(t *testing.T) {
+	containers := []apiv1.Container{
+		{
+			Name:  "sidecar",
+			Image: "barry",
+			Args:  []string{"encoding"},
+		},
+		{
+			Name:            "worker",
+			Image:           "marge",
+			ImagePullPolicy: apiv1.PullAlways,
+		},
+	}
+
+	// Todo: Pull this out into a standalone package once stabilized
+	podCommand, err := getPodCommand(batchPodComponents{
+		Containers: containers,
+		PodName:    mockMessageID,
+		TaskID:     mockMessageID,
+		Volumes:    nil,
+	})
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Log(podCommand)
+	if strings.Contains(podCommand, "&lt;") {
+		t.Error("output contains incorrect encoding")
+	}
 }
 
 func TestAzureBatchDispatchAddsJob(t *testing.T) {
