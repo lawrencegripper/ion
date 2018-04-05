@@ -35,7 +35,7 @@ func downloadFile(url, filepath string) error {
 }
 
 func main() {
-	filename := "rawvideo"
+	filename := env.OutputDataDir + "/file.raw"
 
 	dat, _ := ioutil.ReadFile(env.InputDataDir + "/link.txt")
 	link := string(dat)
@@ -47,7 +47,7 @@ func main() {
 
 	log.Debug("Downloading link: " + link)
 
-	err := downloadFile(link, env.OutputDataDir+"/video.raw")
+	err := downloadFile(link, filename)
 	if err != nil {
 		log.Info(err.Error())
 		return
