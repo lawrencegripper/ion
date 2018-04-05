@@ -16,7 +16,7 @@ Any output files you wish to persist should be written to `out/data`
 
 ## `out/meta.json`
 Any metadata you wish to persist should be written to the JSON file `out/meta.json`
-**Metadata Schema:**
+**EventContext Schema:**
 Key value pairs can only currently be stored as strings.
 ```json
 {

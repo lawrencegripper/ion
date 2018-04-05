@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
@@ -42,14 +41,4 @@ func AddLog(logger *log.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-//getResourceID extracts the blob resource ID from the HTTP request
-func getResourceID(r *http.Request) (string, error) {
-	resPath := r.URL.Query().Get("res")
-	reqID := r.Header.Get("request-id")
-	if reqID == "" || resPath == "" {
-		return "", fmt.Errorf("empty or invalid resource path or ID")
-	}
-	return fmt.Sprintf("%s/%s", reqID, resPath), nil
 }

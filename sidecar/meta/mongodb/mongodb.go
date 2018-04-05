@@ -59,18 +59,18 @@ func NewMongoDB(config *Config) (*MongoDB, error) {
 }
 
 //GetEventContextByID returns a single document matching a given document ID
-func (db *MongoDB) GetEventContextByID(id string) (*types.Metadata, error) {
-	metadata := types.Metadata{}
-	err := db.Collection.Find(bson.M{"id": id}).One(&metadata)
+func (db *MongoDB) GetEventContextByID(id string) (*types.EventContext, error) {
+	eventContext := types.EventContext{}
+	err := db.Collection.Find(bson.M{"id": id}).One(&eventContext)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", id, err)
 	}
-	return &metadata, nil
+	return &eventContext, nil
 }
 
-//CreateEventContext creats a new metadata document
-func (db *MongoDB) CreateEventContext(metadata *types.Metadata) error {
-	b, err := json.Marshal(*metadata)
+//CreateEventContext creats a new event context document
+func (db *MongoDB) CreateEventContext(eventContext *types.EventContext) error {
+	b, err := json.Marshal(*eventContext)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
 	}
@@ -79,8 +79,8 @@ func (db *MongoDB) CreateEventContext(metadata *types.Metadata) error {
 	if err != nil {
 		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
 	}
-	selector := bson.M{"id": metadata.EventID}
-	update := bson.M{"$set": metadata}
+	selector := bson.M{"id": eventContext.EventID}
+	update := bson.M{"$set": eventContext}
 	_, err = db.Collection.Upsert(selector, update)
 	if err != nil {
 		return fmt.Errorf("error creates document: %+v", err)
