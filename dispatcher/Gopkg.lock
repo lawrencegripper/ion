@@ -115,6 +115,12 @@
   version = "0.3.2"
 
 [[projects]]
+  name = "github.com/joho/godotenv"
+  packages = ["."]
+  revision = "a79fa1e548e2c689c241d10173efd51e5d689d5b"
+  version = "v1.2.0"
+
+[[projects]]
   name = "github.com/json-iterator/go"
   packages = ["."]
   revision = "ca39e5af3ece67bbcda3d0f4f56a8e24d9f2dad4"
@@ -375,6 +381,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2fe474271582a890eccd61e6575579bc9051aa758dd6d2e76f8817547dab0afd"
+  inputs-digest = "819428fb35bc59ad676cf020c337fca5abc9caa520fd316d44bc797b9c4af6a2"
   solver-name = "gps-cdcl"
   solver-version = 1

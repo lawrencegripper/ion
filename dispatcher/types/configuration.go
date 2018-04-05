@@ -15,6 +15,7 @@ type Configuration struct {
 	ClientID            string         `description:"ClientID of Service Principal for Azure access"`
 	ClientSecret        string         `description:"Client Secrete of Service Principal for Azure access"`
 	TenantID            string         `description:"TentantID for Azure"`
+	ModuleConfigPath    string         `description:"Location of the env file for the module being run"`
 	LogSensitiveConfig  bool           `description:"Print out sensitive config when logging"`
 	Job                 *JobConfig     `description:"Configure settings for the jobs to be run"`
 	Sidecar             *SidecarConfig `description:"Configure settings for the sidecar"`
