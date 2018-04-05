@@ -1,49 +1,86 @@
-replicaCount: 1
+replicas: 1
 
-azure:
-  clientID: ""
-  clientSecret: ""
-  tenantID: ""
-  subscriptionID: ""
-  resourceGroup: ""
-  blob:
-    accountName: ""
-    accountKey: ""
-    useProxy: false
-
-deployment:
-  label: ion
-  name: ion-deployment
-
-dispatcher:
-  image: dotjson/ion-dispatcher
+image:
+  name: dotjson/ion-dispatcher
   tag: latest
-  name: dispatcher
+  pullPolicy: Always
 
-job:
-  maxRunningTimeMins: 10
-  retryCount: 5
-  subscribesToEvent: ""
+resources:
+  requests:
+    cpu: 100m
+    memory: 50Mi
+  # limits:
+  #   cpu: 100m
+  #   memory: 100Mi
 
-sidecar:
-  image: dotjson/ion-sidecar
-  port: 8080
-  printConfig: false
+terminationGracePeriodSeconds: 10
+nodeSelector: {}
+tolerations: []
+# E.g. kubernetes   ---  https://kubernetes.io/docs/concepts/configuration/assign-pod-     node/#taints-and-tolerations-beta-feature
+# - key: "key1"
+#   operator: "Equal"
+#   value: "value1"
+#   effect: "NoSchedule"
+# - key: "key1"
+#   operator: "Equal"
+#   value: "value1"
+#   effect: "NoExecute"
 
-module:
-  image: dotjson/ion-python-example-module
-  name: pyex
-  eventsPublised: ""
+rbac:
+  enabled: true
 
-mongodb:
-  name: ""
-  collection: ""
-  password: ""
-  port: 27017
-
-servicebus:
-  namespace: ""
-
-logs:
+log:
   level: info
   sensitive: false
+
+module:
+  name: pyex
+  image:
+    name: dotjson/ion-python-example-module
+    tag: latest
+    pullPolicy: Always
+  eventsPublished: ""
+  maxRunningTimeMins: 10
+  subscribesToEvent: ""
+  retryCount: 5
+  sidecar:
+    host: localhost:8080
+    printConfig: false
+    image:
+      name: dotjson/ion-sidecar
+      tag: latest
+      pullPolicy: Always
+# This is the configuration to be passed to the module.
+# It will be pushed in a config map as such.
+  config: ""
+
+# Only Azure is supported at the moment
+cloud:
+  azure:
+    clientId: ""
+    clientSecret: ""
+    tenantId: ""
+    subscriptionId: ""
+    resourceGroup: ""
+
+fileStorage:
+  provider: azure
+  azure:
+    accountName: blob
+    accountKey: thisisanexampleaccountkey
+    useProxy: false
+
+dbStorage:
+  provider: mongodb
+  mongodb:
+    # A comma separated list of hosts with their ports
+    uri: "localhost:27017"
+    username: mongodb
+    password: mongodb
+
+amqp:
+  # Azure servicebus is the only supported at the moment
+  provider: servicebus
+  servicebus:
+    namespace: dispatcher
+
