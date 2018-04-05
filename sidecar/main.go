@@ -85,10 +85,12 @@ func runApp(config *app.Configuration) {
 		config.SharedSecret,
 		config.EventID,
 		config.ExecutionID,
+		config.ParentEventID,
 		config.ModuleName,
 		metaProvider,
 		eventProvider,
 		blobProvider,
+		false,
 		logger,
 	)
 
@@ -131,7 +133,10 @@ func getBlobProvider(config *app.Configuration) types.BlobProvider {
 	blobProviders := make([]types.BlobProvider, 0)
 	if config.AzureBlobProvider != nil {
 		c := config.AzureBlobProvider
-		azureBlob, err := azurestorage.NewBlobStorage(c)
+		azureBlob, err := azurestorage.NewBlobStorage(c, strings.Join([]string{
+			config.EventID,
+			config.ParentEventID,
+			config.ModuleName}, "-"))
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
 		}

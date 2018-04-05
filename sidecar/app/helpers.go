@@ -5,11 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"regexp"
-	"strings"
-	"sync"
 
-	"github.com/lawrencegripper/ion/sidecar/types"
 	"github.com/twinj/uuid"
 )
 
@@ -48,58 +44,6 @@ func MustNotBeNil(objs ...interface{}) {
 			panic("required obj is nil")
 		}
 	}
-}
-
-//StripBlobStore removes details specific to the metadata store from any metadata
-func StripBlobStore(docs []types.Metadata) ([]types.Metadata, error) {
-	var waitGroup sync.WaitGroup
-	waitGroup.Add(len(docs))
-
-	defer waitGroup.Wait()
-
-	rx, err := regexp.Compile(`^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/[a-zA-Z0-9]+/`)
-	if err != nil {
-		return nil, fmt.Errorf("error thrown compiling regex: %+v", err)
-	}
-
-	strip := make(chan types.Metadata)
-	strippedDocs := make([]types.Metadata, 0)
-	for _, doc := range docs {
-		go func(doc types.Metadata) {
-			defer waitGroup.Done()
-			strippedMeta := map[string]string{}
-			for k, v := range doc.Data {
-				match := rx.FindString(v)
-				if match == "" {
-					strippedMeta[k] = v
-				} else {
-					strippedMeta[k] = strings.Replace(v, match, "", 1)
-				}
-			}
-			doc.Data = strippedMeta
-			strip <- doc
-		}(doc)
-	}
-
-	for i := 0; i < len(docs); i++ {
-		doc := <-strip
-		strippedDocs = append(strippedDocs, doc)
-	}
-
-	return strippedDocs, nil
-}
-
-//NormalizeResourcePath transforms a resource path into an expected format
-func NormalizeResourcePath(resPath string) (string, error) {
-	if resPath[0] == '/' {
-		resPath = resPath[1:]
-	}
-	segs := strings.Split(resPath, "/")
-	if len(segs) < 2 {
-		return "", fmt.Errorf("%s is not a valid resource path", resPath)
-	}
-	resPath = strings.Replace(resPath, "//", "/", -1)
-	return resPath, nil
 }
 
 func ClearDir(dirPath string) error {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/lawrencegripper/ion/sidecar/app"
@@ -25,18 +26,16 @@ func TestAzureIntegration(t *testing.T) {
 	}
 
 	config := &app.Configuration{
-		SharedSecret: "secret",
-		ModuleName:   "testmodule",
-		EventID:      "1111111",
-		ExecutionID:  "123124",
-		ServerPort:   8080,
+		SharedSecret:  "secret",
+		ModuleName:    "testmodule",
+		EventID:       "1111111",
+		ExecutionID:   "123124",
+		ParentEventID: "1111111",
+		ServerPort:    8080,
 		AzureBlobProvider: &azurestorage.Config{
 			BlobAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
 			BlobAccountKey:  os.Getenv("AZURE_STORAGE_ACCOUNT_KEY"),
 			ContainerName:   "frank",
-			EventID:         "1111111",
-			ParentEventID:   "1111111",
-			ModuleName:      "testmodule",
 		},
 		MongoDBMetaProvider: &mongodb.Config{
 			Name:       os.Getenv("MONGODB_NAME"),
@@ -58,7 +57,10 @@ func TestAzureIntegration(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to connect to mongodb with error '%+v'", err)
 	}
-	blob, err := azurestorage.NewBlobStorage(config.AzureBlobProvider)
+	blob, err := azurestorage.NewBlobStorage(config.AzureBlobProvider, strings.Join([]string{
+		config.EventID,
+		config.ParentEventID,
+		config.ModuleName}, "-"))
 	if err != nil {
 		t.Errorf("failed to connect to azure storage with error '%+v'", err)
 	}
@@ -75,6 +77,7 @@ func TestAzureIntegration(t *testing.T) {
 		config.SharedSecret,
 		config.EventID,
 		config.ExecutionID,
+		config.ParentEventID,
 		config.ModuleName,
 		db,
 		sb,
@@ -110,12 +113,20 @@ func TestAzureIntegration(t *testing.T) {
 	}
 	outLength := len(outFiles)
 
-	jsonBytes := []byte(fmt.Sprintf("{\"files\": \"%s,%s\"}", blob1, blob2))
-
+	metadataJSONBytes := []byte("[{\"key\": \"key2\",\"value\": \"value2\"}]")
 	metaFilePath := path.Join(outDir, "meta.json")
-	err = ioutil.WriteFile(metaFilePath, jsonBytes, 0777)
+	err = ioutil.WriteFile(metaFilePath, metadataJSONBytes, 0777)
 	if err != nil {
 		t.Errorf("error opening metadata file '%s', '%+v'", metaFilePath, err)
+	}
+
+	json := fmt.Sprintf("{\"eventType\":\"face_detected\", \"parentEventID\":\"%s\", \"executionID\":\"%s\"}", config.ParentEventID, config.ExecutionID)
+	eventJSONBytes := []byte(json)
+	eventDir := path.Join(outDir, "events")
+	eventFilePath := path.Join(eventDir, "event1.json")
+	err = ioutil.WriteFile(eventFilePath, eventJSONBytes, 0777)
+	if err != nil {
+		t.Errorf("error opening event file '%s', '%+v'", metaFilePath, err)
 	}
 
 	doneURL := "http://localhost:" + fmt.Sprintf("%v", config.ServerPort) + "/done"

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -43,14 +42,15 @@ type App struct {
 	Blob      types.BlobProvider
 	Logger    *log.Logger
 
-	moduleName    string
-	secretHash    string
-	parentEventID string
-	correlationID string
-	eventID       string
-	executionID   string
-	state         int
-	debug         bool
+	moduleName      string
+	secretHash      string
+	parentEventID   string
+	correlationID   string
+	eventID         string
+	executionID     string
+	validEventTypes []string
+	state           int
+	debug           bool
 }
 
 //Setup initializes application
@@ -58,6 +58,7 @@ func (a *App) Setup(
 	secret,
 	eventID,
 	executionID,
+	parentEventID,
 	moduleName string,
 	meta types.MetadataProvider,
 	publisher types.EventPublisher,
@@ -65,7 +66,7 @@ func (a *App) Setup(
 	debug bool,
 	logger *log.Logger) {
 
-	MustNotBeEmpty(secret, eventID, executionID)
+	MustNotBeEmpty(secret, eventID, parentEventID, executionID)
 	MustNotBeNil(meta, publisher, blob, logger)
 
 	// Create output directories
@@ -93,6 +94,7 @@ func (a *App) Setup(
 	a.moduleName = moduleName
 	a.eventID = eventID
 	a.executionID = executionID
+	a.parentEventID = parentEventID
 
 	a.Meta = meta
 	a.Publisher = publisher
@@ -153,10 +155,11 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 	}
 	a.Logger.WithFields(
 		logrus.Fields{
-			"executionID": a.executionID,
-			"eventID":     a.eventID,
-			"timestamp":   time.Now(),
-		}).Info("Initializing execution environment")
+			"executionID":   a.executionID,
+			"eventID":       a.eventID,
+			"parentEventID": a.parentEventID,
+			"timestamp":     time.Now(),
+		}).Info("OnReady() called")
 
 	// Get the context of this execution
 	context, err := a.getContext(a.executionID)
@@ -164,16 +167,14 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
-	a.correlationID = context.CorrelationID
-	a.parentEventID = context.ParentEventID
-
-	// Download the necessary files for the module
-	files, err := getFiles(context)
-	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
+	if context.ParentEventID != a.parentEventID {
+		respondWithError(fmt.Errorf("parent event ID mismatch between event and context"), http.StatusInternalServerError, w)
 		return
 	}
-	err = a.Blob.GetBlobs("in/data", files)
+	a.correlationID = context.CorrelationID
+
+	// Download the necessary files for the module
+	err = a.Blob.GetBlobs("in/data", context.Files)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -186,7 +187,7 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 			"parentEventID": a.parentEventID,
 			"eventID":       a.eventID,
 			"timestamp":     time.Now(),
-		}).Info("Completed initializing execution environment")
+		}).Info("OnReady() complete")
 
 	a.state = STATE_READY
 	// Return
@@ -208,7 +209,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 			"parentEventID": a.parentEventID,
 			"eventID":       a.eventID,
 			"timestamp":     time.Now(),
-		}).Info("Committing state")
+		}).Info("OnDone() called")
 
 	// Synchronize blob data with external blob store
 	blobsPath := path.Join("out", "data")
@@ -252,13 +253,25 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.Logger.WithFields(
+		logrus.Fields{
+			"correlationID": a.correlationID,
+			"executionID":   a.executionID,
+			"parentEventID": a.parentEventID,
+			"eventID":       a.eventID,
+			"timestamp":     time.Now(),
+		}).Info("OnDone() complete")
+
 	a.state = STATE_DONE
+	// Return
+	w.WriteHeader(http.StatusOK)
 }
 
 //commitBlob commits the blob directory to an external blob provider
 func (a *App) commitBlob(blobsPath string) error {
-	//TODO: Validate blobsPath
-
+	if _, err := os.Stat(blobsPath); os.IsNotExist(err) {
+		return fmt.Errorf("blob output directory '%s' does not exists '%+v'", blobsPath, err)
+	}
 	files, err := ioutil.ReadDir(blobsPath)
 	if err != nil {
 		return err
@@ -267,7 +280,7 @@ func (a *App) commitBlob(blobsPath string) error {
 	for _, file := range files {
 		fileNames = append(fileNames, path.Join(outputBlobDir, file.Name()))
 	}
-	err = a.Blob.CreateBlobs(fileNames)
+	err = a.Blob.PutBlobs(fileNames)
 	if err != nil {
 		return fmt.Errorf("failed to commit blob: %+v", err)
 	}
@@ -276,37 +289,30 @@ func (a *App) commitBlob(blobsPath string) error {
 
 //commitMeta commits the metadata document to an external provider
 func (a *App) commitMeta(metadataPath string) error {
-	//TODO: Validate metadata file path
-
+	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
+		return fmt.Errorf("metadata file '%s' does not exists '%+v'", metadataPath, err)
+	}
 	bytes, err := ioutil.ReadFile(metadataPath)
 	if err != nil {
 		return fmt.Errorf("failed to read metadata document '%s' with error '%+v'", metadataPath, err)
 	}
-	var m map[string]string
+	var m []types.KeyValuePair
 	err = json.Unmarshal(bytes, &m)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", metadataPath, err)
+		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
 	}
-	if m[types.IncludedFiles] == "" {
-		return fmt.Errorf("metadata requires a '%s' field", types.IncludedFiles)
-	}
-	metadata := types.Metadata{
-		ExecutionID:   a.executionID,
-		CorrelationID: a.correlationID,
-		ParentEventID: a.parentEventID,
-		Data:          m,
-	}
-	err = a.Meta.UpsertMetadataDocument(&metadata)
+	err = a.Meta.Append(a.executionID, m)
 	if err != nil {
-		return fmt.Errorf("failed to add metadata document '%+v' with error: '%+v'", metadata, err)
+		return fmt.Errorf("failed to add metadata document '%+v' with error: '%+v'", m, err)
 	}
 	return nil
 }
 
 //commitEvents commits the events directory to an external provider
 func (a *App) commitEvents(eventsPath string) error {
-	//TODO: Validate events directory path
-
+	if _, err := os.Stat(eventsPath); os.IsNotExist(err) {
+		return fmt.Errorf("events output directory '%s' does not exists '%+v'", eventsPath, err)
+	}
 	files, err := ioutil.ReadDir(eventsPath)
 	if err != nil {
 		return err
@@ -319,24 +325,53 @@ func (a *App) commitEvents(eventsPath string) error {
 			return fmt.Errorf("failed to read file '%s' with error: '%+v'", fileName, err)
 		}
 		// Deserialize event into map
-		var m map[string]string
+		var kvps []types.KeyValuePair
 		decoder := json.NewDecoder(f)
-		err = decoder.Decode(&m)
+		err = decoder.Decode(&kvps)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", fileName, err)
 		}
 		// Check required fields
-		eventType := m[types.EventType]
+		var eventType string
+		for i, kvp := range kvps {
+			if kvp.Key == types.EventType {
+				eventType = kvp.Value.(string)
+				kvps = remove(kvps, i)
+				break
+			}
+		}
 		if eventType == "" {
 			return fmt.Errorf("all events must contain an 'eventType' field, error: '%+v'", err)
 		}
-		delete(m, types.EventType)
+
+		var files []string
+		for i, kvp := range kvps {
+			if kvp.Key == types.IncludedFiles {
+				files = kvp.Value.([]string)
+				kvps = remove(kvps, i)
+				break
+			}
+		}
+		if len(files) == 0 {
+			return fmt.Errorf("all events must contain a 'files' field, error: '%+v'", err)
+		}
+
+		var isValid bool
+		for _, et := range a.validEventTypes {
+			if et == eventType {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
+		}
 
 		// Create new event
-		//TODO: Generate execution ID for each event...
 		executionID := NewExecutionID(a.moduleName)
 		event := types.Event{
 			PreviousStages: []string{},
+			ParentEventID:  a.parentEventID,
 			ExecutionID:    executionID,
 			Type:           eventType,
 		}
@@ -346,9 +381,10 @@ func (a *App) commitEvents(eventsPath string) error {
 			ExecutionID:   executionID,
 			CorrelationID: a.correlationID,
 			ParentEventID: a.eventID,
-			Data:          m,
+			Files:         files,
+			Data:          kvps,
 		}
-		err = a.Meta.UpsertMetadataDocument(&contextMetadata)
+		err = a.Meta.Create(&contextMetadata)
 		if err != nil {
 			return fmt.Errorf("failed to add context '%+v' with error '%+v'", contextMetadata, err)
 		}
@@ -360,23 +396,18 @@ func (a *App) commitEvents(eventsPath string) error {
 	return nil
 }
 
+func remove(s []types.KeyValuePair, i int) []types.KeyValuePair {
+	s[len(s)-1], s[i] = s[i], s[len(s)-1]
+	return s[:len(s)-1]
+}
+
 //getContext get context metadata document
 func (a *App) getContext(executionID string) (*types.Metadata, error) {
-	context, err := a.Meta.GetMetadataDocumentByID(executionID)
+	context, err := a.Meta.GetByID(executionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting context document using ID '%s' with error: '%+v'", executionID, err)
 	}
 	return context, nil
-}
-
-//getFiles from context metadata document
-func getFiles(metadata *types.Metadata) ([]string, error) {
-	fileCSV, exist := metadata.Data[types.IncludedFiles]
-	if !exist {
-		return nil, fmt.Errorf("required key '%s' not found in metadata", types.IncludedFiles)
-	}
-	files := strings.Split(fileCSV, ",")
-	return files, nil
 }
 
 //respondWithError returns a JSON formatted HTTP error

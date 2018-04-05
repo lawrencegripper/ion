@@ -16,10 +16,7 @@ import (
 type Config struct {
 	BlobAccountName string `description:"Azure Blob Storage account name"`
 	BlobAccountKey  string `description:"Azure Blob Storage account key"`
-	ContainerName   string `description:"todo"`
-	EventID         string `description:"todo"`
-	ParentEventID   string `description:"todo"`
-	ModuleName      string `description:"todo"`
+	ContainerName   string `description:"Azure Blob Storage container name"`
 }
 
 //BlobStorage is responsible for handling the connections to Azure Blob Storage
@@ -27,13 +24,11 @@ type Config struct {
 type BlobStorage struct {
 	blobClient    storage.BlobStorageClient
 	containerName string
-	eventID       string
-	parentEventID string
-	moduleName    string
+	blobPrefix    string
 }
 
 //NewBlobStorage creates a new Azure Blob Storage object
-func NewBlobStorage(config *Config) (*BlobStorage, error) {
+func NewBlobStorage(config *Config, blobPrefix string) (*BlobStorage, error) {
 	blobClient, err := storage.NewBasicClient(config.BlobAccountName, config.BlobAccountKey)
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage blobClient: %+v", err)
@@ -42,15 +37,13 @@ func NewBlobStorage(config *Config) (*BlobStorage, error) {
 	asb := &BlobStorage{
 		blobClient:    blob,
 		containerName: config.ContainerName,
-		eventID:       config.EventID,
-		parentEventID: config.ParentEventID,
-		moduleName:    config.ModuleName,
+		blobPrefix:    blobPrefix,
 	}
 	return asb, nil
 }
 
 //CreateBlobs creates Azure Blobs for each of the provided files
-func (a *BlobStorage) CreateBlobs(filePaths []string) error {
+func (a *BlobStorage) PutBlobs(filePaths []string) error {
 	container, err := a.createContainerIfNotExist()
 	if err != nil {
 		return err
@@ -58,8 +51,7 @@ func (a *BlobStorage) CreateBlobs(filePaths []string) error {
 	for _, filePath := range filePaths {
 		_, nakedFilePath := path.Split(filePath)
 		blobPath := strings.Join([]string{
-			a.eventID,
-			a.moduleName,
+			a.blobPrefix,
 			nakedFilePath,
 		}, "-")
 		file, err := os.Open(filePath)
@@ -87,8 +79,7 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 	container := a.blobClient.GetContainerReference(containerName)
 	for _, filePath := range filePaths {
 		blobPath := strings.Join([]string{
-			a.parentEventID,
-			a.moduleName,
+			a.blobPrefix,
 			filePath,
 		}, "-")
 		blobRef := container.GetBlobReference(blobPath)

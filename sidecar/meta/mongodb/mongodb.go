@@ -58,8 +58,8 @@ func NewMongoDB(config *Config) (*MongoDB, error) {
 	return MongoDB, nil
 }
 
-//GetMetadataDocumentByID returns a single document matching a given document ID
-func (db *MongoDB) GetMetadataDocumentByID(id string) (*types.Metadata, error) {
+//GetByID returns a single document matching a given document ID
+func (db *MongoDB) GetByID(id string) (*types.Metadata, error) {
 	metadata := types.Metadata{}
 	err := db.Collection.Find(bson.M{"id": id}).One(&metadata)
 	if err != nil {
@@ -68,18 +68,8 @@ func (db *MongoDB) GetMetadataDocumentByID(id string) (*types.Metadata, error) {
 	return &metadata, nil
 }
 
-//GetMetadataDocumentsByID returns all the documents matching a given correlationID
-func (db *MongoDB) GetMetadataDocumentsByID(id string) ([]types.Metadata, error) {
-	metadata := []types.Metadata{}
-	err := db.Collection.Find(bson.M{"correlationId": id}).All(&metadata)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get documents with correlation ID %s, error: %+v", id, err)
-	}
-	return metadata, nil
-}
-
-//UpsertMetadataDocument appends a new entry to an existing document
-func (db *MongoDB) UpsertMetadataDocument(metadata *types.Metadata) error {
+//Create creats a new metadata document
+func (db *MongoDB) Create(metadata *types.Metadata) error {
 	b, err := json.Marshal(*metadata)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
@@ -93,7 +83,29 @@ func (db *MongoDB) UpsertMetadataDocument(metadata *types.Metadata) error {
 	update := bson.M{"$set": metadata}
 	_, err = db.Collection.Upsert(selector, update)
 	if err != nil {
-		return fmt.Errorf("error updating document: %+v", err)
+		return fmt.Errorf("error creates document: %+v", err)
+	}
+	return nil
+}
+
+//Append data to an existing metadata document
+func (db *MongoDB) Append(id string, kvps []types.KeyValuePair) error {
+	b, err := json.Marshal(kvps)
+	if err != nil {
+		return fmt.Errorf("error serializing JSON document: %+v", err)
+	}
+	var bsonDocument interface{}
+	err = bson.UnmarshalJSON(b, &bsonDocument)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
+	}
+	selector := bson.M{"id": id}
+	for _, kvp := range kvps {
+		update := bson.M{"$push": bson.M{"data": kvp}}
+		err = db.Collection.Update(selector, update)
+		if err != nil {
+			return fmt.Errorf("error updating document: %+v", err)
+		}
 	}
 	return nil
 }
