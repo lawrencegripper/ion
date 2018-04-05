@@ -1,17 +1,5 @@
 package autorest
 
-import (
-	"bytes"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"net/http/cookiejar"
-	"runtime"
-	"time"
-)
-
 // Copyright 2017 Microsoft Corporation
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,17 +14,17 @@ import (
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-// import (
-// 	"bytes"
-// 	"fmt"
-// 	"io"
-// 	"io/ioutil"
-// 	"log"
-// 	"net/http"
-// 	"net/http/cookiejar"
-// 	"runtime"
-// 	"time"
-// )
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/http/cookiejar"
+	"runtime"
+	"time"
+)
 
 const (
 	// DefaultPollingDelay is a reasonable delay between polling requests.
@@ -215,9 +203,10 @@ func (c Client) Do(r *http.Request) (*http.Response, error) {
 		r, _ = Prepare(r,
 			WithUserAgent(c.UserAgent))
 	}
+	// NOTE: c.WithInspection() must be last in the list so that it can inspect all preceding operations
 	r, err := Prepare(r,
-		c.WithInspection(),
-		c.WithAuthorization())
+		c.WithAuthorization(),
+		c.WithInspection())
 	if err != nil {
 		var resp *http.Response
 		if detErr, ok := err.(DetailedError); ok {

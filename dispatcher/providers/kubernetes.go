@@ -29,6 +29,9 @@ const (
 	namespacePrefix     = "mlop-"
 )
 
+//Check providers match interface at compile time
+var _ Provider = &Kubernetes{}
+
 // Kubernetes schedules jobs onto k8s from the queue and monitors their progress
 type Kubernetes struct {
 	createJob        func(*batchv1.Job) (*batchv1.Job, error)
@@ -56,6 +59,14 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 	k.sidecarEnvVars = map[string]interface{}{
 		"SIDECAR_PORT": config.Sidecar.ServerPort,
 	}
+	envs, err := getModuleEnvironmentVars(config.ModuleConfigPath)
+	if err != nil {
+		log.WithField("filepath", config.ModuleConfigPath).Error("failed to load addition module config from file")
+	} else {
+		for key, value := range envs {
+			k.sidecarEnvVars[key] = value
+		}
+	}
 
 	client, err := getClientSet()
 	if err != nil {
@@ -78,6 +89,11 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 		return k.client.BatchV1().Jobs(k.Namespace).List(metav1.ListOptions{})
 	}
 	return &k, nil
+}
+
+// InProgressCount provides a count of the currently running jobs
+func (k *Kubernetes) InProgressCount() int {
+	return len(k.inflightJobStore)
 }
 
 // Reconcile will review the state of running jobs and accept or reject messages accordingly
@@ -118,9 +134,6 @@ func (k *Kubernetes) Reconcile() error {
 				log.WithField("job", j).Info("job seen which dispatcher stared but doesn't have source message... likely following a dispatcher restart")
 				continue
 			}
-
-			log.WithField("job", j).Error("serious reconcile logic error. Malformed job of processing bug. ")
-			continue
 		}
 
 		// Todo: Handle jobs which have overrun their Max execution time
@@ -185,7 +198,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	}
 
 	workerEnvVars := []apiv1.EnvVar{
-		apiv1.EnvVar{
+		{
 			Name:  "SHARED_SECRET",
 			Value: message.ID(), //Todo: source from common place with args
 		},

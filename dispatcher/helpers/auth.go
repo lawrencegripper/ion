@@ -1,4 +1,4 @@
-package servicebus
+package helpers
 
 import (
 	"github.com/Azure/go-autorest/autorest"
@@ -18,8 +18,9 @@ func newServicePrincipalTokenFromCredentials(c *types.Configuration, scope strin
 	return adal.NewServicePrincipalToken(*oauthConfig, c.ClientID, c.ClientSecret, scope)
 }
 
-func getAuthorizer(c *types.Configuration) autorest.Authorizer {
-	spt, err := newServicePrincipalTokenFromCredentials(c, azure.PublicCloud.ResourceManagerEndpoint)
+// GetAzureADAuthorizer return an authorizor for Azure SP
+func GetAzureADAuthorizer(c *types.Configuration, azureEndpoint string) autorest.Authorizer {
+	spt, err := newServicePrincipalTokenFromCredentials(c, azureEndpoint)
 	if err != nil {
 		logrus.Panicf("Failed to create authorizer: %v", err)
 	}

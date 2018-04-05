@@ -1,10 +1,10 @@
 [[constraint]]
   name = "github.com/Azure/go-autorest"
-  version = "9.10.0"
+  version = "10.1.0"
 
 [[constraint]]
   name = "github.com/Azure/azure-sdk-for-go"
-  version = "12.5.0-beta"
+  version = "15.0.0"
 
 [[constraint]]
   name = "github.com/containous/flaeg"
@@ -25,3 +25,7 @@
 [[constraint]]
   name = "pack.ag/amqp"
   version = "0.4.0"
+
+[[constraint]]
+  name = "github.com/joho/godotenv"
+  version = "1.2.0"
