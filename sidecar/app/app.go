@@ -30,9 +30,9 @@ const (
 // - Stop eventID being globally unique in metastore
 
 const (
-	STATE_NEW   = iota
-	STATE_READY = iota
-	STATE_DONE  = iota
+	stateNew   = iota
+	stateReady = iota
+	stateDone  = iota
 )
 
 //App is the sidecar application
@@ -80,20 +80,20 @@ func (a *App) Setup(
 	if err != nil {
 		panic(fmt.Errorf("error creating output meta file '%s', error: '%+v'", outputMetaFile, err))
 	}
-	f.Close()
+	f.Close() // nolint: errcheck
 	err = os.MkdirAll(outputEventsDir, 0777)
 	if err != nil {
 		panic(fmt.Errorf("error creating output event directory '%s', error: '%+v'", outputEventsDir, err))
 	}
 
-	a.state = STATE_NEW
+	a.state = stateNew
 	a.secretHash = Hash(secret)
 	a.moduleName = moduleName
 	a.eventID = eventID
 	a.correlationID = correlationID
 	a.validEventTypes = validEventTypes
 
-	a.executionID = NewGuid()
+	a.executionID = NewGUID()
 
 	a.Meta = meta
 	a.Publisher = publisher
@@ -147,8 +147,8 @@ func (a *App) Close() {
 
 //OnReady is called to initiate the modules environment (i.e. download any required blobs, etc.)
 func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
-	if a.state != STATE_NEW {
-		errStr := "/ready called whilst Sidecar is not in the 'STATE_NEW' state."
+	if a.state != stateNew {
+		errStr := "/ready called whilst Sidecar is not in the 'stateNew' state."
 		respondWithError(fmt.Errorf(errStr), http.StatusBadRequest, w)
 		a.Logger.Error(errStr)
 		return
@@ -203,15 +203,15 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 			"timestamp":     time.Now(),
 		}).Info("OnReady() complete")
 
-	a.state = STATE_READY
+	a.state = stateReady
 	// Return
 	w.WriteHeader(http.StatusOK)
 }
 
 //OnDone is called when the module is finished and wishes to commit their state to an external provider
 func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
-	if a.state != STATE_READY {
-		errStr := "/done called whilst Sidecar is not in the 'STATE_READY' state."
+	if a.state != stateReady {
+		errStr := "/done called whilst Sidecar is not in the 'stateReady' state."
 		respondWithError(fmt.Errorf(errStr), http.StatusBadRequest, w)
 		a.Logger.Error(errStr)
 	}
@@ -271,7 +271,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 			"timestamp":     time.Now(),
 		}).Info("OnDone() complete")
 
-	a.state = STATE_DONE
+	a.state = stateDone
 	// Return
 	w.WriteHeader(http.StatusOK)
 }
@@ -336,7 +336,7 @@ func (a *App) commitEvents(eventsPath string) error {
 		fileName := file.Name()
 		eventFilePath := path.Join(outputEventsDir, fileName)
 		f, err := os.Open(eventFilePath)
-		defer f.Close()
+		defer f.Close() // nolint: errcheck
 		if err != nil {
 			return fmt.Errorf("failed to read file '%s' with error: '%+v'", fileName, err)
 		}
@@ -394,7 +394,7 @@ func (a *App) commitEvents(eventsPath string) error {
 		fileSlice := strings.Split(files, ",")
 
 		// Create new event
-		eventID := NewGuid()
+		eventID := NewGUID()
 		event := types.Event{
 			PreviousStages: []string{},
 			EventID:        eventID,
@@ -402,7 +402,7 @@ func (a *App) commitEvents(eventsPath string) error {
 		}
 
 		// Create new context document
-		eventContext := types.Metadata{
+		eventContext := types.EventContext{
 			EventID:       eventID,
 			CorrelationID: a.correlationID,
 			ParentEventID: a.eventID,
@@ -422,7 +422,7 @@ func (a *App) commitEvents(eventsPath string) error {
 }
 
 //getContext get context metadata document
-func (a *App) getContext() (*types.Metadata, error) {
+func (a *App) getContext() (*types.EventContext, error) {
 	context, _ := a.Meta.GetEventContextByID(a.eventID)
 	//TODO: Fail on error conditions other than not found
 	return context, nil

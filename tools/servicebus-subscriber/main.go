@@ -14,7 +14,6 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/lawrencegripper/ion/dispatcher/types"
 	"pack.ag/amqp"
 )
 
@@ -150,20 +149,6 @@ func createAmqpListener(session *amqp.Session, subscriptionAmqpPath string) *amq
 	}
 
 	return receiver
-}
-
-func getOrCreateTopic(ctx context.Context, topicsClient servicebus.TopicsClient, config *types.Configuration, topicName string) servicebus.SBTopic {
-	topic, err := topicsClient.Get(ctx, config.ResourceGroup, config.ServiceBusNamespace, topicName)
-	if err != nil && topic.Response.StatusCode == http.StatusNotFound {
-		topic, err = topicsClient.CreateOrUpdate(ctx, config.ResourceGroup, config.ServiceBusNamespace, topicName, servicebus.SBTopic{})
-		if err != nil {
-			panic(fmt.Sprintf("Failed creating topic: %v", err))
-		}
-	} else if err != nil {
-		panic(fmt.Sprintf("Failed getting topic: %v", err))
-	}
-
-	return topic
 }
 
 func getAmqpConnectionString(keyName, keyValue, namespace string) string {

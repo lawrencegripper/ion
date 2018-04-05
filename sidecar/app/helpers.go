@@ -22,10 +22,9 @@ func CompareHash(secret, secretHash string) error {
 }
 
 //Hash returns a MD5 hash of the provided string
-// nolint: errcheck
 func Hash(s string) string {
 	hasher := md5.New()
-	hasher.Write([]byte(s))
+	hasher.Write([]byte(s)) // nolint: errcheck
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
@@ -47,6 +46,7 @@ func MustNotBeNil(objs ...interface{}) {
 	}
 }
 
+//ClearDir removes all the content from a directory
 func ClearDir(dirPath string) error {
 	err := os.RemoveAll(dirPath)
 	if err != nil {
@@ -59,6 +59,7 @@ func ClearDir(dirPath string) error {
 	return nil
 }
 
+//RemoveFile removes a file from the file system
 func RemoveFile(filePath string) error {
 	err := os.Remove(filePath)
 	if err != nil {
@@ -67,11 +68,13 @@ func RemoveFile(filePath string) error {
 	return nil
 }
 
-func NewGuid() string {
+//NewGUID generates a new guid as a string
+func NewGUID() string {
 	guid := fmt.Sprintf("%v", uuid.NewV4())
 	return guid
 }
 
+//Remove removes an entry from a key value pair array
 func Remove(s []types.KeyValuePair, i int) []types.KeyValuePair {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]

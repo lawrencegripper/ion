@@ -7,8 +7,8 @@ import (
 
 //MetadataProvider is a document storage DB for storing document data
 type MetadataProvider interface {
-	GetEventContextByID(id string) (*Metadata, error)
-	CreateEventContext(metadata *Metadata) error
+	GetEventContextByID(id string) (*EventContext, error)
+	CreateEventContext(metadata *EventContext) error
 	CreateInsight(insight *Insight) error
 	Close()
 }
@@ -26,9 +26,8 @@ type EventPublisher interface {
 	Close()
 }
 
-//TODO: Rename to eventContext
-//Metadata is a single entry in a document
-type Metadata struct {
+//EventContext is a single entry in a document
+type EventContext struct {
 	EventID       string         `bson:"id" json:"id"`
 	CorrelationID string         `bson:"correlationId" json:"correlationId"`
 	ParentEventID string         `bson:"parentEventId" json:"parentEventId"`

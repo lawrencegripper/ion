@@ -10,7 +10,7 @@ import (
 )
 
 // TestNewListener performs an end-2-end integration test on the listener talking to Azure ServiceBus
-func TestIntegrationKuberentesDispatch(t *testing.T) {
+func TestIntegrationKubernetesDispatch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
 	}
@@ -23,6 +23,10 @@ func TestIntegrationKuberentesDispatch(t *testing.T) {
 		Job: &types.JobConfig{
 			SidecarImage: "sidecarimagetest",
 			WorkerImage:  "workerimagetest",
+		},
+		Sidecar: &types.SidecarConfig{
+			ServerPort:  1377,
+			PrintConfig: true,
 		},
 	}
 

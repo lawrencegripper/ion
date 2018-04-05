@@ -42,7 +42,7 @@ func NewBlobStorage(config *Config, blobPrefix string) (*BlobStorage, error) {
 	return asb, nil
 }
 
-//CreateBlobs creates Azure Blobs for each of the provided files
+//PutBlobs puts a file into Azure Blob Storage
 func (a *BlobStorage) PutBlobs(filePaths []string) error {
 	container, err := a.createContainerIfNotExist()
 	if err != nil {
@@ -58,7 +58,7 @@ func (a *BlobStorage) PutBlobs(filePaths []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to read data from file '%s', error: '%+v'", filePath, err)
 		}
-		defer file.Close()
+		defer file.Close() // nolint: errcheck
 		blobRef := container.GetBlobReference(blobPath)
 		_, err = blobRef.DeleteIfExists(&storage.DeleteBlobOptions{})
 		if err != nil {
@@ -74,7 +74,6 @@ func (a *BlobStorage) PutBlobs(filePaths []string) error {
 
 //GetBlobs gets each of the provided blobs from Azure Blob Storage
 func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
-	//TODO: validate blobPrefix
 	containerName := a.containerName
 	container := a.blobClient.GetContainerReference(containerName)
 	for _, filePath := range filePaths {
@@ -92,7 +91,7 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to read blob '%s' with error '%+v'", blobPath, err)
 		}
-		defer blob.Close()
+		defer blob.Close() // nolint: errcheck
 		outputFilePath := path.Join(outputDir, filePath)
 		err = ioutil.WriteFile(outputFilePath, bytes, 0777)
 		if err != nil {

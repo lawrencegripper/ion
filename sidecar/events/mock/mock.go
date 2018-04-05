@@ -11,26 +11,26 @@ import (
 	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
-//MockEventPublisher is a mock event publisher implementation
-type MockEventPublisher struct {
+//EventPublisher is a mock event publisher implementation
+type EventPublisher struct {
 	baseDir string
 	count   int
 }
 
-//NewMockEventPublisher returns a new MockEventPublisher object
-func NewMockEventPublisher(dir string) *MockEventPublisher {
+//NewEventPublisher returns a new EventPublisher object
+func NewEventPublisher(dir string) *EventPublisher {
 	err := os.MkdirAll(dir, 0777)
 	if err != nil {
 		return nil
 	}
-	return &MockEventPublisher{
+	return &EventPublisher{
 		baseDir: dir,
 		count:   0,
 	}
 }
 
 //Publish is a mock implementation of the Publish method
-func (e *MockEventPublisher) Publish(event types.Event) error {
+func (e *EventPublisher) Publish(event types.Event) error {
 	eventPath := path.Join(e.baseDir, "event"+strconv.Itoa(e.count)+".json")
 	eventJSON, err := json.Marshal(&event)
 	if err != nil {
@@ -44,6 +44,6 @@ func (e *MockEventPublisher) Publish(event types.Event) error {
 }
 
 //Close is a mock implementation of the Close method
-func (e *MockEventPublisher) Close() {
+func (e *EventPublisher) Close() {
 	_ = os.RemoveAll(e.baseDir)
 }

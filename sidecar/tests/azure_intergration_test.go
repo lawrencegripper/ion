@@ -1,4 +1,4 @@
-package integration_tests
+package integration_tests // nolint: golint
 
 import (
 	"encoding/json"
@@ -21,6 +21,10 @@ import (
 
 func TestAzureIntegration(t *testing.T) {
 
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
+
 	mongoDBPort, err := strconv.ParseInt(os.Getenv("MONGODB_PORT"), 10, 32)
 	if err != nil {
 		panic("env var 'MONGODB_PORT' not set!")
@@ -30,8 +34,6 @@ func TestAzureIntegration(t *testing.T) {
 		SharedSecret:  "secret",
 		ModuleName:    "testmodule",
 		EventID:       "1111111",
-		ExecutionID:   "123124",
-		ParentEventID: "1111111",
 		CorrelationID: "fish",
 		ServerPort:    8080,
 		AzureBlobProvider: &azurestorage.Config{
@@ -55,12 +57,11 @@ func TestAzureIntegration(t *testing.T) {
 	}
 	blob, err := azurestorage.NewBlobStorage(config.AzureBlobProvider, strings.Join([]string{
 		config.EventID,
-		config.ParentEventID,
 		config.ModuleName}, "-"))
 	if err != nil {
 		t.Errorf("failed to connect to azure storage with error '%+v'", err)
 	}
-	sb := mock.NewMockEventPublisher("mockevents")
+	sb := mock.NewEventPublisher("mockevents")
 
 	logger := logrus.New()
 	logger.Out = os.Stdout
@@ -79,7 +80,6 @@ func TestAzureIntegration(t *testing.T) {
 		db,
 		sb,
 		blob,
-		true,
 		logger,
 	)
 
@@ -114,9 +114,9 @@ func TestAzureIntegration(t *testing.T) {
 	outLength := len(outFiles)
 
 	// Write an output metadata file
-	metadataJSONBytes := []byte("[{\"key\": \"key2\",\"value\": \"value2\"}]")
+	insight := []byte("[{\"key\": \"key2\",\"value\": \"value2\"}]")
 	metaFilePath := path.Join(outDir, "meta.json")
-	err = ioutil.WriteFile(metaFilePath, metadataJSONBytes, 0777)
+	err = ioutil.WriteFile(metaFilePath, insight, 0777)
 	if err != nil {
 		t.Errorf("error opening metadata file '%s', '%+v'", metaFilePath, err)
 	}
@@ -175,7 +175,6 @@ func TestAzureIntegration(t *testing.T) {
 		db,
 		sb,
 		blob,
-		true,
 		logger,
 	)
 
