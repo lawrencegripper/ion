@@ -1,2 +1,2 @@
-docker build -f ci-dispatcher.Dockerfile .
-docker build -f ci-sidecar.Dockerfile .
+docker build --build-arg FOLDER=dispatcher -f ci.Dockerfile . 
+docker build --build-arg FOLDER=sidecar -f ci.Dockerfile . 

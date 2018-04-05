@@ -65,4 +65,4 @@ Ensure you have go setup correctly then run `go get github.com/lawrencegripper/i
 
 To check changes using the same process as the CI build run `./ci.sh` at the root directory and check the output for any errors.
 
-This will check the `/dispatcher` and `/sidecar` directories. If you add an additional folder/service copy the structure of `ci-dispatcher.Dockerfile` to for your new path and add a new line into `./ci.sh` to invoke it.
+This will check the `/dispatcher` and `/sidecar` directories. If you add an additional folder/service add your new path and add a new line into `./ci.sh` to invoke it with the correct `FOLDER` build arg.
