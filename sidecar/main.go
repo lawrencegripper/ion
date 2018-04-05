@@ -80,13 +80,15 @@ func runApp(config *app.Configuration) {
 		logger.Level = log.WarnLevel
 	}
 
+	validEventTypes := strings.Split(config.ValidEventTypes, ",")
+
 	app := app.App{}
 	app.Setup(
 		config.SharedSecret,
 		config.EventID,
 		config.CorrelationID,
 		config.ModuleName,
-		config.ValidEventTypes,
+		validEventTypes,
 		metaProvider,
 		eventProvider,
 		blobProvider,
