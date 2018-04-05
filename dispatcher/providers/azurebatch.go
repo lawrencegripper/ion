@@ -150,6 +150,8 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		Volumes:    nil,
 	})
 
+	log.WithField("commandtoexec", podCommand).Info("Created command for Batch")
+
 	if err != nil {
 		return err
 	}

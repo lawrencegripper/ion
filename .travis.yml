@@ -24,8 +24,7 @@ script:
   - cd ./dispatcher && dep ensure -v && cd .. && cd ./sidecar && dep ensure -v && cd ..
   - go test -v -race -short ./dispatcher/...
   - go test -v -race -short ./sidecar/...
-  - diff -u <(echo -n) <(gofmt -d $(GOFILES))
-  - gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline 15m ./... 
+  - cd ./dispatcher && gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline 15m ./... && cd ..
   - cd ./dispatcher && docker build -t iondispatcher . && cd ..
   - cd ./sidecar && docker build -t ionsidecar . && cd ..
 

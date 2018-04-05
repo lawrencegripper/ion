@@ -3,6 +3,8 @@ package providers
 // Todo: Investigate a better way to inline this template - especially when escaping the backticks.
 // Consider: https://mattjibson.com/blog/2014/11/19/esc-embedding-static-assets/
 const azureBatchPodTemplate = `
+set -e
+
 {{/* Vars */}}
 {{$podName := .PodName}}
 {{$volumes := .Volumes}}
