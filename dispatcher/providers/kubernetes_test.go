@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
@@ -133,8 +134,8 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 	}
 
 	k, _ := NewMockKubernetesProvider(create, list)
-	k.sidecarEnvVars = make(map[string]interface{})
-	k.sidecarEnvVars["thing"] = "stuff"
+	k.workerEnvVars = make(map[string]interface{})
+	k.workerEnvVars["thing"] = "stuff"
 
 	messageToSend := MockMessage{
 		MessageID: mockMessageID,
@@ -151,6 +152,7 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 	CheckLabelsAssignedCorrectly(t, job, messageToSend.MessageID)
 	CheckPodSetup(t, job, k.jobConfig.SidecarImage, k.jobConfig.WorkerImage)
 
+	//Check env vars
 	workerEnvVar := job.Spec.Template.Spec.Containers[1].Env[1]
 	if workerEnvVar.Name != "thing" && workerEnvVar.Value != "stuff" {
 		t.Log(workerEnvVar)
@@ -201,6 +203,17 @@ func CheckPodSetup(t *testing.T, job batchv1.Job, expectedSidecarImage, expected
 	worker := job.Spec.Template.Spec.Containers[1]
 	if worker.Image != expectedWorkerImage {
 		t.Errorf("worker image wrong Got: %s Expected: %s", worker.Image, expectedWorkerImage)
+	}
+	if len(worker.VolumeMounts) != 1 {
+		t.Error("Expected 1 volume in worker")
+	}
+
+	if len(sidecar.VolumeMounts) != 1 {
+		t.Error("Expected 1 volume in sidecar")
+	}
+	volume := job.Spec.Template.Spec.Volumes[0]
+	if volume.Name != "ionvolume" {
+		t.Error("Volume not found with name ionvolume")
 	}
 }
 
@@ -341,8 +354,8 @@ func (m MockMessage) Reject() error {
 }
 
 // EventData deserialize json value to type
-func (m MockMessage) EventData() (messaging.Event, error) {
-	a := messaging.Event{}
+func (m MockMessage) EventData() (common.Event, error) {
+	a := common.Event{}
 
 	if m.JSONValue == "" {
 		m.JSONValue = `{ "id": "barry", "type": "faceevnt", "parentId": "barrySnr", "correlationId": "12345" }`

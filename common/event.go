@@ -1,4 +1,4 @@
-package messaging
+package common
 
 //KeyValuePair is a key value pair
 type KeyValuePair struct {

@@ -1,6 +1,6 @@
 ![](docs/ion-logo.png)
 
-[![Build Status](https://travis-ci.org/lawrencegripper/mlops.svg?branch=master)](https://travis-ci.org/lawrencegripper/mlops)
+[![Build Status](https://travis-ci.org/lawrencegripper/ion.svg?branch=master)](https://travis-ci.org/lawrencegripper/ion)
 
 > **Warning**: Ion is currently under initial development - please **do not** use in production and have patience whilst we flesh things out!
 
@@ -59,3 +59,10 @@ The components the Sidecar uses are configurable, if you wish to add support for
 
 For more details on sidecar: please refer to the [Sidecar docs](sidecar/README.md)
 
+## Developing
+
+Ensure you have go setup correctly then run `go get github.com/lawrencegripper/ion` to pull the source into your gopath
+
+To check changes using the same process as the CI build run `./ci.sh` at the root directory and check the output for any errors.
+
+This will check the `/dispatcher` and `/sidecar` directories. If you add an additional folder/service add your new path and add a new line into `./ci.sh` to invoke it with the correct `FOLDER` build arg.
