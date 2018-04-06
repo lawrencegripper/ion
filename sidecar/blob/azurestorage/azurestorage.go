@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
@@ -43,11 +44,24 @@ func NewBlobStorage(config *Config, blobPrefix string) (*BlobStorage, error) {
 }
 
 //PutBlobs puts a file into Azure Blob Storage
-func (a *BlobStorage) PutBlobs(filePaths []string) error {
+func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 	container, err := a.createContainerIfNotExist()
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	readStorageOptions := storage.BlobSASOptions{
+		BlobServiceSASPermissions: storage.BlobServiceSASPermissions{
+			Read: true,
+		},
+		SASOptions: storage.SASOptions{
+			Start:  time.Now().Add(time.Duration(-1) * time.Hour),
+			Expiry: time.Now().Add(time.Duration(24) * time.Hour),
+		},
+	}
+
+	blobSASURIs := make(map[string]string)
+
 	for _, filePath := range filePaths {
 		_, nakedFilePath := path.Split(filePath)
 		blobPath := strings.Join([]string{
@@ -56,20 +70,27 @@ func (a *BlobStorage) PutBlobs(filePaths []string) error {
 		}, "-")
 		file, err := os.Open(filePath)
 		if err != nil {
-			return fmt.Errorf("failed to read data from file '%s', error: '%+v'", filePath, err)
+			return nil, fmt.Errorf("failed to read data from file '%s', error: '%+v'", filePath, err)
 		}
 		defer file.Close() // nolint: errcheck
 		blobRef := container.GetBlobReference(blobPath)
 		_, err = blobRef.DeleteIfExists(&storage.DeleteBlobOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		err = blobRef.CreateBlockBlobFromReader(file, &storage.PutBlobOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		uri, err := blobRef.GetSASURI(readStorageOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		blobSASURIs[nakedFilePath] = uri
 	}
-	return nil
+	return blobSASURIs, nil
 }
 
 //GetBlobs gets each of the provided blobs from Azure Blob Storage

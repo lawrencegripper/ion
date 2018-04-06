@@ -217,7 +217,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		}).Info("OnDone() called")
 
 	// Synchronize blob data with external blob store
-	err := a.commitBlob(outputBlobDir)
+	blobSASURIs, err := a.commitBlob(outputBlobDir)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -243,7 +243,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Synchronize events with external event system
-	err = a.commitEvents(outputEventsDir)
+	err = a.commitEvents(outputEventsDir, blobSASURIs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -269,23 +269,23 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 }
 
 //commitBlob commits the blob directory to an external blob provider
-func (a *App) commitBlob(blobsPath string) error {
+func (a *App) commitBlob(blobsPath string) (map[string]string, error) {
 	if _, err := os.Stat(blobsPath); os.IsNotExist(err) {
-		return fmt.Errorf("blob output directory '%s' does not exists '%+v'", blobsPath, err)
+		return nil, fmt.Errorf("blob output directory '%s' does not exists '%+v'", blobsPath, err)
 	}
 	files, err := ioutil.ReadDir(blobsPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var fileNames []string
 	for _, file := range files {
 		fileNames = append(fileNames, path.Join(outputBlobDir, file.Name()))
 	}
-	err = a.Blob.PutBlobs(fileNames)
+	blobSASURIs, err := a.Blob.PutBlobs(fileNames)
 	if err != nil {
-		return fmt.Errorf("failed to commit blob: %+v", err)
+		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
-	return nil
+	return blobSASURIs, nil
 }
 
 //commitMeta commits the metadata document to an external provider
@@ -316,7 +316,7 @@ func (a *App) commitMeta(metadataPath string) error {
 }
 
 //commitEvents commits the events directory to an external provider
-func (a *App) commitEvents(eventsPath string) error {
+func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) error {
 	if _, err := os.Stat(eventsPath); os.IsNotExist(err) {
 		return fmt.Errorf("events output directory '%s' does not exists '%+v'", eventsPath, err)
 	}
@@ -324,6 +324,7 @@ func (a *App) commitEvents(eventsPath string) error {
 	if err != nil {
 		return err
 	}
+	// For each event file...
 	for _, file := range files {
 		fileName := file.Name()
 		eventFilePath := path.Join(outputEventsDir, fileName)
@@ -339,51 +340,63 @@ func (a *App) commitEvents(eventsPath string) error {
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", fileName, err)
 		}
+
 		// Check required fields
 		var eventType string
+		var includedFilesCSV string
+		var eventTypeIndex, filesIndex int
+
+		// For each key/value in event data array.
 		for i, kvp := range kvps {
-			if kvp.Key == types.EventType {
-				var ok bool
-				eventType, ok = kvp.Value.(string)
-				if !ok {
-					continue
+			// Check the key against required keys
+			switch kvp.Key {
+			case types.EventType:
+				eventType = kvp.Value
+				// Check whether the event type is valid for this module
+				var isValid bool
+				for _, validEventType := range a.validEventTypes {
+					if validEventType == eventType {
+						isValid = true
+						break
+					}
 				}
-				kvps = Remove(kvps, i)
+				if !isValid {
+					return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
+				}
+				eventTypeIndex = i
+				break
+			case types.FilesToInclude:
+				includedFilesCSV = kvp.Value
+				filesIndex = i
+				break
+			default:
+				// Ignore non required keys
 				break
 			}
 		}
+		// Check required types are fulfilled
 		if eventType == "" {
 			return fmt.Errorf("all events must contain an 'eventType' field, error: '%+v'", err)
 		}
-
-		var files string
-		for i, kvp := range kvps {
-			if kvp.Key == types.IncludedFiles {
-				fmt.Printf("kvp: %+v", kvp)
-				var ok bool
-				files, ok = kvp.Value.(string)
-				if !ok {
-					continue
-				}
-				kvps = Remove(kvps, i)
-				break
-			}
-		}
-		if len(files) == 0 {
+		if len(includedFilesCSV) == 0 {
 			return fmt.Errorf("all events must contain a 'files' field, error: '%+v'", err)
 		}
 
-		var isValid bool
-		for _, et := range a.validEventTypes {
-			if et == eventType {
-				isValid = true
-				break
+		// Remove extracted files from event data array as no longer needed
+		kvps = Remove(kvps, eventTypeIndex)
+		kvps = Remove(kvps, filesIndex-1) // -1 as array will be shifted above
+
+		// Get the files to include in event as an array
+		fileSlice := strings.Split(includedFilesCSV, ",")
+
+		// Append each file's name + external URI to the event data
+		for _, f := range fileSlice {
+			blobInfo := common.KeyValuePair{
+				Key:   f,
+				Value: blobSASURIs[f],
 			}
+			kvps = append(kvps, blobInfo)
 		}
-		if !isValid {
-			return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
-		}
-		fileSlice := strings.Split(files, ",")
 
 		// Create new event
 		eventID := NewGUID()
@@ -391,6 +404,7 @@ func (a *App) commitEvents(eventsPath string) error {
 			PreviousStages: []string{},
 			EventID:        eventID,
 			Type:           eventType,
+			Data:           kvps,
 		}
 
 		// Create new context document
@@ -399,7 +413,6 @@ func (a *App) commitEvents(eventsPath string) error {
 			CorrelationID: a.correlationID,
 			ParentEventID: a.eventID,
 			Files:         fileSlice,
-			Data:          kvps,
 		}
 		err = a.Meta.CreateEventContext(&eventContext)
 		if err != nil {
