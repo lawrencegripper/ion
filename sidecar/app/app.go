@@ -19,18 +19,13 @@ import (
 )
 
 const (
-	inputBlobDir    string = "in/data"
-	inputMetaFile   string = "in/meta.json"
-	outputBlobDir   string = "out/data"
-	outputMetaFile  string = "out/meta.json"
-	outputEventsDir string = "out/events"
-)
+	baseDir         string = "/ion"
+	inputBlobDir    string = "/ion/in/data"
+	inputMetaFile   string = "/ion/in/meta.json"
+	outputBlobDir   string = "/ion/out/data"
+	outputMetaFile  string = "/ion/out/meta.json"
+	outputEventsDir string = "/ion/out/events"
 
-//TODO:
-// - API versioning
-// - Stop eventID being globally unique in metastore
-
-const (
 	stateNew   = iota
 	stateReady = iota
 	stateDone  = iota
@@ -134,12 +129,8 @@ func (a *App) Run(addr string) {
 func (a *App) Close() {
 	a.Logger.Info("Shutting down sidecar")
 
-	// Clear output directories
-	_ = os.RemoveAll(inputBlobDir)
-	_ = os.Remove(outputMetaFile)
-	_ = os.RemoveAll(outputBlobDir)
-	_ = os.RemoveAll(outputEventsDir)
-	_ = os.Remove(outputMetaFile)
+	// Clear directories
+	_ = os.RemoveAll(baseDir)
 
 	defer a.Meta.Close()
 	defer a.Publisher.Close()
@@ -176,7 +167,7 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 			}).Debug("No context passed, assuming first or orphan")
 	} else {
 		// Download the necessary files for the module
-		err = a.Blob.GetBlobs("in/data", context.Files)
+		err = a.Blob.GetBlobs(inputBlobDir, context.Files)
 		if err != nil {
 			respondWithError(err, http.StatusInternalServerError, w)
 			return

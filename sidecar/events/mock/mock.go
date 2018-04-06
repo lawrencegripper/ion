@@ -8,7 +8,7 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/lawrencegripper/ion/sidecar/types"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
 )
 
 //EventPublisher is a mock event publisher implementation
