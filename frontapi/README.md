@@ -7,4 +7,4 @@ POST /
 ```
 
 # Published Events
-- "frontapi.new_link"
+- frontapi.new_link
