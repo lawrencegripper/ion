@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/sidecar/app"
 	"github.com/lawrencegripper/ion/sidecar/blob/azurestorage"
 	"github.com/lawrencegripper/ion/sidecar/events/mock"
 	"github.com/lawrencegripper/ion/sidecar/meta/mongodb"
-	"github.com/lawrencegripper/ion/sidecar/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -83,11 +83,11 @@ func TestAzureIntegration(t *testing.T) {
 		logger,
 	)
 
-	defer a.Close()
 	go a.Run(fmt.Sprintf(":%d", config.ServerPort))
 
 	// Test on ready
-	outDir := "out"
+	base := "/ion"
+	outDir := path.Join(base, "out")
 	dataDir := path.Join(outDir, "data")
 
 	// Write an output image blob
@@ -159,7 +159,7 @@ func TestAzureIntegration(t *testing.T) {
 	if err != nil {
 		t.Errorf("error reading event from disk '%+v'", err)
 	}
-	var event messaging.Event
+	var event common.Event
 	err = json.Unmarshal(b, &event)
 	if err != nil {
 		t.Errorf("error unmarshalling event '%+v'", err)
@@ -194,7 +194,7 @@ func TestAzureIntegration(t *testing.T) {
 	}
 
 	// Check inputs match outputs
-	inDir := path.Join("in", "data")
+	inDir := path.Join("/ion", "in", "data")
 	inFiles, err := ioutil.ReadDir(inDir)
 	if err != nil {
 		t.Errorf("error reading in dir '%+v'", err)
@@ -204,4 +204,6 @@ func TestAzureIntegration(t *testing.T) {
 	if (inLength != outLength) && outLength > 0 {
 		t.Errorf("error, input files length should match output length")
 	}
+
+	// Clean up
 }

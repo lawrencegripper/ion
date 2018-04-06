@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestVolumeGeneration(t *testing.T) {
+func TestPod2DockerVolumeGenerated(t *testing.T) {
 
 	containers := []apiv1.Container{
 		{

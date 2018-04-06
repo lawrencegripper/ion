@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/lawrencegripper/ion/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/common"
 	"github.com/twinj/uuid"
 	"os"
 )
@@ -75,7 +75,7 @@ func NewGUID() string {
 }
 
 //Remove removes an entry from a key value pair array
-func Remove(s []messaging.KeyValuePair, i int) []messaging.KeyValuePair {
+func Remove(s []common.KeyValuePair, i int) []common.KeyValuePair {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]
 }

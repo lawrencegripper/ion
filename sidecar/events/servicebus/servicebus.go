@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lawrencegripper/ion/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/common"
 	"k8s.io/kubernetes/third_party/forked/golang/template"
 )
 
@@ -50,7 +50,7 @@ func NewServiceBus(config *Config) (*ServiceBus, error) {
 }
 
 //Publish publishes an event onto a Service Bus topic
-func (s *ServiceBus) Publish(e messaging.Event) error {
+func (s *ServiceBus) Publish(e common.Event) error {
 	b, err := json.Marshal(e)
 	if err != nil {
 		return fmt.Errorf("error publishing event %+v", err)

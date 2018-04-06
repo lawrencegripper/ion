@@ -55,6 +55,8 @@ def ready():
         try:
             res = requests.get(ready_url, headers=headers)
             if res.status_code != 200:
+                body = json.loads(res.text)
+                print("response: {}".format(body))
                 raise ValueError("Sidecar could not become ready")
             return
         except Exception:
@@ -71,7 +73,8 @@ def done():
     res = requests.get(done_url, headers=headers)
     if res.status_code != 200:
         print("Failed to commit state")
-        print("response: {}".format(res))
+        body = json.loads(res.text)
+        print("response: {}".format(body))
         sys.exit(1)
 
 # Setup
