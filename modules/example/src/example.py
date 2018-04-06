@@ -104,12 +104,11 @@ else:
 
 # Global vars
 sidecar_endpoint = "http://localhost:" + port
-image_dir = "images"
-input_dir = "in/data/"
-output_dir = "out/data/"
-events_dir = "out/events/"
-in_meta_path = "in/meta.json"
-out_meta_path = "out/meta.json"
+input_dir = "/ion/in/data/"
+output_dir = "/ion/out/data/"
+events_dir = "/ion/out/events/"
+in_meta_path = "/ion/in/meta.json"
+out_meta_path = "/ion/out/meta.json"
 ready_url = sidecar_endpoint + "/ready"
 done_url = sidecar_endpoint + "/done"
 
