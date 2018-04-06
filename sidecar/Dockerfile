@@ -4,11 +4,15 @@ FROM golang:1.10.0 as builder
 ADD https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 /usr/bin/dep
 RUN chmod +x /usr/bin/dep
 
+# Copy common dependencies
+WORKDIR /go/src/github.com/lawrencegripper/ion/common
+COPY ./../common .
+
 WORKDIR /go/src/github.com/lawrencegripper/ion/sidecar/
-COPY Gopkg.toml Gopkg.lock ./
+COPY ./sidecar/Gopkg.toml ./sidecar/Gopkg.lock ./
 RUN dep ensure -v --vendor-only
 
-COPY . .
+COPY ./sidecar/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -o sidecar .
 
 FROM alpine:3.7
