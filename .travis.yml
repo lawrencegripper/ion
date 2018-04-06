@@ -1,12 +1,12 @@
-language: go
+language: generic
 sudo: required
 services:
 - docker
-go:
-- 1.10.x
+
 script:
 - chmod +x ci.sh && sudo ./ci.sh
 - if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then chmod +x cd.sh && sudo ./cd.sh; fi
+
 
 env:
   global:
