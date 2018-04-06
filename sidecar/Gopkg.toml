@@ -52,3 +52,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/vulcand/oxy"
+
+[[constraint]]
+  name = "github.com/twinj/uuid"
+  version = "1.0.0"

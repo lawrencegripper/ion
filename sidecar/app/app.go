@@ -5,30 +5,47 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
+	"strings"
+	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/gorilla/mux"
+	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
 
-const requestID string = "request-id"
+const (
+	baseDir         string = "/ion"
+	inputBlobDir    string = "/ion/in/data"
+	inputMetaFile   string = "/ion/in/meta.json"
+	outputBlobDir   string = "/ion/out/data"
+	outputMetaFile  string = "/ion/out/meta.json"
+	outputEventsDir string = "/ion/out/events"
 
-//TODO:
-// - API versioning
-// - Stop eventID being globally unique in metastore
+	stateNew   = iota
+	stateReady = iota
+	stateDone  = iota
+)
 
 //App is the sidecar application
 type App struct {
 	Router    *mux.Router
-	Meta      types.MetaProvider
+	Meta      types.MetadataProvider
 	Publisher types.EventPublisher
 	Blob      types.BlobProvider
 	Logger    *log.Logger
 
-	secretHash    string
-	parentEventID string
-	correlationID string
-	eventID       string
+	moduleName      string
+	secretHash      string
+	correlationID   string
+	eventID         string
+	executionID     string
+	validEventTypes []string
+	state           int
 }
 
 //Setup initializes application
@@ -36,21 +53,45 @@ func (a *App) Setup(
 	secret,
 	eventID,
 	correlationID,
-	parentEventID string,
-	Meta types.MetaProvider,
+	moduleName string,
+	validEventTypes []string,
+	meta types.MetadataProvider,
 	publisher types.EventPublisher,
 	blob types.BlobProvider,
 	logger *log.Logger) {
 
-	MustNotBeEmpty(secret, eventID, correlationID, parentEventID)
-	MustNotBeNil(Meta, publisher, blob, logger)
+	MustNotBeEmpty(secret, eventID)
+	MustNotBeNil(meta, publisher, blob, logger)
 
+	// Create output directories
+	err := os.MkdirAll(inputBlobDir, 0777)
+	if err != nil {
+		panic(fmt.Errorf("error creating input blob directory '%s', error: '%+v'", inputBlobDir, err))
+	}
+	err = os.MkdirAll(outputBlobDir, 0777)
+	if err != nil {
+		panic(fmt.Errorf("error creating output blob directory '%s', error: '%+v'", outputBlobDir, err))
+	}
+	f, err := os.Create(outputMetaFile)
+	if err != nil {
+		panic(fmt.Errorf("error creating output meta file '%s', error: '%+v'", outputMetaFile, err))
+	}
+	f.Close() // nolint: errcheck
+	err = os.MkdirAll(outputEventsDir, 0777)
+	if err != nil {
+		panic(fmt.Errorf("error creating output event directory '%s', error: '%+v'", outputEventsDir, err))
+	}
+
+	a.state = stateNew
 	a.secretHash = Hash(secret)
+	a.moduleName = moduleName
 	a.eventID = eventID
 	a.correlationID = correlationID
-	a.parentEventID = parentEventID
+	a.validEventTypes = validEventTypes
 
-	a.Meta = Meta
+	a.executionID = NewGUID()
+
+	a.Meta = meta
 	a.Publisher = publisher
 	a.Blob = blob
 	a.Logger = logger
@@ -58,7 +99,7 @@ func (a *App) Setup(
 	a.Router = mux.NewRouter()
 	a.setupRoutes()
 
-	a.Logger.Info("Sidecar initialized!")
+	a.Logger.Info("Sidecar configured")
 }
 
 //setupRoutes initializes the API routing
@@ -67,60 +108,16 @@ func (a *App) setupRoutes() {
 	auth := AddAuth(a.secretHash)
 	// Adds logging
 	log := AddLog(a.Logger)
-	// Adds self identity header
-	self := AddIdentity(a.eventID)
-	// Adds parent identity header
-	parent := AddIdentity(a.parentEventID)
 
-	// GET /meta
-	// Returns all metadata currently stored as part of this chain
-	getMeta := http.HandlerFunc(a.GetAllMeta)
-	a.Router.Handle("/meta", log(auth(getMeta))).Methods(http.MethodGet)
+	// GET /ready
+	// Gets any parent blob data and ensures the environment is ready
+	onReadyHandler := http.HandlerFunc(a.OnReady)
+	a.Router.Handle("/ready", log(auth(onReadyHandler))).Methods(http.MethodGet)
 
-	// GET /parent/meta
-	// Returns only metadata stored by the parent of this module
-	getParentMeta := http.HandlerFunc(a.GetMetaByID)
-	a.Router.Handle("/parent/meta", log(auth(parent(getParentMeta)))).Methods(http.MethodGet)
-
-	// PUT /self/meta
-	// Stores metadata against this modules meta store
-	updateSelfMeta := http.HandlerFunc(a.UpdateMeta)
-	a.Router.Handle("/self/meta", log(auth(updateSelfMeta))).Methods(http.MethodPut)
-
-	// GET /self/meta
-	// Returns the metadata currently in this modules meta store
-	getSelfMeta := http.HandlerFunc(a.GetMetaByID)
-	a.Router.Handle("/self/meta", log(auth(self(getSelfMeta)))).Methods(http.MethodGet)
-
-	// GET /parent/blob
-	// Returns a named blob from the parent's blob store
-	getParentBlob := http.HandlerFunc(a.GetBlob)
-	a.Router.Handle("/parent/blob", log(auth(parent(getParentBlob)))).Methods(http.MethodGet)
-
-	// GET /self/blob
-	// Returns a named blob from this modules blob store
-	getSelfBlob := http.HandlerFunc(a.GetBlob)
-	a.Router.Handle("/self/blob", log(auth(self(getSelfBlob)))).Methods(http.MethodGet)
-
-	// PUT /self/blob
-	// Stores a blob in this modules blob store
-	addSelfBlob := http.HandlerFunc(a.CreateBlob)
-	a.Router.Handle("/self/blob", log(auth(self(addSelfBlob)))).Methods(http.MethodPut)
-
-	// DELETE /self/blob
-	// Deletes a named blob from this modules blob store
-	deleteSelfBlobs := http.HandlerFunc(a.DeleteBlobs)
-	a.Router.Handle("/self/blob", log(auth(self(deleteSelfBlobs)))).Methods(http.MethodDelete)
-
-	// GET /self/blobs
-	// Returns a list of blobs currently stored in this modules blob store
-	listSelfBlobs := http.HandlerFunc(a.ListBlobs)
-	a.Router.Handle("/self/blobs", log(auth(self(listSelfBlobs)))).Methods(http.MethodGet)
-
-	// POST /events
-	// Publishes a new event to the messaging system
-	publishEventHandler := http.HandlerFunc(a.Publish)
-	a.Router.Handle("/events", log(auth(publishEventHandler))).Methods(http.MethodPost)
+	// GET /done
+	// Commits state (blobs, documents, events) to external providers
+	onDoneHandler := http.HandlerFunc(a.OnDone)
+	a.Router.Handle("/done", log(auth(onDoneHandler))).Methods(http.MethodGet)
 }
 
 //Run and block on web server
@@ -132,182 +129,295 @@ func (a *App) Run(addr string) {
 func (a *App) Close() {
 	a.Logger.Info("Shutting down sidecar")
 
+	// Clear directories
+	_ = os.RemoveAll(baseDir)
+
 	defer a.Meta.Close()
 	defer a.Publisher.Close()
 	defer a.Blob.Close()
 }
 
-//GetMetaByID gets the metadata document with the associated ID
-// nolint: errcheck
-func (a *App) GetMetaByID(w http.ResponseWriter, r *http.Request) {
-	id := r.Header.Get(requestID)
-	if id == "" {
-		id = a.eventID
-	}
-	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
-	doc, err := a.Meta.GetMetaDocByID(id)
-	if err != nil {
-		respondWithError(err, http.StatusNotFound, w)
+//OnReady is called to initiate the modules environment (i.e. download any required blobs, etc.)
+func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
+	if a.state != stateNew {
+		errStr := "/ready called whilst Sidecar is not in the 'stateNew' state."
+		respondWithError(fmt.Errorf(errStr), http.StatusBadRequest, w)
+		a.Logger.Error(errStr)
 		return
 	}
-	docs, _ := StripBlobStore([]types.MetaDoc{*doc})
-	err = json.NewEncoder(w).Encode(docs[0].Metadata)
+	a.Logger.WithFields(
+		logrus.Fields{
+			"executionID": a.executionID,
+			"eventID":     a.eventID,
+			"timestamp":   time.Now(),
+		}).Info("OnReady() called")
+
+	// Get the context of this execution
+	context, err := a.getContext()
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
+	if context == nil {
+		a.Logger.WithFields(
+			logrus.Fields{
+				"executionID": a.executionID,
+				"eventID":     a.eventID,
+				"timestamp":   time.Now(),
+			}).Debug("No context passed, assuming first or orphan")
+	} else {
+		// Download the necessary files for the module
+		err = a.Blob.GetBlobs(inputBlobDir, context.Files)
+		if err != nil {
+			respondWithError(err, http.StatusInternalServerError, w)
+			return
+		}
+
+		if len(context.Data) > 0 {
+			b, err := json.Marshal(context.Data)
+			if err != nil {
+				respondWithError(err, http.StatusInternalServerError, w)
+				return
+			}
+			err = ioutil.WriteFile(inputMetaFile, b, 0777)
+			if err != nil {
+				respondWithError(err, http.StatusInternalServerError, w)
+				return
+			}
+		}
+	}
+
+	a.Logger.WithFields(
+		logrus.Fields{
+			"correlationID": a.correlationID,
+			"executionID":   a.executionID,
+			"eventID":       a.eventID,
+			"timestamp":     time.Now(),
+		}).Info("OnReady() complete")
+
+	a.state = stateReady
+	// Return
+	w.WriteHeader(http.StatusOK)
 }
 
-//GetAllMeta get all the metadata documents with the associated correlation ID
-// nolint: errcheck
-func (a *App) GetAllMeta(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
-	docs, err := a.Meta.GetMetaDocAll(a.correlationID)
-	if err != nil {
-		respondWithError(err, http.StatusNotFound, w)
-		return
+//OnDone is called when the module is finished and wishes to commit their state to an external provider
+func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
+	if a.state != stateReady {
+		errStr := "/done called whilst Sidecar is not in the 'stateReady' state."
+		respondWithError(fmt.Errorf(errStr), http.StatusBadRequest, w)
+		a.Logger.Error(errStr)
 	}
-	docs, _ = StripBlobStore(docs)
-	err = json.NewEncoder(w).Encode(docs)
+
+	a.Logger.WithFields(
+		logrus.Fields{
+			"correlationID": a.correlationID,
+			"executionID":   a.executionID,
+			"eventID":       a.eventID,
+			"timestamp":     time.Now(),
+		}).Info("OnDone() called")
+
+	// Synchronize blob data with external blob store
+	err := a.commitBlob(outputBlobDir)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
-}
-
-//UpdateMeta creates or updates a metadata document
-// nolint: errcheck
-func (a *App) UpdateMeta(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var metadata map[string]string
-	err := decoder.Decode(&metadata)
+	// Clear local blob directory
+	err = ClearDir(outputBlobDir)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
-	defer r.Body.Close()
-	doc := &types.MetaDoc{
-		ID:            a.eventID,
+
+	// Synchronize metadata with external document store
+	err = a.commitMeta(outputMetaFile)
+	if err != nil {
+		respondWithError(err, http.StatusInternalServerError, w)
+		return
+	}
+	// Clear local metadata document
+	err = RemoveFile(outputMetaFile)
+	if err != nil {
+		respondWithError(err, http.StatusInternalServerError, w)
+		return
+	}
+
+	// Synchronize events with external event system
+	err = a.commitEvents(outputEventsDir)
+	if err != nil {
+		respondWithError(err, http.StatusInternalServerError, w)
+		return
+	}
+	// Clear local events directory
+	err = ClearDir(outputEventsDir)
+	if err != nil {
+		respondWithError(err, http.StatusInternalServerError, w)
+		return
+	}
+
+	a.Logger.WithFields(
+		logrus.Fields{
+			"correlationID": a.correlationID,
+			"executionID":   a.executionID,
+			"eventID":       a.eventID,
+			"timestamp":     time.Now(),
+		}).Info("OnDone() complete")
+
+	a.state = stateDone
+	// Return
+	w.WriteHeader(http.StatusOK)
+}
+
+//commitBlob commits the blob directory to an external blob provider
+func (a *App) commitBlob(blobsPath string) error {
+	if _, err := os.Stat(blobsPath); os.IsNotExist(err) {
+		return fmt.Errorf("blob output directory '%s' does not exists '%+v'", blobsPath, err)
+	}
+	files, err := ioutil.ReadDir(blobsPath)
+	if err != nil {
+		return err
+	}
+	var fileNames []string
+	for _, file := range files {
+		fileNames = append(fileNames, path.Join(outputBlobDir, file.Name()))
+	}
+	err = a.Blob.PutBlobs(fileNames)
+	if err != nil {
+		return fmt.Errorf("failed to commit blob: %+v", err)
+	}
+	return nil
+}
+
+//commitMeta commits the metadata document to an external provider
+func (a *App) commitMeta(metadataPath string) error {
+	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
+		return fmt.Errorf("metadata file '%s' does not exists '%+v'", metadataPath, err)
+	}
+	bytes, err := ioutil.ReadFile(metadataPath)
+	if err != nil {
+		return fmt.Errorf("failed to read metadata document '%s' with error '%+v'", metadataPath, err)
+	}
+	var m []common.KeyValuePair
+	err = json.Unmarshal(bytes, &m)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
+	}
+	insight := types.Insight{
+		ExecutionID:   a.executionID,
 		CorrelationID: a.correlationID,
-		ParentEventID: a.parentEventID,
-		Metadata:      metadata,
+		EventID:       a.eventID,
+		Data:          m,
 	}
-	err = a.Meta.AddOrUpdateMetaDoc(doc)
+	err = a.Meta.CreateInsight(&insight)
 	if err != nil {
-		respondWithError(err, http.StatusNotFound, w)
-		return
+		return fmt.Errorf("failed to add metadata document '%+v' with error: '%+v'", m, err)
 	}
-	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
-//GetBlob gets a blob object
-func (a *App) GetBlob(w http.ResponseWriter, r *http.Request) {
-	resID, err := getResourceID(r)
+//commitEvents commits the events directory to an external provider
+func (a *App) commitEvents(eventsPath string) error {
+	if _, err := os.Stat(eventsPath); os.IsNotExist(err) {
+		return fmt.Errorf("events output directory '%s' does not exists '%+v'", eventsPath, err)
+	}
+	files, err := ioutil.ReadDir(eventsPath)
 	if err != nil {
-		respondWithError(err, http.StatusBadRequest, w)
-		return
+		return err
 	}
-	if a.Blob.Proxy() != nil {
-		r.RequestURI = "" // This is a hack to bypass this issue: https://github.com/vulcand/oxy/issues/57
-		a.Blob.Proxy().Get(resID, w, r)
-		return
+	for _, file := range files {
+		fileName := file.Name()
+		eventFilePath := path.Join(outputEventsDir, fileName)
+		f, err := os.Open(eventFilePath)
+		defer f.Close() // nolint: errcheck
+		if err != nil {
+			return fmt.Errorf("failed to read file '%s' with error: '%+v'", fileName, err)
+		}
+		// Deserialize event into map
+		var kvps []common.KeyValuePair
+		decoder := json.NewDecoder(f)
+		err = decoder.Decode(&kvps)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", fileName, err)
+		}
+		// Check required fields
+		var eventType string
+		for i, kvp := range kvps {
+			if kvp.Key == types.EventType {
+				var ok bool
+				eventType, ok = kvp.Value.(string)
+				if !ok {
+					continue
+				}
+				kvps = Remove(kvps, i)
+				break
+			}
+		}
+		if eventType == "" {
+			return fmt.Errorf("all events must contain an 'eventType' field, error: '%+v'", err)
+		}
+
+		var files string
+		for i, kvp := range kvps {
+			if kvp.Key == types.IncludedFiles {
+				fmt.Printf("kvp: %+v", kvp)
+				var ok bool
+				files, ok = kvp.Value.(string)
+				if !ok {
+					continue
+				}
+				kvps = Remove(kvps, i)
+				break
+			}
+		}
+		if len(files) == 0 {
+			return fmt.Errorf("all events must contain a 'files' field, error: '%+v'", err)
+		}
+
+		var isValid bool
+		for _, et := range a.validEventTypes {
+			if et == eventType {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
+		}
+		fileSlice := strings.Split(files, ",")
+
+		// Create new event
+		eventID := NewGUID()
+		event := common.Event{
+			PreviousStages: []string{},
+			EventID:        eventID,
+			Type:           eventType,
+		}
+
+		// Create new context document
+		eventContext := types.EventContext{
+			EventID:       eventID,
+			CorrelationID: a.correlationID,
+			ParentEventID: a.eventID,
+			Files:         fileSlice,
+			Data:          kvps,
+		}
+		err = a.Meta.CreateEventContext(&eventContext)
+		if err != nil {
+			return fmt.Errorf("failed to add context '%+v' with error '%+v'", eventContext, err)
+		}
+		err = a.Publisher.Publish(event)
+		if err != nil {
+			return fmt.Errorf("failed to publish event '%+v' with error '%+v'", event, err)
+		}
 	}
-	blob, err := a.Blob.Get(resID)
-	if err != nil {
-		respondWithError(err, http.StatusNotFound, w)
-		return
-	}
-	defer blob.Close()
-	bytes, err := ioutil.ReadAll(blob)
-	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
-		return
-	}
-	w.Write(bytes)
+	return nil
 }
 
-//CreateBlob creates a new blob and returns a path to it
-func (a *App) CreateBlob(w http.ResponseWriter, r *http.Request) {
-	resID, err := getResourceID(r)
-	if err != nil {
-		respondWithError(err, http.StatusBadRequest, w)
-		return
-	}
-	if a.Blob.Proxy() != nil {
-		r.RequestURI = "" // This is a hack to bypass this issue: https://github.com/vulcand/oxy/issues/57
-		a.Blob.Proxy().Create(resID, w, r)
-		return
-	}
-	path, err := a.Blob.Create(resID, r.Body)
-	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
-		return
-	}
-	w.Write([]byte(path))
-}
-
-//ListBlobs returns a list of blobs stored by the current module
-func (a *App) ListBlobs(w http.ResponseWriter, r *http.Request) {
-	resource := a.eventID
-	blobs, err := a.Blob.List(resource)
-	if err != nil {
-		respondWithError(err, http.StatusNotFound, w)
-		return
-	}
-	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
-	err = json.NewEncoder(w).Encode(blobs)
-	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
-		return
-	}
-}
-
-//DeleteBlobs deletes a named blob resource
-func (a *App) DeleteBlobs(w http.ResponseWriter, r *http.Request) {
-	resID, err := getResourceID(r)
-	if err != nil {
-		respondWithError(err, http.StatusBadRequest, w)
-		return
-	}
-	deleted, err := a.Blob.Delete(resID)
-	if err != nil || !deleted {
-		respondWithError(err, http.StatusNotFound, w)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
-//Publish posts an event to the event topic
-// nolint: errcheck
-func (a *App) Publish(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var eventData map[string]string
-	err := decoder.Decode(&eventData)
-	if err != nil {
-		respondWithError(err, http.StatusBadRequest, w)
-		return
-	}
-	defer r.Body.Close()
-	eventType := eventData[types.EventType]
-	if eventType == "" {
-		respondWithError(fmt.Errorf("metadata must contain an event type with the key '%s'", types.EventType), http.StatusBadRequest, w)
-		return
-	}
-	delete(eventData, types.EventType)
-	//TODO: validate event before publishing
-	event := types.Event{
-		PreviousStages: []string{},
-		CorrelationID:  a.correlationID,
-		ParentEventID:  a.eventID,
-		Data:           eventData,
-		Type:           eventType,
-	}
-	err = a.Publisher.Publish(event)
-	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w) //TODO: Return proper error codes
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
+//getContext get context metadata document
+func (a *App) getContext() (*types.EventContext, error) {
+	context, _ := a.Meta.GetEventContextByID(a.eventID)
+	//TODO: Fail on error conditions other than not found
+	return context, nil
 }
 
 //respondWithError returns a JSON formatted HTTP error
