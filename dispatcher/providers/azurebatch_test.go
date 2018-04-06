@@ -2,7 +2,6 @@ package providers
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/Azure/go-autorest/autorest"
@@ -11,7 +10,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/batch/2017-09-01.6.0/batch"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
-	apiv1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -34,43 +32,13 @@ func NewMockAzureBatchProvider(createTask func(taskDetails batch.TaskAddParamete
 	return &b, nil
 }
 
-func TestPod2DockerGeneratesValidOutputEncoding(t *testing.T) {
-	containers := []apiv1.Container{
-		{
-			Name:  "sidecar",
-			Image: "barry",
-			Args:  []string{"encoding"},
-		},
-		{
-			Name:            "worker",
-			Image:           "marge",
-			ImagePullPolicy: apiv1.PullAlways,
-		},
-	}
-
-	// Todo: Pull this out into a standalone package once stabilized
-	podCommand, err := getPodCommand(batchPodComponents{
-		Containers: containers,
-		PodName:    mockMessageID,
-		TaskID:     mockMessageID,
-		Volumes:    nil,
-	})
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	t.Log(podCommand)
-	if strings.Contains(podCommand, "&lt;") {
-		t.Error("output contains incorrect encoding")
-	}
-}
-
 func TestAzureBatchDispatchAddsJob(t *testing.T) {
 	inMemMockTaskStore := []batch.CloudTask{}
 
 	create := func(taskDetails batch.TaskAddParameter) (autorest.Response, error) {
-		inMemMockTaskStore = append(inMemMockTaskStore, batch.CloudTask{})
+		inMemMockTaskStore = append(inMemMockTaskStore, batch.CloudTask{
+			CommandLine: taskDetails.CommandLine,
+		})
 		return autorest.Response{}, nil
 	}
 
@@ -95,9 +63,8 @@ func TestAzureBatchDispatchAddsJob(t *testing.T) {
 		t.Errorf("Job count incorrected Expected: 1 Got: %v", jobsLen)
 	}
 
-	// Todo: Very basic smoke test that shared volume path is present in batch command
-	if !strings.Contains(*inMemMockTaskStore[0].CommandLine, "/ion/") {
-		t.Error("Missing shared volume")
+	if inMemMockTaskStore[0].CommandLine == nil {
+		t.Error("Command not passed to azure batch!")
 	}
 }
 

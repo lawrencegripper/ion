@@ -151,6 +151,7 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 	CheckLabelsAssignedCorrectly(t, job, messageToSend.MessageID)
 	CheckPodSetup(t, job, k.jobConfig.SidecarImage, k.jobConfig.WorkerImage)
 
+	//Check env vars
 	workerEnvVar := job.Spec.Template.Spec.Containers[1].Env[1]
 	if workerEnvVar.Name != "thing" && workerEnvVar.Value != "stuff" {
 		t.Log(workerEnvVar)
@@ -201,6 +202,17 @@ func CheckPodSetup(t *testing.T, job batchv1.Job, expectedSidecarImage, expected
 	worker := job.Spec.Template.Spec.Containers[1]
 	if worker.Image != expectedWorkerImage {
 		t.Errorf("worker image wrong Got: %s Expected: %s", worker.Image, expectedWorkerImage)
+	}
+	if len(worker.VolumeMounts) != 1 {
+		t.Error("Expected 1 volume in worker")
+	}
+
+	if len(sidecar.VolumeMounts) != 1 {
+		t.Error("Expected 1 volume in sidecar")
+	}
+	volume := job.Spec.Template.Spec.Volumes[0]
+	if volume.Name != "ionvolume" {
+		t.Error("Volume not found with name ionvolume")
 	}
 }
 

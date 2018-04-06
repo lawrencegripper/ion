@@ -36,7 +36,7 @@ docker run -d --network container:$networkContainerID --ipc container:$networkCo
 -e "{{$envs.Name}}:{{$envs.Value}}" \
     {{- end}}
     {{- range $index, $mount := getValidVolumeMounts $container $volumes}}
--v {{$podName}}{{$mount.Name}}:{{$mount.MountPath}} \
+-v {{$podName}}_{{$mount.Name}}:{{$mount.MountPath}} \
     {{- end}}
 --cidfile=./container-{{$index}}.cid {{$container.Image}} {{getLaunchCommand $container}}
 {{end}}
