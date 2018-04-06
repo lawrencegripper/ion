@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +19,6 @@ import (
 )
 
 func main() {
-	log.Println("hello")
 	hostName, err := os.Hostname()
 	if err != nil {
 		fmt.Println("Unable to automatically set instanceid to hostname")
@@ -52,6 +52,20 @@ func main() {
 			if config.Sidecar == nil {
 				panic("Sidecar config can't be nil. Use '-h' to see options")
 			}
+
+			switch strings.ToLower(config.LogLevel) {
+			case "debug":
+				log.SetLevel(log.DebugLevel)
+			case "info":
+				log.SetLevel(log.InfoLevel)
+			case "warn":
+				log.SetLevel(log.WarnLevel)
+			case "error":
+				log.SetLevel(log.ErrorLevel)
+			default:
+				log.SetLevel(log.WarnLevel)
+			}
+
 			//Todo: validate sidecar config
 
 			ctx := context.Background()
@@ -80,16 +94,22 @@ func main() {
 						log.WithError(err).Panic("Error received dequeuing message - nil message")
 					}
 
+					log.WithField("message", message).Debug("message received")
+
 					err = provider.Dispatch(messaging.NewAmqpMessageWrapper(message))
 					if err != nil {
 						log.WithError(err).Error("Couldn't dispatch message to kubernetes provider")
 					}
+
+					log.WithField("message", message).Debug("message dispatched")
 				}
 			}(&wg)
 
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
 				for {
+					log.Debug("reconciling...")
+
 					err := provider.Reconcile()
 					if err != nil {
 						// Todo: Should this panic here? Should we tolerate a few failures (k8s upgade causing masters not to be vailable for example?)

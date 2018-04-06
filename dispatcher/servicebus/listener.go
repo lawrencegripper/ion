@@ -121,9 +121,15 @@ func NewListener(ctx context.Context, config *types.Configuration) *Listener {
 
 	if err != nil && sub.Response.StatusCode == http.StatusNotFound {
 		log.WithField("config", types.RedactConfigSecrets(config)).Debugf("subscription %v doesn't exist.. creating", subName)
+
+		deliveryCount := config.Job.RetryCount + 1
+		if deliveryCount < 1 {
+			log.Error("retryCount must be greater than or equal to 0")
+		}
+
 		subDef := servicebus.SBSubscription{
 			SBSubscriptionProperties: &servicebus.SBSubscriptionProperties{
-				MaxDeliveryCount: to.Int32Ptr(int32(config.Job.RetryCount)),
+				MaxDeliveryCount: to.Int32Ptr(int32(deliveryCount)),
 			},
 		}
 		sub, err = subsClient.CreateOrUpdate(

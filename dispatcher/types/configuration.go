@@ -17,6 +17,7 @@ type Configuration struct {
 	TenantID            string            `description:"TentantID for Azure"`
 	LogSensitiveConfig  bool              `description:"Print out sensitive config when logging"`
 	ModuleConfigPath    string            `description:"Path to environment variables file for module"`
+	KubernetesNamespace string            `description:"Namespace in which to schedule jobs in k8s"`
 	Job                 *JobConfig        `description:"Configure settings for the jobs to be run"`
 	Sidecar             *SidecarConfig    `description:"Configure settings for the sidecar"`
 	AzureBatch          *AzureBatchConfig `description:"Configure AzureBatch"`
