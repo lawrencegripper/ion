@@ -4,11 +4,10 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"regexp"
-	"strings"
-	"sync"
 
-	"github.com/lawrencegripper/ion/sidecar/types"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
+	"github.com/twinj/uuid"
+	"os"
 )
 
 //CompareHash compares a secret string against a hash
@@ -23,10 +22,9 @@ func CompareHash(secret, secretHash string) error {
 }
 
 //Hash returns a MD5 hash of the provided string
-// nolint: errcheck
 func Hash(s string) string {
 	hasher := md5.New()
-	hasher.Write([]byte(s))
+	hasher.Write([]byte(s)) // nolint: errcheck
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
@@ -48,54 +46,36 @@ func MustNotBeNil(objs ...interface{}) {
 	}
 }
 
-//StripBlobStore removes details specific to the metadata store from any metadata
-func StripBlobStore(docs []types.MetaDoc) ([]types.MetaDoc, error) {
-	var waitGroup sync.WaitGroup
-	waitGroup.Add(len(docs))
-
-	defer waitGroup.Wait()
-
-	rx, err := regexp.Compile(`^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/[a-zA-Z0-9]+/`)
+//ClearDir removes all the content from a directory
+func ClearDir(dirPath string) error {
+	err := os.RemoveAll(dirPath)
 	if err != nil {
-		return nil, fmt.Errorf("error thrown compiling regex: %+v", err)
+		return fmt.Errorf("failed removing directory path '%s' with error: '%+v'", dirPath, err)
 	}
-
-	strip := make(chan types.MetaDoc)
-	strippedDocs := make([]types.MetaDoc, 0)
-	for _, doc := range docs {
-		go func(doc types.MetaDoc) {
-			defer waitGroup.Done()
-			strippedMeta := map[string]string{}
-			for k, v := range doc.Metadata {
-				match := rx.FindString(v)
-				if match == "" {
-					strippedMeta[k] = v
-				} else {
-					strippedMeta[k] = strings.Replace(v, match, "", 1)
-				}
-			}
-			doc.Metadata = strippedMeta
-			strip <- doc
-		}(doc)
+	err = os.MkdirAll(dirPath, 0777)
+	if err != nil {
+		return fmt.Errorf("failed creating directory path '%s' with error: '%+v'", dirPath, err)
 	}
-
-	for i := 0; i < len(docs); i++ {
-		doc := <-strip
-		strippedDocs = append(strippedDocs, doc)
-	}
-
-	return strippedDocs, nil
+	return nil
 }
 
-//NormalizeResourcePath transforms a resource path into an expected format
-func NormalizeResourcePath(resPath string) (string, error) {
-	if resPath[0] == '/' {
-		resPath = resPath[1:]
+//RemoveFile removes a file from the file system
+func RemoveFile(filePath string) error {
+	err := os.Remove(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to remove file at path '%s' with error: '%+v'", filePath, err)
 	}
-	segs := strings.Split(resPath, "/")
-	if len(segs) < 2 {
-		return "", fmt.Errorf("%s is not a valid resource path", resPath)
-	}
-	resPath = strings.Replace(resPath, "//", "/", -1)
-	return resPath, nil
+	return nil
+}
+
+//NewGUID generates a new guid as a string
+func NewGUID() string {
+	guid := fmt.Sprintf("%v", uuid.NewV4())
+	return guid
+}
+
+//Remove removes an entry from a key value pair array
+func Remove(s []messaging.KeyValuePair, i int) []messaging.KeyValuePair {
+	s[len(s)-1], s[i] = s[i], s[len(s)-1]
+	return s[:len(s)-1]
 }

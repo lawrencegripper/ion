@@ -133,8 +133,8 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 	}
 
 	k, _ := NewMockKubernetesProvider(create, list)
-	k.sidecarEnvVars = make(map[string]interface{})
-	k.sidecarEnvVars["thing"] = "stuff"
+	k.workerEnvVars = make(map[string]interface{})
+	k.workerEnvVars["thing"] = "stuff"
 
 	messageToSend := MockMessage{
 		MessageID: mockMessageID,

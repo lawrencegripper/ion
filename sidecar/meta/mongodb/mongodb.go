@@ -28,6 +28,8 @@ type MongoDB struct {
 
 //NewMongoDB creates a new MongoDB object
 func NewMongoDB(config *Config) (*MongoDB, error) {
+	//TODO: Add timeout
+
 	dialInfo := &mongo.DialInfo{
 		Addrs:    []string{fmt.Sprintf("%s.documents.azure.com:%d", config.Name, config.Port)},
 		Timeout:  60 * time.Second,
@@ -56,29 +58,19 @@ func NewMongoDB(config *Config) (*MongoDB, error) {
 	return MongoDB, nil
 }
 
-//GetMetaDocByID returns a single document matching a given document ID
-func (db *MongoDB) GetMetaDocByID(docID string) (*types.MetaDoc, error) {
-	doc := types.MetaDoc{}
-	err := db.Collection.Find(bson.M{"id": docID}).One(&doc)
+//GetEventContextByID returns a single document matching a given document ID
+func (db *MongoDB) GetEventContextByID(id string) (*types.EventContext, error) {
+	eventContext := types.EventContext{}
+	err := db.Collection.Find(bson.M{"id": id}).One(&eventContext)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", docID, err)
+		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", id, err)
 	}
-	return &doc, nil
+	return &eventContext, nil
 }
 
-//GetMetaDocAll returns all the documents matching a given correlationID
-func (db *MongoDB) GetMetaDocAll(correlationID string) ([]types.MetaDoc, error) {
-	docs := []types.MetaDoc{}
-	err := db.Collection.Find(bson.M{"correlationId": correlationID}).All(&docs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get documents with correlation ID %s, error: %+v", correlationID, err)
-	}
-	return docs, nil
-}
-
-//AddOrUpdateMetaDoc appends a new entry to an existing document
-func (db *MongoDB) AddOrUpdateMetaDoc(doc *types.MetaDoc) error {
-	b, err := json.Marshal(*doc)
+//CreateEventContext creats a new event context document
+func (db *MongoDB) CreateEventContext(eventContext *types.EventContext) error {
+	b, err := json.Marshal(*eventContext)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
 	}
@@ -87,12 +79,31 @@ func (db *MongoDB) AddOrUpdateMetaDoc(doc *types.MetaDoc) error {
 	if err != nil {
 		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
 	}
-
-	selector := bson.M{"id": doc.ID}
-	update := bson.M{"$set": doc}
+	selector := bson.M{"id": eventContext.EventID}
+	update := bson.M{"$set": eventContext}
 	_, err = db.Collection.Upsert(selector, update)
 	if err != nil {
-		return fmt.Errorf("error updating document: %+v", err)
+		return fmt.Errorf("error creates document: %+v", err)
+	}
+	return nil
+}
+
+//CreateInsight creates an insights document
+func (db *MongoDB) CreateInsight(insight *types.Insight) error {
+	b, err := json.Marshal(*insight)
+	if err != nil {
+		return fmt.Errorf("error serializing JSON document: %+v", err)
+	}
+	var bsonDocument interface{}
+	err = bson.UnmarshalJSON(b, &bsonDocument)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
+	}
+	selector := bson.M{"id": insight.ExecutionID}
+	update := bson.M{"$set": insight}
+	_, err = db.Collection.Upsert(selector, update)
+	if err != nil {
+		return fmt.Errorf("error creates document: %+v", err)
 	}
 	return nil
 }

@@ -2,61 +2,48 @@ package types
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
+
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
 )
 
-//MetaProvider is a document storage DB for holding metadata
-type MetaProvider interface {
-	GetMetaDocByID(docID string) (*MetaDoc, error)
-	GetMetaDocAll(correlationID string) ([]MetaDoc, error)
-	AddOrUpdateMetaDoc(doc *MetaDoc) error
+//MetadataProvider is a document storage DB for storing document data
+type MetadataProvider interface {
+	GetEventContextByID(id string) (*EventContext, error)
+	CreateEventContext(metadata *EventContext) error
+	CreateInsight(insight *Insight) error
 	Close()
-}
-
-//Proxy represents a proxy capable of serving a HTTP request
-type Proxy interface {
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
-}
-
-//BlobProxy is responsible for proxying HTTP requests against the Azure storage REST API
-type BlobProxy interface {
-	Create(resourcePath string, w http.ResponseWriter, r *http.Request)
-	Get(resourcePath string, w http.ResponseWriter, r *http.Request)
 }
 
 //BlobProvider is responsible for getting information about blobs stored externally
 type BlobProvider interface {
-	Proxy() BlobProxy
-	Create(resourcePath string, blob io.ReadCloser) (string, error)
-	Get(resourcePath string) (io.ReadCloser, error)
-	List(resourcePath string) ([]string, error)
-	Delete(resourcePath string) (bool, error)
+	GetBlobs(outputDir string, filePaths []string) error
+	PutBlobs(filePaths []string) error
 	Close()
 }
 
 //EventPublisher is responsible for publishing events to a remote system
 type EventPublisher interface {
-	Publish(e Event) error
+	Publish(e messaging.Event) error
 	Close()
 }
 
-//MetaDoc is a single entry in a document
-type MetaDoc struct {
-	ID            string            `bson:"id" json:"id"`
-	CorrelationID string            `bson:"correlationId" json:"correlationId"`
-	ParentEventID string            `bson:"parentId" json:"parentId"`
-	Metadata      map[string]string `bson:"metadata" json:"metadata"`
+//EventContext is a single entry in a document
+type EventContext struct {
+	EventID       string                   `bson:"id" json:"id"`
+	CorrelationID string                   `bson:"correlationId" json:"correlationId"`
+	ParentEventID string                   `bson:"parentEventId" json:"parentEventId"`
+	Files         []string                 `bson:"files" json:"files"`
+	Data          []messaging.KeyValuePair `bson:"data" json:"data"`
 }
 
-// Event the basic event data format
-type Event struct {
-	ID             string            `json:"id"`
-	Type           string            `json:"type"`
-	PreviousStages []string          `json:"previousStages"`
-	ParentEventID  string            `json:"parentId"`
-	CorrelationID  string            `json:"correlationId"`
-	Data           map[string]string `json:"data"`
+//Insight todo
+type Insight struct {
+	ExecutionID   string                   `bson:"id" json:"id"`
+	CorrelationID string                   `bson:"correlationId" json:"correlationId"`
+	EventID       string                   `bson:"eventId" json:"eventId"`
+	ParentEventID string                   `bson:"parentEventId" json:"parentEventId"`
+	Data          []messaging.KeyValuePair `bson:"data" json:"data"`
 }
 
 //ErrorResponse is a struct intended as JSON HTTP response
@@ -70,21 +57,4 @@ func (e *ErrorResponse) Send(w http.ResponseWriter) {
 	w.Header().Set(ContentType, ContentTypeApplicationJSON)
 	w.WriteHeader(e.StatusCode)
 	_ = json.NewEncoder(w).Encode(e.Message)
-}
-
-//StatusCodeResponseWriter is used to expose the HTTP status code for a ResponseWriter
-type StatusCodeResponseWriter struct {
-	http.ResponseWriter
-	StatusCode int
-}
-
-//NewStatusCodeResponseWriter creates new StatusCodeResponseWriter
-func NewStatusCodeResponseWriter(w http.ResponseWriter) *StatusCodeResponseWriter {
-	return &StatusCodeResponseWriter{w, http.StatusOK}
-}
-
-//WriteHeader hijacks a ResponseWriter.WriteHeader call and stores the status code
-func (w *StatusCodeResponseWriter) WriteHeader(code int) {
-	w.StatusCode = code
-	w.ResponseWriter.WriteHeader(code)
 }

@@ -42,7 +42,7 @@ type Kubernetes struct {
 	dispatcherName   string
 	Namespace        string
 	sidecarArgs      []string
-	sidecarEnvVars   map[string]interface{}
+	workerEnvVars    map[string]interface{}
 }
 
 // NewKubernetesProvider Creates an instance and does basic setup
@@ -56,15 +56,17 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 
 	k := Kubernetes{}
 	k.sidecarArgs = sharedSidecarArgs
-	k.sidecarEnvVars = map[string]interface{}{
+	k.workerEnvVars = map[string]interface{}{
 		"SIDECAR_PORT": config.Sidecar.ServerPort,
 	}
+
+	// Add module specific config
 	envs, err := getModuleEnvironmentVars(config.ModuleConfigPath)
 	if err != nil {
 		log.WithField("filepath", config.ModuleConfigPath).Error("failed to load addition module config from file")
 	} else {
 		for key, value := range envs {
-			k.sidecarEnvVars[key] = value
+			k.workerEnvVars[key] = value
 		}
 	}
 
@@ -203,7 +205,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 			Value: message.ID(), //Todo: source from common place with args
 		},
 	}
-	for k, v := range k.sidecarEnvVars {
+	for k, v := range k.workerEnvVars {
 		envVar := apiv1.EnvVar{
 			Name:  k,
 			Value: fmt.Sprintf("%v", v),

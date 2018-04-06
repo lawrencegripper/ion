@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lawrencegripper/ion/sidecar/types"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"k8s.io/kubernetes/third_party/forked/golang/template"
 )
 
@@ -30,11 +30,13 @@ type ServiceBus struct {
 	SKN string
 }
 
+/* not currently needed - leaving for future use
 type brokerProperties struct {
 	correlationID string
 	messageID     string
-	TimeToLive    time.Duration
+	timeToLive    time.Duration
 }
+*/
 
 //NewServiceBus creates a new Service Bus object
 func NewServiceBus(config *Config) (*ServiceBus, error) {
@@ -48,7 +50,7 @@ func NewServiceBus(config *Config) (*ServiceBus, error) {
 }
 
 //Publish publishes an event onto a Service Bus topic
-func (s *ServiceBus) Publish(e types.Event) error {
+func (s *ServiceBus) Publish(e messaging.Event) error {
 	b, err := json.Marshal(e)
 	if err != nil {
 		return fmt.Errorf("error publishing event %+v", err)
@@ -57,12 +59,14 @@ func (s *ServiceBus) Publish(e types.Event) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", generateSAS(s.URL, s.SKN, s.Key))
 
+	/* not currently needed - leaving for future use
 	var props brokerProperties
 	p, err := json.Marshal(&props)
 	if err != nil {
 		return fmt.Errorf("error publishing event %+v", err)
 	}
 	req.Header.Set("BrokerProperties", string(p))
+	*/
 
 	//TODO: optimize
 	client := &http.Client{}

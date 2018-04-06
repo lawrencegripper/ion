@@ -2,13 +2,12 @@ package azurestorage
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
+	"os"
+	"path"
 	"strings"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
-	"github.com/lawrencegripper/ion/sidecar/types"
-	"github.com/vulcand/oxy/forward"
 )
 
 //TODO: Cache auth token for reuse
@@ -17,157 +16,104 @@ import (
 type Config struct {
 	BlobAccountName string `description:"Azure Blob Storage account name"`
 	BlobAccountKey  string `description:"Azure Blob Storage account key"`
-	UseProxy        bool   `description:"Enable proxy"`
+	ContainerName   string `description:"Azure Blob Storage container name"`
 }
 
 //BlobStorage is responsible for handling the connections to Azure Blob Storage
 // nolint: golint
 type BlobStorage struct {
-	blobClient storage.BlobStorageClient
-	proxy      types.BlobProxy
+	blobClient    storage.BlobStorageClient
+	containerName string
+	blobPrefix    string
 }
 
 //NewBlobStorage creates a new Azure Blob Storage object
-func NewBlobStorage(config *Config) (*BlobStorage, error) {
+func NewBlobStorage(config *Config, blobPrefix string) (*BlobStorage, error) {
 	blobClient, err := storage.NewBasicClient(config.BlobAccountName, config.BlobAccountKey)
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage blobClient: %+v", err)
 	}
 	blob := blobClient.GetBlobService()
 	asb := &BlobStorage{
-		blobClient: blob,
-	}
-	if config.UseProxy {
-		proxy, _ := forward.New(
-			forward.Stream(true),
-		)
-		asb.proxy = NewAzureBlobProxy(proxy, asb)
+		blobClient:    blob,
+		containerName: config.ContainerName,
+		blobPrefix:    blobPrefix,
 	}
 	return asb, nil
 }
 
-//Proxy is used to inform clients that this provider has a proxy
-func (a *BlobStorage) Proxy() types.BlobProxy {
-	return a.proxy
+//PutBlobs puts a file into Azure Blob Storage
+func (a *BlobStorage) PutBlobs(filePaths []string) error {
+	container, err := a.createContainerIfNotExist()
+	if err != nil {
+		return err
+	}
+	for _, filePath := range filePaths {
+		_, nakedFilePath := path.Split(filePath)
+		blobPath := strings.Join([]string{
+			a.blobPrefix,
+			nakedFilePath,
+		}, "-")
+		file, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read data from file '%s', error: '%+v'", filePath, err)
+		}
+		defer file.Close() // nolint: errcheck
+		blobRef := container.GetBlobReference(blobPath)
+		_, err = blobRef.DeleteIfExists(&storage.DeleteBlobOptions{})
+		if err != nil {
+			return err
+		}
+		err = blobRef.CreateBlockBlobFromReader(file, &storage.PutBlobOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-//Create creates a new blob and returns a url pointing to the new blob
-func (a *BlobStorage) Create(resourcePath string, blobData io.ReadCloser) (string, error) {
-	blob, err := createContainerForBlobIfNotExist(&a.blobClient, resourcePath)
-	if err != nil {
-		return "", err
+//GetBlobs gets each of the provided blobs from Azure Blob Storage
+func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
+	containerName := a.containerName
+	container := a.blobClient.GetContainerReference(containerName)
+	for _, filePath := range filePaths {
+		blobPath := strings.Join([]string{
+			a.blobPrefix,
+			filePath,
+		}, "-")
+		blobRef := container.GetBlobReference(blobPath)
+		blob, err := blobRef.Get(&storage.GetBlobOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get blob '%s' with error '%+v'", blobPath, err)
+		}
+		var bytes []byte
+		_, err = blob.Read(bytes)
+		if err != nil {
+			return fmt.Errorf("failed to read blob '%s' with error '%+v'", blobPath, err)
+		}
+		defer blob.Close() // nolint: errcheck
+		outputFilePath := path.Join(outputDir, filePath)
+		err = ioutil.WriteFile(outputFilePath, bytes, 0777)
+		if err != nil {
+			return fmt.Errorf("failed to write file '%s' with error '%+v'", outputFilePath, err)
+		}
 	}
-	err = blob.CreateBlockBlobFromReader(blobData, &storage.PutBlobOptions{})
-	if err != nil {
-		return "", err
-	}
-	url := blob.GetURL()
-	segs := strings.Split(url, "?") // remove SAS token if present
-	if len(segs) < 2 {
-		return url, nil
-	}
-	return segs[0], nil
-}
-
-//Get gets a blob resource
-func (a *BlobStorage) Get(resourcePath string) (io.ReadCloser, error) {
-	blob, err := getBlobFromResourcePath(&a.blobClient, resourcePath)
-	if err != nil {
-		return nil, err
-	}
-	reader, err := blob.Get(&storage.GetBlobOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return reader, nil
-}
-
-//Delete expands a blob resource path into a valid Azure Blob Storage URI then deletes it
-func (a *BlobStorage) Delete(resourcePath string) (bool, error) {
-	blob, err := getBlobFromResourcePath(&a.blobClient, resourcePath)
-	if err != nil {
-		return false, err
-	}
-	deleted, err := blob.DeleteIfExists(&storage.DeleteBlobOptions{})
-	return deleted, err
-}
-
-//List expands a blob resource path into a container name and then lists all blobs inside it
-func (a *BlobStorage) List(resourcePath string) ([]string, error) {
-	container := a.blobClient.GetContainerReference(resourcePath)
-	blobs, err := container.ListBlobs(storage.ListBlobsParameters{})
-	if err != nil {
-		return nil, err
-	}
-	var blobList []string
-	for _, blob := range blobs.Blobs {
-		blobList = append(blobList, blob.Name)
-	}
-	return blobList, nil
+	return nil
 }
 
 //Close cleans up any external resources
 func (a *BlobStorage) Close() {
 }
 
-//parseResourcePath extracts a container name and blob name from a combined resource string
-func parseResourcePath(resourcePath string) (string, string, error) {
-	if resourcePath[0] == '/' {
-		resourcePath = resourcePath[1:]
-	}
-	pathSegments := strings.Split(resourcePath, "/")
-	if len(pathSegments) <= 1 {
-		return "", "", fmt.Errorf("resource path '%s' is not a valid path", resourcePath)
-	}
-	containerName := pathSegments[0]
-	blobName := strings.Join(pathSegments[1:], "/")
-	return containerName, blobName, nil
-}
-
-//getAuthToken returns a SAS authenticated URI for a given blob resource
-func getAuthToken(durationInHours int, canRead, canAdd, canCreate, canWrite, canDelete bool,
-	blob *storage.Blob) (string, error) {
-	sasURL, err := blob.GetSASURI(storage.BlobSASOptions{
-		BlobServiceSASPermissions: storage.BlobServiceSASPermissions{
-			Read:   canRead,
-			Add:    canAdd,
-			Create: canCreate,
-			Delete: canDelete,
-		},
-		SASOptions: storage.SASOptions{
-			Start:    time.Now().Add(time.Hour * time.Duration(-6)),
-			Expiry:   time.Now().Add(time.Hour * time.Duration(durationInHours)),
-			UseHTTPS: false,
-		},
-	})
-	if err != nil {
-		return "", fmt.Errorf("error thrown getting SAS uri for blob %s in container %s: %+v", blob.Name, blob.Container.Name, err)
-	}
-	return sasURL, nil
-}
-
-func createContainerForBlobIfNotExist(client *storage.BlobStorageClient, resourcePath string) (*storage.Blob, error) {
-	containerName, blobName, err := parseResourcePath(resourcePath)
-	if err != nil {
-		return nil, err
-	}
-	container := client.GetContainerReference(containerName)
-	_, err = container.CreateIfNotExists(&storage.CreateContainerOptions{
+//createContainerIfNotExist creates the container if it doesn't exist
+func (a *BlobStorage) createContainerIfNotExist() (*storage.Container, error) {
+	containerName := a.containerName
+	container := a.blobClient.GetContainerReference(containerName)
+	_, err := container.CreateIfNotExists(&storage.CreateContainerOptions{
 		Access: storage.ContainerAccessTypePrivate,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error thrown creating container %s: %+v", containerName, err)
 	}
-	blob := container.GetBlobReference(blobName)
-	return blob, nil
-}
-
-func getBlobFromResourcePath(client *storage.BlobStorageClient, resourcePath string) (*storage.Blob, error) {
-	containerName, blobName, err := parseResourcePath(resourcePath)
-	if err != nil {
-		return nil, err
-	}
-	container := client.GetContainerReference(containerName)
-	blob := container.GetBlobReference(blobName)
-	return blob, nil
+	return container, nil
 }
