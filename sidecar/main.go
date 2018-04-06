@@ -93,6 +93,7 @@ func runApp(config *app.Configuration) {
 		eventProvider,
 		blobProvider,
 		logger,
+		config.Development,
 	)
 
 	defer app.Close()

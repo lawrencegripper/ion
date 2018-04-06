@@ -81,6 +81,7 @@ func TestAzureIntegration(t *testing.T) {
 		sb,
 		blob,
 		logger,
+		true,
 	)
 
 	go a.Run(fmt.Sprintf(":%d", config.ServerPort))
@@ -176,6 +177,7 @@ func TestAzureIntegration(t *testing.T) {
 		sb,
 		blob,
 		logger,
+		true,
 	)
 
 	defer a2.Close()

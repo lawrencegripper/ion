@@ -25,6 +25,7 @@ const (
 	outputBlobDir   string = "/ion/out/data"
 	outputMetaFile  string = "/ion/out/meta.json"
 	outputEventsDir string = "/ion/out/events"
+	devOutputDir    string = "/ion/dev"
 
 	stateNew   = iota
 	stateReady = iota
@@ -46,6 +47,7 @@ type App struct {
 	executionID     string
 	validEventTypes []string
 	state           int
+	development     bool
 }
 
 //Setup initializes application
@@ -58,7 +60,8 @@ func (a *App) Setup(
 	meta types.MetadataProvider,
 	publisher types.EventPublisher,
 	blob types.BlobProvider,
-	logger *log.Logger) {
+	logger *log.Logger,
+	developmentMode bool) {
 
 	MustNotBeEmpty(secret, eventID)
 	MustNotBeNil(meta, publisher, blob, logger)
@@ -95,6 +98,8 @@ func (a *App) Setup(
 	a.Publisher = publisher
 	a.Blob = blob
 	a.Logger = logger
+
+	a.development = developmentMode
 
 	a.Router = mux.NewRouter()
 	a.setupRoutes()
@@ -312,6 +317,9 @@ func (a *App) commitMeta(metadataPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to add metadata document '%+v' with error: '%+v'", m, err)
 	}
+	if a.development {
+		_ = writeDevelopmentFile("meta.json", insight)
+	}
 	return nil
 }
 
@@ -409,6 +417,27 @@ func (a *App) commitEvents(eventsPath string) error {
 		if err != nil {
 			return fmt.Errorf("failed to publish event '%+v' with error '%+v'", event, err)
 		}
+		if a.development {
+			_ = writeDevelopmentFile("context_"+fileName, eventContext)
+			_ = writeDevelopmentFile("event_"+fileName, eventContext)
+		}
+	}
+	return nil
+}
+
+func writeDevelopmentFile(fileName string, obj interface{}) error {
+	if _, err := os.Stat(devOutputDir); os.IsNotExist(err) {
+		os.Mkdir(devOutputDir, 0777)
+	}
+	// TODO: Handle errors here?
+	path := path.Join(devOutputDir, "dev."+fileName)
+	b, err := json.Marshal(&obj)
+	if err != nil {
+		return fmt.Errorf("error generating development logs, '%+v'", err)
+	}
+	err = ioutil.WriteFile(path, b, 0777)
+	if err != nil {
+		return fmt.Errorf("error writing development logs, '%+v'", err)
 	}
 	return nil
 }
