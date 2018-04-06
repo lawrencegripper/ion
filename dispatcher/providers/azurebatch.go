@@ -24,7 +24,7 @@ type AzureBatch struct {
 	inprogressJobStore map[string]messaging.Message
 	dispatcherName     string
 	sidecarArgs        []string
-	sidecarEnvVars     map[string]interface{}
+	workerEnvVars      map[string]interface{}
 	ctx                context.Context
 	cancelOps          context.CancelFunc
 
@@ -55,6 +55,16 @@ func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []stri
 	b.cancelOps = cancel
 
 	auth := helpers.GetAzureADAuthorizer(config, azure.PublicCloud.BatchManagementEndpoint)
+
+	// Add module specific config
+	envs, err := getModuleEnvironmentVars(config.ModuleConfigPath)
+	if err != nil {
+		log.WithField("filepath", config.ModuleConfigPath).Error("failed to load addition module config from file")
+	} else {
+		for key, value := range envs {
+			k.workerEnvVars[key] = value
+		}
+	}
 
 	// Todo: Allow users to pass in/choose a different machine type and init script
 	createOrGetPool(&b, auth)
@@ -120,7 +130,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 			Value: message.ID(), //Todo: source from common place with args
 		},
 	}
-	for k, v := range b.sidecarEnvVars {
+	for k, v := range b.workerEnvVars {
 		envVar := apiv1.EnvVar{
 			Name:  k,
 			Value: fmt.Sprintf("%v", v),
