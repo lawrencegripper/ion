@@ -18,7 +18,7 @@ type MetadataProvider interface {
 //BlobProvider is responsible for getting information about blobs stored externally
 type BlobProvider interface {
 	GetBlobs(outputDir string, filePaths []string) error
-	PutBlobs(filePaths []string) error
+	PutBlobs(filePaths []string) (map[string]string, error)
 	Close()
 }
 

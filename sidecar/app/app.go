@@ -217,7 +217,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		}).Info("OnDone() called")
 
 	// Synchronize blob data with external blob store
-	err := a.commitBlob(outputBlobDir)
+	blobSASUris, err := a.commitBlob(outputBlobDir)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -243,7 +243,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Synchronize events with external event system
-	err = a.commitEvents(outputEventsDir)
+	err = a.commitEvents(outputEventsDir, blobSASUris)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -269,23 +269,23 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 }
 
 //commitBlob commits the blob directory to an external blob provider
-func (a *App) commitBlob(blobsPath string) error {
+func (a *App) commitBlob(blobsPath string) (map[string]string, error) {
 	if _, err := os.Stat(blobsPath); os.IsNotExist(err) {
-		return fmt.Errorf("blob output directory '%s' does not exists '%+v'", blobsPath, err)
+		return nil, fmt.Errorf("blob output directory '%s' does not exists '%+v'", blobsPath, err)
 	}
 	files, err := ioutil.ReadDir(blobsPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var fileNames []string
 	for _, file := range files {
 		fileNames = append(fileNames, path.Join(outputBlobDir, file.Name()))
 	}
-	err = a.Blob.PutBlobs(fileNames)
+	blobSASUris, err := a.Blob.PutBlobs(fileNames)
 	if err != nil {
-		return fmt.Errorf("failed to commit blob: %+v", err)
+		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
-	return nil
+	return blobSASUris, nil
 }
 
 //commitMeta commits the metadata document to an external provider
@@ -316,7 +316,7 @@ func (a *App) commitMeta(metadataPath string) error {
 }
 
 //commitEvents commits the events directory to an external provider
-func (a *App) commitEvents(eventsPath string) error {
+func (a *App) commitEvents(eventsPath string, blobSASUris map[string]string) error {
 	if _, err := os.Stat(eventsPath); os.IsNotExist(err) {
 		return fmt.Errorf("events output directory '%s' does not exists '%+v'", eventsPath, err)
 	}
