@@ -39,9 +39,9 @@ module:
     name: dotjson/ion-python-example-module
     tag: latest
     pullPolicy: Always
-  eventsPublished: ""
+  eventsPublished: "example"
   maxRunningTimeMins: 10
-  subscribesToEvent: ""
+  subscribesToEvent: "example"
   retryCount: 5
   sidecar:
     host: localhost:8080
@@ -57,11 +57,11 @@ module:
 # Only Azure is supported at the moment
 cloud:
   azure:
-    clientId: ""
-    clientSecret: ""
-    tenantId: ""
-    subscriptionId: ""
-    resourceGroup: ""
+    clientId: "placeholder"
+    clientSecret: "placeholder"
+    tenantId: "placeholder"
+    subscriptionId: "placeholder"
+    resourceGroup: "placeholder"
 
 fileStorage:
   provider: azure

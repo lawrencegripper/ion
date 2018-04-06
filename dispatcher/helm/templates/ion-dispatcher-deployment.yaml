@@ -52,7 +52,7 @@ spec:
               apiVersion: v1
               fieldPath: metadata.namespace
         - name: DISPATCHER_MODULE_TYPE
-          value: {{ .Values.module.type }}
+          value: {{ .Values.module.name }}
         - name: DISPATCHER_MODULE_IMAGE
           value: "{{ .Values.module.image.name }}:{{ .Values.module.image.tag }}"
         - name: DISPATCHER_MODULE_EVENTSPUBLISHED
