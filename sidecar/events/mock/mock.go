@@ -8,7 +8,7 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/lawrencegripper/ion/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/common"
 )
 
 //EventPublisher is a mock event publisher implementation
@@ -30,7 +30,7 @@ func NewEventPublisher(dir string) *EventPublisher {
 }
 
 //Publish is a mock implementation of the Publish method
-func (e *EventPublisher) Publish(event messaging.Event) error {
+func (e *EventPublisher) Publish(event common.Event) error {
 	eventPath := path.Join(e.baseDir, "event"+strconv.Itoa(e.count)+".json")
 	eventJSON, err := json.Marshal(&event)
 	if err != nil {

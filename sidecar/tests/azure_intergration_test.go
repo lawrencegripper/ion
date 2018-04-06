@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lawrencegripper/ion/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/sidecar/app"
 	"github.com/lawrencegripper/ion/sidecar/blob/azurestorage"
 	"github.com/lawrencegripper/ion/sidecar/events/mock"
@@ -159,7 +159,7 @@ func TestAzureIntegration(t *testing.T) {
 	if err != nil {
 		t.Errorf("error reading event from disk '%+v'", err)
 	}
-	var event messaging.Event
+	var event common.Event
 	err = json.Unmarshal(b, &event)
 	if err != nil {
 		t.Errorf("error unmarshalling event '%+v'", err)

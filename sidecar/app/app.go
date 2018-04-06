@@ -13,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/gorilla/mux"
-	"github.com/lawrencegripper/ion/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -297,7 +297,7 @@ func (a *App) commitMeta(metadataPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read metadata document '%s' with error '%+v'", metadataPath, err)
 	}
-	var m []messaging.KeyValuePair
+	var m []common.KeyValuePair
 	err = json.Unmarshal(bytes, &m)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
@@ -333,7 +333,7 @@ func (a *App) commitEvents(eventsPath string) error {
 			return fmt.Errorf("failed to read file '%s' with error: '%+v'", fileName, err)
 		}
 		// Deserialize event into map
-		var kvps []messaging.KeyValuePair
+		var kvps []common.KeyValuePair
 		decoder := json.NewDecoder(f)
 		err = decoder.Decode(&kvps)
 		if err != nil {
@@ -387,7 +387,7 @@ func (a *App) commitEvents(eventsPath string) error {
 
 		// Create new event
 		eventID := NewGUID()
-		event := messaging.Event{
+		event := common.Event{
 			PreviousStages: []string{},
 			EventID:        eventID,
 			Type:           eventType,

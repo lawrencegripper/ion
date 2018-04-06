@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
@@ -341,8 +342,8 @@ func (m MockMessage) Reject() error {
 }
 
 // EventData deserialize json value to type
-func (m MockMessage) EventData() (messaging.Event, error) {
-	a := messaging.Event{}
+func (m MockMessage) EventData() (common.Event, error) {
+	a := common.Event{}
 
 	if m.JSONValue == "" {
 		m.JSONValue = `{ "id": "barry", "type": "faceevnt", "parentId": "barrySnr", "correlationId": "12345" }`

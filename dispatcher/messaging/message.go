@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/lawrencegripper/ion/common"
 	log "github.com/sirupsen/logrus"
 
 	"pack.ag/amqp"
@@ -16,7 +17,7 @@ type Message interface {
 	Body() interface{}
 	Accept() error
 	Reject() error
-	EventData() (Event, error)
+	EventData() (common.Event, error)
 }
 
 // AmqpMessage Wrapper for amqp
@@ -71,8 +72,8 @@ func (m *AmqpMessage) Reject() error {
 }
 
 // EventData deserialize json value to type
-func (m *AmqpMessage) EventData() (Event, error) {
-	var event Event
+func (m *AmqpMessage) EventData() (common.Event, error) {
+	var event common.Event
 	data := m.OriginalMessage.GetData()
 	err := json.Unmarshal(data, &event)
 	if err != nil {
