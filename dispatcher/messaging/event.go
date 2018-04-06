@@ -2,8 +2,8 @@ package messaging
 
 //KeyValuePair is a key value pair
 type KeyValuePair struct {
-	Key   string      `bson:"key" json:"key"`
-	Value interface{} `bson:"value" json:"value"`
+	Key   string `bson:"key" json:"key"`
+	Value string `bson:"value" json:"value"`
 }
 
 //Event the basic event data format

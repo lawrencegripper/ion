@@ -25,6 +25,6 @@ const (
 	//EventType is the key in the metadata to extract the event type using
 	EventType string = "eventType"
 
-	//IncludedFiles is the key in the metadata to extract the event type using
-	IncludedFiles string = "files"
+	//FilesToInclude is the key in the metadata to extract the event type using
+	FilesToInclude string = "files"
 )

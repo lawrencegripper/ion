@@ -60,7 +60,7 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 		},
 	}
 
-	blobSASUris := make(map[string]string)
+	blobSASURIs := make(map[string]string)
 
 	for _, filePath := range filePaths {
 		_, nakedFilePath := path.Split(filePath)
@@ -88,9 +88,9 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 			return nil, err
 		}
 
-		blobSASUris[nakedFilePath] = uri
+		blobSASURIs[nakedFilePath] = uri
 	}
-	return blobSASUris, nil
+	return blobSASURIs, nil
 }
 
 //GetBlobs gets each of the provided blobs from Azure Blob Storage
