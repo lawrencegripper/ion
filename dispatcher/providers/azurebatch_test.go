@@ -94,6 +94,11 @@ func TestAzureBatchDispatchAddsJob(t *testing.T) {
 	if jobsLen != 1 {
 		t.Errorf("Job count incorrected Expected: 1 Got: %v", jobsLen)
 	}
+
+	// Todo: Very basic smoke test that shared volume path is present in batch command
+	if !strings.Contains(*inMemMockTaskStore[0].CommandLine, "/ion/") {
+		t.Error("Missing shared volume")
+	}
 }
 
 func TestAzureBatchFailedDispatchRejectsMessage(t *testing.T) {

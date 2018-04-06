@@ -233,7 +233,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							Args:  fullSidecarArgs,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
-									Name: "ionvolume",
+									Name:      "ionvolume",
 									MountPath: "/ion",
 								},
 							},
@@ -245,18 +245,20 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							ImagePullPolicy: apiv1.PullAlways,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
-									Name: "ionvolume",
+									Name:      "ionvolume",
 									MountPath: "/ion",
 								},
 							},
 						},
 					},
 					Volumes: []apiv1.Volume{
-						apiv1.Volume{
+						{
 							Name: "ionvolume",
-							VolumeSource: apiv1.EmptyDirVolumeSource{},
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
 						},
-					}
+					},
 					RestartPolicy: apiv1.RestartPolicyNever,
 				},
 			},
