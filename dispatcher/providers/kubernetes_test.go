@@ -9,13 +9,7 @@ import (
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
-
 	batchv1 "k8s.io/api/batch/v1"
-)
-
-const (
-	mockDispatcherName = "mockdispatchername"
-	mockMessageID      = "examplemessageID"
 )
 
 func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error), list func() (*batchv1.JobList, error)) (*Kubernetes, error) {
@@ -139,6 +133,8 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 	}
 
 	k, _ := NewMockKubernetesProvider(create, list)
+	k.sidecarEnvVars = make(map[string]interface{})
+	k.sidecarEnvVars["thing"] = "stuff"
 
 	messageToSend := MockMessage{
 		MessageID: mockMessageID,
@@ -154,6 +150,12 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 
 	CheckLabelsAssignedCorrectly(t, job, messageToSend.MessageID)
 	CheckPodSetup(t, job, k.jobConfig.SidecarImage, k.jobConfig.WorkerImage)
+
+	workerEnvVar := job.Spec.Template.Spec.Containers[1].Env[1]
+	if workerEnvVar.Name != "thing" && workerEnvVar.Value != "stuff" {
+		t.Log(workerEnvVar)
+		t.Error("environment variables not correctly set")
+	}
 }
 
 func CheckLabelsAssignedCorrectly(t *testing.T, job batchv1.Job, expectedMessageID string) {

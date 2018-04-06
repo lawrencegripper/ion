@@ -6,29 +6,6 @@ services:
 
 go:
   - "1.10.x"
-  - "1.9.x"
-  - tip
-
-before_install:
-  # Setup dependency management tool
-  - curl -L -s https://github.com/golang/dep/releases/download/v0.3.1/dep-linux-amd64 -o $GOPATH/bin/dep
-  - chmod +x $GOPATH/bin/dep
-  - go get -u github.com/alecthomas/gometalinter
-  - gometalinter --install
-
-install:
-  - cd ./dispatcher && dep ensure -v && cd ..
 
 script:
-  - echo "Using stages instead..."
-  - cd ./dispatcher && dep ensure -v && cd .. && cd ./sidecar && dep ensure -v && cd ..
-  - go test -v -race -short ./dispatcher/...
-  - go test -v -race -short ./sidecar/...
-  - gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline 15m ./... 
-  - cd ./dispatcher && docker build -t iondispatcher . && cd ..
-  - cd ./sidecar && docker build -t ionsidecar . && cd ..
-
-# jobs:
-#   include:
-#     - stage: k8s integration testing
-#       script: travis_wait bash -f ./dispatcher/scripts/kube_int_tests.sh
+  - chmod +x ci.sh && sudo ./ci.sh
