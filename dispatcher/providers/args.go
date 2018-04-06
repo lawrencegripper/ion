@@ -16,20 +16,20 @@ func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) 
 		"--azureblobprovider=true",
 		"--azureblobprovider.blobaccountname=" + c.Sidecar.AzureBlobProvider.BlobAccountName,
 		"--azureblobprovider.blobaccountkey=" + c.Sidecar.AzureBlobProvider.BlobAccountKey,
-		"--azureblobprovider.useproxy=" + strconv.FormatBool(c.Sidecar.AzureBlobProvider.UseProxy),
 		"--mongodbmetaprovider=true",
+		"--mongodbmetaprovider.collection=" + c.Sidecar.MongoDBMetaProvider.Collection,
 		"--mongodbmetaprovider.name=" + c.Sidecar.MongoDBMetaProvider.Name,
 		"--mongodbmetaprovider.password=" + c.Sidecar.MongoDBMetaProvider.Password,
-		"--mongodbmetaprovider.collection=" + c.Sidecar.MongoDBMetaProvider.Collection,
 		"--mongodbmetaprovider.port=" + strconv.Itoa(c.Sidecar.MongoDBMetaProvider.Port),
 		"--servicebuseventprovider=true",
 		"--servicebuseventprovider.Namespace=" + c.ModuleName,
-		"--servicebuseventprovider.Topic=" + c.EventsPublished,
+		"--servicebuseventprovider.Topic=" + c.SubscribesToEvent,
 		"--servicebuseventprovider.key=" + *sbKeys.PrimaryKey,
 		"--servicebuseventprovider.authorizationrulename=" + *sbKeys.KeyName,
 		"--serverport=" + strconv.Itoa(c.Sidecar.ServerPort),
 		"--loglevel=" + c.LogLevel,
 		"--printconfig=" + strconv.FormatBool(c.Sidecar.PrintConfig),
+		"--valideventtypes=" + c.EventsPublished,
 	}
 }
 
@@ -39,10 +39,10 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 		return []string{}, err
 	}
 	return []string{
+		"--azureblobprovider.containername=" + eventData.CorrelationID,
 		"--sharedsecret=" + m.ID(), //Todo: Investigate generating a more random secret
-		"--eventid=" + m.ID(),
+		"--eventid=" + eventData.EventID,
 		"--correlationid=" + eventData.CorrelationID,
-		"--parenteventid=" + eventData.ParentEventID,
 	}, nil
 }
 

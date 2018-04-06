@@ -4,10 +4,10 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"os"
 
-	"github.com/lawrencegripper/ion/sidecar/types"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/twinj/uuid"
+	"os"
 )
 
 //CompareHash compares a secret string against a hash
@@ -75,7 +75,7 @@ func NewGUID() string {
 }
 
 //Remove removes an entry from a key value pair array
-func Remove(s []types.KeyValuePair, i int) []types.KeyValuePair {
+func Remove(s []messaging.KeyValuePair, i int) []messaging.KeyValuePair {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]
 }

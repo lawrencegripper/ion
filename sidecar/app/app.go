@@ -13,23 +13,19 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/gorilla/mux"
+	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	inputBlobDir    string = "in/data"
-	inputMetaFile   string = "in/meta.json"
-	outputBlobDir   string = "out/data"
-	outputMetaFile  string = "out/meta.json"
-	outputEventsDir string = "out/events"
-)
+	baseDir         string = "/ion"
+	inputBlobDir    string = "/ion/in/data"
+	inputMetaFile   string = "/ion/in/meta.json"
+	outputBlobDir   string = "/ion/out/data"
+	outputMetaFile  string = "/ion/out/meta.json"
+	outputEventsDir string = "/ion/out/events"
 
-//TODO:
-// - API versioning
-// - Stop eventID being globally unique in metastore
-
-const (
 	stateNew   = iota
 	stateReady = iota
 	stateDone  = iota
@@ -133,12 +129,8 @@ func (a *App) Run(addr string) {
 func (a *App) Close() {
 	a.Logger.Info("Shutting down sidecar")
 
-	// Clear output directories
-	_ = os.RemoveAll(inputBlobDir)
-	_ = os.Remove(outputMetaFile)
-	_ = os.RemoveAll(outputBlobDir)
-	_ = os.RemoveAll(outputEventsDir)
-	_ = os.Remove(outputMetaFile)
+	// Clear directories
+	_ = os.RemoveAll(baseDir)
 
 	defer a.Meta.Close()
 	defer a.Publisher.Close()
@@ -175,7 +167,7 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 			}).Debug("No context passed, assuming first or orphan")
 	} else {
 		// Download the necessary files for the module
-		err = a.Blob.GetBlobs("in/data", context.Files)
+		err = a.Blob.GetBlobs(inputBlobDir, context.Files)
 		if err != nil {
 			respondWithError(err, http.StatusInternalServerError, w)
 			return
@@ -305,7 +297,7 @@ func (a *App) commitMeta(metadataPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read metadata document '%s' with error '%+v'", metadataPath, err)
 	}
-	var m []types.KeyValuePair
+	var m []messaging.KeyValuePair
 	err = json.Unmarshal(bytes, &m)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
@@ -341,7 +333,7 @@ func (a *App) commitEvents(eventsPath string) error {
 			return fmt.Errorf("failed to read file '%s' with error: '%+v'", fileName, err)
 		}
 		// Deserialize event into map
-		var kvps []types.KeyValuePair
+		var kvps []messaging.KeyValuePair
 		decoder := json.NewDecoder(f)
 		err = decoder.Decode(&kvps)
 		if err != nil {
@@ -395,7 +387,7 @@ func (a *App) commitEvents(eventsPath string) error {
 
 		// Create new event
 		eventID := NewGUID()
-		event := types.Event{
+		event := messaging.Event{
 			PreviousStages: []string{},
 			EventID:        eventID,
 			Type:           eventType,
