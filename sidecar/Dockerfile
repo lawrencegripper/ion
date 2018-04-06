@@ -6,7 +6,7 @@ RUN chmod +x /usr/bin/dep
 
 # Copy common dependencies
 WORKDIR /go/src/github.com/lawrencegripper/ion/common
-COPY ./../common .
+COPY ./common .
 
 WORKDIR /go/src/github.com/lawrencegripper/ion/sidecar/
 COPY ./sidecar/Gopkg.toml ./sidecar/Gopkg.lock ./
