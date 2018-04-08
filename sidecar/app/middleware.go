@@ -6,6 +6,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// cSpell:ignore debugf, logrus
+
 const secret string = "secret"
 
 //AddAuth enforces a shared secret between client and server for authentication

@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+// cSpell:ignore twinj, uuid, nolint, strs, objs, GUID
+
 //CompareHash compares a secret string against a hash
 func CompareHash(secret, secretHash string) error {
 	if secret == "" {

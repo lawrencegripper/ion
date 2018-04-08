@@ -15,6 +15,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// cSpell:ignore flaeg, logrus, mongodb
+
 const (
 	defaultPort = 8080
 )
@@ -135,8 +137,11 @@ func getBlobProvider(config *app.Configuration) types.BlobProvider {
 	if config.AzureBlobProvider != nil {
 		c := config.AzureBlobProvider
 		azureBlob, err := azurestorage.NewBlobStorage(c, strings.Join([]string{
-			config.EventID,
-			config.ModuleName}, "-"))
+			config.Context.ParentEventID,
+			config.Context.Name}, "-")),
+			strings.Join([]string{
+				config.Context.EventID,
+				config.Context.Name}, "-")))
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
 		}

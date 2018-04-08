@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/gorilla/mux"
 	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
+
+// cSpell:ignore logrus, GUID, nolint
 
 const (
 	baseDir         string = "/ion"
@@ -26,9 +26,10 @@ const (
 	outputMetaFile  string = "/ion/out/meta.json"
 	outputEventsDir string = "/ion/out/events"
 
-	stateNew   = iota
-	stateReady = iota
-	stateDone  = iota
+	stateNew    = iota
+	stateReady  = iota
+	stateDone   = iota
+	stateClosed = iota
 )
 
 //App is the sidecar application
@@ -39,10 +40,9 @@ type App struct {
 	Blob      types.BlobProvider
 	Logger    *log.Logger
 
-	moduleName      string
+	server          *http.Server
 	secretHash      string
-	correlationID   string
-	eventID         string
+	context         *types.Context
 	executionID     string
 	validEventTypes []string
 	state           int
@@ -50,20 +50,38 @@ type App struct {
 
 //Setup initializes application
 func (a *App) Setup(
-	secret,
-	eventID,
-	correlationID,
-	moduleName string,
+	secret string,
+	context *types.Context,
 	validEventTypes []string,
 	meta types.MetadataProvider,
 	publisher types.EventPublisher,
 	blob types.BlobProvider,
 	logger *log.Logger) {
 
-	MustNotBeEmpty(secret, eventID)
-	MustNotBeNil(meta, publisher, blob, logger)
+	MustNotBeNil(meta, publisher, blob, logger, context)
+	MustNotBeEmpty(secret, context.EventID)
 
-	// Create output directories
+	a.state = stateNew
+	a.secretHash = Hash(secret)
+	a.context = context
+	a.validEventTypes = validEventTypes
+
+	a.executionID = NewGUID()
+
+	a.Meta = meta
+	a.Publisher = publisher
+	a.Blob = blob
+	a.Logger = logger
+
+	a.Router = mux.NewRouter()
+	a.setupRoutes()
+	a.setupDirs()
+
+	a.Logger.Info("Sidecar configured")
+}
+
+//setupDirs initializes the required directories
+func (a *App) setupDirs() {
 	err := os.MkdirAll(inputBlobDir, 0777)
 	if err != nil {
 		panic(fmt.Errorf("error creating input blob directory '%s', error: '%+v'", inputBlobDir, err))
@@ -81,25 +99,6 @@ func (a *App) Setup(
 	if err != nil {
 		panic(fmt.Errorf("error creating output event directory '%s', error: '%+v'", outputEventsDir, err))
 	}
-
-	a.state = stateNew
-	a.secretHash = Hash(secret)
-	a.moduleName = moduleName
-	a.eventID = eventID
-	a.correlationID = correlationID
-	a.validEventTypes = validEventTypes
-
-	a.executionID = NewGUID()
-
-	a.Meta = meta
-	a.Publisher = publisher
-	a.Blob = blob
-	a.Logger = logger
-
-	a.Router = mux.NewRouter()
-	a.setupRoutes()
-
-	a.Logger.Info("Sidecar configured")
 }
 
 //setupRoutes initializes the API routing
@@ -122,19 +121,31 @@ func (a *App) setupRoutes() {
 
 //Run and block on web server
 func (a *App) Run(addr string) {
-	a.Logger.Fatal(http.ListenAndServe(addr, a.Router))
+	a.server = &http.Server{Addr: addr,
+		Handler: a.Router}
+	a.Logger.Warning(a.server.ListenAndServe())
 }
 
 //Close cleans up any external resources
 func (a *App) Close() {
 	a.Logger.Info("Shutting down sidecar")
 
+	if a.state == stateClosed {
+		return // Sidecar already closed
+	}
+
 	// Clear directories
-	_ = os.RemoveAll(baseDir)
+	if err := os.RemoveAll(baseDir); err != nil {
+		panic(err)
+	}
 
 	defer a.Meta.Close()
 	defer a.Publisher.Close()
 	defer a.Blob.Close()
+	if err := a.server.Shutdown(nil); err != nil {
+		panic(err)
+	}
+	defer func() { a.state = stateClosed }()
 }
 
 //OnReady is called to initiate the modules environment (i.e. download any required blobs, etc.)
@@ -145,34 +156,29 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 		a.Logger.Error(errStr)
 		return
 	}
-	a.Logger.WithFields(
-		logrus.Fields{
-			"executionID": a.executionID,
-			"eventID":     a.eventID,
-			"timestamp":   time.Now(),
-		}).Info("OnReady() called")
+	a.Logger.WithFields(log.Fields{
+		"executionID":   a.executionID,
+		"eventID":       a.context.EventID,
+		"correlationID": a.context.CorrelationID,
+		"name":          a.context.Name,
+		"timestamp":     time.Now(),
+	}).Info("Ready called. Preparing module's environment")
 
 	// Get the context of this execution
 	context, err := a.getContext()
 	if err != nil {
-		respondWithError(err, http.StatusInternalServerError, w)
+		respondWithError(fmt.Errorf("failed to get context with error '%+v'", err), http.StatusInternalServerError, w)
 		return
 	}
-	if context == nil {
-		a.Logger.WithFields(
-			logrus.Fields{
-				"executionID": a.executionID,
-				"eventID":     a.eventID,
-				"timestamp":   time.Now(),
-			}).Debug("No context passed, assuming first or orphan")
-	} else {
-		// Download the necessary files for the module
+	// Only get files for events with an existing context.
+	// Assume those that don't have a context are the first
+	// event in the graph or orphaned.
+	if context != nil {
 		err = a.Blob.GetBlobs(inputBlobDir, context.Files)
 		if err != nil {
 			respondWithError(err, http.StatusInternalServerError, w)
 			return
 		}
-
 		if len(context.Data) > 0 {
 			b, err := json.Marshal(context.Data)
 			if err != nil {
@@ -186,17 +192,16 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
-	a.Logger.WithFields(
-		logrus.Fields{
-			"correlationID": a.correlationID,
-			"executionID":   a.executionID,
-			"eventID":       a.eventID,
-			"timestamp":     time.Now(),
-		}).Info("OnReady() complete")
-
 	a.state = stateReady
-	// Return
+
+	a.Logger.WithFields(log.Fields{
+		"executionID":   a.executionID,
+		"eventID":       a.context.EventID,
+		"correlationID": a.context.CorrelationID,
+		"name":          a.context.Name,
+		"timestamp":     time.Now(),
+	}).Info("Ready complete. Module's environment prepared.")
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -208,16 +213,16 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		a.Logger.Error(errStr)
 	}
 
-	a.Logger.WithFields(
-		logrus.Fields{
-			"correlationID": a.correlationID,
-			"executionID":   a.executionID,
-			"eventID":       a.eventID,
-			"timestamp":     time.Now(),
-		}).Info("OnDone() called")
+	a.Logger.WithFields(log.Fields{
+		"executionID":   a.executionID,
+		"eventID":       a.context.EventID,
+		"correlationID": a.context.CorrelationID,
+		"name":          a.context.Name,
+		"timestamp":     time.Now(),
+	}).Info("Done called. Committing module's state.")
 
 	// Synchronize blob data with external blob store
-	blobSASURIs, err := a.commitBlob(outputBlobDir)
+	blobURIs, err := a.commitBlob(outputBlobDir)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -243,7 +248,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Synchronize events with external event system
-	err = a.commitEvents(outputEventsDir, blobSASURIs)
+	err = a.commitEvents(outputEventsDir, blobURIs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -255,16 +260,15 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.Logger.WithFields(
-		logrus.Fields{
-			"correlationID": a.correlationID,
-			"executionID":   a.executionID,
-			"eventID":       a.eventID,
-			"timestamp":     time.Now(),
-		}).Info("OnDone() complete")
-
 	a.state = stateDone
-	// Return
+	a.Logger.WithFields(log.Fields{
+		"executionID":   a.executionID,
+		"eventID":       a.context.EventID,
+		"correlationID": a.context.CorrelationID,
+		"name":          a.context.Name,
+		"timestamp":     time.Now(),
+	}).Info("Done complete. Module's state committed.")
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -277,15 +281,17 @@ func (a *App) commitBlob(blobsPath string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Get each of the file names in the blob's directory
+	// TODO: Search recursively to support sub folders.
 	var fileNames []string
 	for _, file := range files {
 		fileNames = append(fileNames, path.Join(outputBlobDir, file.Name()))
 	}
-	blobSASURIs, err := a.Blob.PutBlobs(fileNames)
+	blobURIs, err := a.Blob.PutBlobs(fileNames)
 	if err != nil {
 		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
-	return blobSASURIs, nil
+	return blobURIs, nil
 }
 
 //commitMeta commits the metadata document to an external provider
@@ -303,10 +309,9 @@ func (a *App) commitMeta(metadataPath string) error {
 		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
 	}
 	insight := types.Insight{
-		ExecutionID:   a.executionID,
-		CorrelationID: a.correlationID,
-		EventID:       a.eventID,
-		Data:          m,
+		Context:     a.context,
+		ExecutionID: a.executionID,
+		Data:        m,
 	}
 	err = a.Meta.CreateInsight(&insight)
 	if err != nil {
@@ -316,7 +321,7 @@ func (a *App) commitMeta(metadataPath string) error {
 }
 
 //commitEvents commits the events directory to an external provider
-func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) error {
+func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error {
 	if _, err := os.Stat(eventsPath); os.IsNotExist(err) {
 		return fmt.Errorf("events output directory '%s' does not exists '%+v'", eventsPath, err)
 	}
@@ -324,7 +329,6 @@ func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) err
 	if err != nil {
 		return err
 	}
-	// For each event file...
 	for _, file := range files {
 		fileName := file.Name()
 		eventFilePath := path.Join(outputEventsDir, fileName)
@@ -333,10 +337,10 @@ func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) err
 		if err != nil {
 			return fmt.Errorf("failed to read file '%s' with error: '%+v'", fileName, err)
 		}
-		// Deserialize event into map
-		var kvps []common.KeyValuePair
+		// Decode event into map
+		var eventKeyValuePairs []common.KeyValuePair
 		decoder := json.NewDecoder(f)
-		err = decoder.Decode(&kvps)
+		err = decoder.Decode(&eventKeyValuePairs)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", fileName, err)
 		}
@@ -347,22 +351,15 @@ func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) err
 		var eventTypeIndex, filesIndex int
 
 		// For each key/value in event data array.
-		for i, kvp := range kvps {
+		for i, kvp := range eventKeyValuePairs {
 			// Check the key against required keys
 			switch kvp.Key {
 			case types.EventType:
-				eventType = kvp.Value
 				// Check whether the event type is valid for this module
-				var isValid bool
-				for _, validEventType := range a.validEventTypes {
-					if validEventType == eventType {
-						isValid = true
-						break
-					}
-				}
-				if !isValid {
+				if a.isValidEvent(kvp.Value) == false {
 					return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
 				}
+				eventType = kvp.Value
 				eventTypeIndex = i
 				break
 			case types.FilesToInclude:
@@ -383,8 +380,8 @@ func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) err
 		}
 
 		// Remove extracted files from event data array as no longer needed
-		kvps = Remove(kvps, eventTypeIndex)
-		kvps = Remove(kvps, filesIndex-1) // -1 as array will be shifted above
+		eventKeyValuePairs = Remove(eventKeyValuePairs, eventTypeIndex)
+		eventKeyValuePairs = Remove(eventKeyValuePairs, filesIndex-1) // -1 as array will be shifted above
 
 		// Get the files to include in event as an array
 		fileSlice := strings.Split(includedFilesCSV, ",")
@@ -393,9 +390,9 @@ func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) err
 		for _, f := range fileSlice {
 			blobInfo := common.KeyValuePair{
 				Key:   f,
-				Value: blobSASURIs[f],
+				Value: blobURIs[f],
 			}
-			kvps = append(kvps, blobInfo)
+			eventKeyValuePairs = append(eventKeyValuePairs, blobInfo)
 		}
 
 		// Create new event
@@ -404,15 +401,22 @@ func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) err
 			PreviousStages: []string{},
 			EventID:        eventID,
 			Type:           eventType,
-			Data:           kvps,
+			Data:           eventKeyValuePairs,
 		}
 
-		// Create new context document
-		eventContext := types.EventContext{
+		// Create a new context for the event.
+		// We can only build a partial context
+		// as we don't know who will process the
+		// message. The context will be completed
+		// in the dispatcher.
+		context := &types.Context{
+			CorrelationID: a.context.CorrelationID,
 			EventID:       eventID,
-			CorrelationID: a.correlationID,
-			ParentEventID: a.eventID,
-			Files:         fileSlice,
+			ParentEventID: a.context.EventID, // Set self as parent
+		}
+		eventContext := types.EventContext{
+			Context: context,
+			Files:   fileSlice,
 		}
 		err = a.Meta.CreateEventContext(&eventContext)
 		if err != nil {
@@ -428,9 +432,19 @@ func (a *App) commitEvents(eventsPath string, blobSASURIs map[string]string) err
 
 //getContext get context metadata document
 func (a *App) getContext() (*types.EventContext, error) {
-	context, _ := a.Meta.GetEventContextByID(a.eventID)
+	context, _ := a.Meta.GetEventContextByID(a.context.EventID)
 	//TODO: Fail on error conditions other than not found
 	return context, nil
+}
+
+//isValidEvent checks the event type is in the list of valid event types
+func (a *App) isValidEvent(eventType string) bool {
+	for _, validEventType := range a.validEventTypes {
+		if eventType == validEventType {
+			return true
+		}
+	}
+	return false
 }
 
 //respondWithError returns a JSON formatted HTTP error

@@ -12,8 +12,11 @@ import (
 	"time"
 
 	"github.com/lawrencegripper/ion/common"
+	"github.com/lawrencegripper/ion/sidecar/types"
 	"k8s.io/kubernetes/third_party/forked/golang/template"
 )
+
+// cSpell:ignore kubernetes, nolint
 
 //Config to setup a ServiceBus event publisher
 type Config struct {
@@ -56,7 +59,7 @@ func (s *ServiceBus) Publish(e common.Event) error {
 		return fmt.Errorf("error publishing event %+v", err)
 	}
 	req, err := http.NewRequest(http.MethodPost, s.URL, bytes.NewBuffer(b))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", types.ContentTypeApplicationJSON)
 	req.Header.Set("Authorization", generateSAS(s.URL, s.SKN, s.Key))
 
 	/* not currently needed - leaving for future use

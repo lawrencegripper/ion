@@ -7,6 +7,8 @@ import (
 	"github.com/lawrencegripper/ion/common"
 )
 
+// cSpell:ignore bson
+
 //MetadataProvider is a document storage DB for storing document data
 type MetadataProvider interface {
 	GetEventContextByID(id string) (*EventContext, error)
@@ -28,22 +30,26 @@ type EventPublisher interface {
 	Close()
 }
 
-//EventContext is a single entry in a document
-type EventContext struct {
-	EventID       string                `bson:"id" json:"id"`
-	CorrelationID string                `bson:"correlationId" json:"correlationId"`
-	ParentEventID string                `bson:"parentEventId" json:"parentEventId"`
-	Files         []string              `bson:"files" json:"files"`
-	Data          []common.KeyValuePair `bson:"data" json:"data"`
+//Context carries the data for configuring the module
+type Context struct {
+	Name          string `bson:"name" json:"name"`
+	EventID       string `bson:"eventId" json:"eventId"`
+	CorrelationID string `bson:"correlationId" json:"correlationId"`
+	ParentEventID string `bson:"parentEventId" json:"parentEventId"`
 }
 
-//Insight todo
+//EventContext is a single entry in a document
+type EventContext struct {
+	*Context
+	Files []string              `bson:"files" json:"files"`
+	Data  []common.KeyValuePair `bson:"data" json:"data"`
+}
+
+//Insight is used to export structure data
 type Insight struct {
-	ExecutionID   string                `bson:"id" json:"id"`
-	CorrelationID string                `bson:"correlationId" json:"correlationId"`
-	EventID       string                `bson:"eventId" json:"eventId"`
-	ParentEventID string                `bson:"parentEventId" json:"parentEventId"`
-	Data          []common.KeyValuePair `bson:"data" json:"data"`
+	*Context
+	ExecutionID string                `bson:"id" json:"id"`
+	Data        []common.KeyValuePair `bson:"data" json:"data"`
 }
 
 //ErrorResponse is a struct intended as JSON HTTP response
