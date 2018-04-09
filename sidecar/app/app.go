@@ -375,7 +375,6 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 		// For each key/value in event data array.
 		for i, kvp := range eventKeyValuePairs {
 			// Check the key against required keys
-			fmt.Println(i)
 			switch kvp.Key {
 			case types.EventType:
 				// Check whether the event type is valid for this module

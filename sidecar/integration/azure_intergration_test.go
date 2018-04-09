@@ -1,4 +1,4 @@
-package integration_tests // nolint: golint
+package integration
 
 import (
 	"encoding/json"
