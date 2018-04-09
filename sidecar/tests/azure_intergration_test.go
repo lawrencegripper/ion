@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"runtime"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/lawrencegripper/ion/common"
@@ -32,6 +32,26 @@ func TestAzureIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
+	// Setting the base directory to empty
+	// will result in /ion/... being used.
+	baseDir := ""
+	if runtime.GOOS == "windows" {
+		// Use a relative base directory
+		// on Windows to avoid Administrator
+		// issues.
+		baseDir = "ion"
+	}
+	outDir := path.Join(baseDir, "out")
+	outDataDir := path.Join(outDir, "data")
+	outMetaFilePath := path.Join(outDir, "meta.json")
+	outEventsDir := path.Join(outDir, "events")
+	outEventFilePath := path.Join(outEventsDir, "event1.json")
+	inDir := path.Join(baseDir, "in")
+	inDataDir := path.Join(inDir, "data")
+	inMetaFilePath := path.Join(inDir, "meta.json")
+	inEventsDir := "mockevents"
+	inEventFilePath := path.Join(inEventsDir, "event0.json")
+
 	mongoDBPort := os.Getenv("MONGODB_PORT")
 	if mongoDBPort == "" {
 		t.Errorf("env var 'MONGODB_PORT' not set!")
@@ -44,6 +64,7 @@ func TestAzureIntegration(t *testing.T) {
 
 	config := &app.Configuration{
 		SharedSecret: "secret",
+		BaseDir:      baseDir,
 		Context: &types.Context{
 			Name:          "testmodule",
 			EventID:       "1111111",
@@ -73,39 +94,32 @@ func TestAzureIntegration(t *testing.T) {
 	}
 	defer module1.Close() // This is to ensure cleanup
 
-	// Test on ready
-	base := "/ion"
-	outDir := path.Join(base, "out")
-	dataDir := path.Join(outDir, "data")
-
 	// Write an output image blob
 	blob1 := "img1.png"
-	blob1FilePath := path.Join(dataDir, blob1)
+	blob1FilePath := path.Join(outDataDir, blob1)
 	writeOutputBlob(blob1FilePath)
 
 	// Write an output image blob
 	blob2 := "img2.png"
-	blob2FilePath := path.Join(dataDir, blob2)
+	blob2FilePath := path.Join(outDataDir, blob2)
 	writeOutputBlob(blob2FilePath)
 
 	// Grab the length of the output directory
-	outFiles, err := ioutil.ReadDir(dataDir)
+	outFiles, err := ioutil.ReadDir(outDataDir)
 	if err != nil {
 		t.Errorf("error reading out dir '%+v'", err)
 	}
 	outLength := len(outFiles)
 
 	// Write an output metadata file
-	insight := []byte("[{\"key\": \"key2\",\"value\": \"value2\"}]")
-	metaFilePath := path.Join(outDir, "meta.json")
-	writeOutputBytes(insight, metaFilePath)
+	insight := []byte(`[{"key": "key2","value": "value2"}]`)
+	writeOutputBytes(insight, outMetaFilePath)
 
 	// Write an output event file
-	j := fmt.Sprintf("[{\"key\":\"eventType\",\"value\":\"%s\"},{\"key\":\"files\",\"value\":\"%s,%s\"}]", eventTypes[0], blob1, blob2)
+	j := fmt.Sprintf(`[{"key":"eventType","value":"%s"},{"key":"files","value":"%s,%s"},{"key":"abc","value":"123"}]`, eventTypes[0], blob1, blob2)
 	outEvent := []byte(j)
-	eventDir := path.Join(outDir, "events")
-	eventFilePath := path.Join(eventDir, "event1.json")
-	writeOutputBytes(outEvent, eventFilePath)
+
+	writeOutputBytes(outEvent, outEventFilePath)
 
 	client := &http.Client{}
 
@@ -123,8 +137,7 @@ func TestAzureIntegration(t *testing.T) {
 	module1.Close()
 
 	// Hydrate event
-	eventPath := "mockevents/event0.json"
-	b, err := ioutil.ReadFile(eventPath)
+	b, err := ioutil.ReadFile(inEventFilePath)
 	if err != nil {
 		t.Errorf("error reading event from disk '%+v'", err)
 	}
@@ -149,9 +162,8 @@ func TestAzureIntegration(t *testing.T) {
 		t.Errorf("error calling done '%+v'", err)
 	}
 
-	// Check inputs match outputs
-	inDir := path.Join("/ion", "in", "data")
-	inFiles, err := ioutil.ReadDir(inDir)
+	// Check blob input data matches the output from the first module
+	inFiles, err := ioutil.ReadDir(inDataDir)
 	if err != nil {
 		t.Errorf("error reading in dir '%+v'", err)
 	}
@@ -160,6 +172,32 @@ func TestAzureIntegration(t *testing.T) {
 	if (inLength != outLength) && outLength > 0 {
 		t.Errorf("error, input files length should match output length")
 	}
+
+	// Check the input metadata is the same as that output from the first module
+	inMetaData, err := ioutil.ReadFile(inMetaFilePath)
+	if err != nil {
+		t.Errorf("error reading in meta file '%s': '%+v'", inMetaFilePath, err)
+	}
+
+	var kvps []common.KeyValuePair
+	err = json.Unmarshal(inMetaData, &kvps)
+	if err != nil {
+		t.Errorf("error decoding file '%s' content: '%+v'", inMetaFilePath, err)
+	}
+
+	// The first key, value pair should be as expected
+	for _, kvp := range kvps {
+		if kvp.Key != "abc" {
+			t.Errorf("expected key 'abc' in key value pairs: '%+v'", kvp)
+		}
+		if kvp.Value != "123" {
+			t.Errorf("expected key 'abc' to have value '123' in key value pairs: '%+v'", kvp)
+		}
+		break
+	}
+
+	// Clean up external resources
+	_ = os.RemoveAll(inEventsDir)
 }
 
 func createModule(config *app.Configuration) (*app.App, error) {
@@ -167,12 +205,9 @@ func createModule(config *app.Configuration) (*app.App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to mongodb with error '%+v'", err)
 	}
-	blob, err := azurestorage.NewBlobStorage(config.AzureBlobProvider, strings.Join([]string{
-		config.Context.ParentEventID,
-		config.Context.Name}, "-"),
-		strings.Join([]string{
-			config.Context.EventID,
-			config.Context.Name}, "-"))
+	blob, err := azurestorage.NewBlobStorage(config.AzureBlobProvider,
+		types.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
+		types.JoinBlobPath(config.Context.EventID, config.Context.Name))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to azure storage with error '%+v'", err)
 	}
@@ -184,6 +219,7 @@ func createModule(config *app.Configuration) (*app.App, error) {
 	a := app.App{}
 	a.Setup(
 		config.SharedSecret,
+		config.BaseDir,
 		config.Context,
 		eventTypes,
 		db,

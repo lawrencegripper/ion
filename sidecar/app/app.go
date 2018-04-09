@@ -19,13 +19,6 @@ import (
 // cSpell:ignore logrus, GUID, nolint
 
 const (
-	baseDir         string = "/ion"
-	inputBlobDir    string = "/ion/in/data"
-	inputMetaFile   string = "/ion/in/meta.json"
-	outputBlobDir   string = "/ion/out/data"
-	outputMetaFile  string = "/ion/out/meta.json"
-	outputEventsDir string = "/ion/out/events"
-
 	stateNew    = iota
 	stateReady  = iota
 	stateDone   = iota
@@ -42,6 +35,7 @@ type App struct {
 
 	server          *http.Server
 	secretHash      string
+	baseDir         string
 	context         *types.Context
 	executionID     string
 	validEventTypes []string
@@ -50,7 +44,7 @@ type App struct {
 
 //Setup initializes application
 func (a *App) Setup(
-	secret string,
+	secret, baseDir string,
 	context *types.Context,
 	validEventTypes []string,
 	meta types.MetadataProvider,
@@ -58,15 +52,20 @@ func (a *App) Setup(
 	blob types.BlobProvider,
 	logger *log.Logger) {
 
-	MustNotBeNil(meta, publisher, blob, logger, context)
-	MustNotBeEmpty(secret, context.EventID)
+	types.MustNotBeNil(meta, publisher, blob, logger, context)
+	types.MustNotBeEmpty(secret, context.EventID)
+
+	a.baseDir = baseDir
+	if baseDir == "" {
+		a.baseDir = "/ion/"
+	}
 
 	a.state = stateNew
-	a.secretHash = Hash(secret)
+	a.secretHash = types.Hash(secret)
 	a.context = context
 	a.validEventTypes = validEventTypes
 
-	a.executionID = NewGUID()
+	a.executionID = types.NewGUID()
 
 	a.Meta = meta
 	a.Publisher = publisher
@@ -82,22 +81,27 @@ func (a *App) Setup(
 
 //setupDirs initializes the required directories
 func (a *App) setupDirs() {
-	err := os.MkdirAll(inputBlobDir, 0777)
+	inBlobs := path.Join(a.baseDir, inputBlobDir())
+	outBlobs := path.Join(a.baseDir, outputBlobDir())
+	outMeta := path.Join(a.baseDir, outputMetaFile())
+	outEvents := path.Join(a.baseDir, outputEventsDir())
+
+	err := os.MkdirAll(inBlobs, 0777)
 	if err != nil {
-		panic(fmt.Errorf("error creating input blob directory '%s', error: '%+v'", inputBlobDir, err))
+		panic(fmt.Errorf("error creating input blob directory '%s', error: '%+v'", inBlobs, err))
 	}
-	err = os.MkdirAll(outputBlobDir, 0777)
+	err = os.MkdirAll(outBlobs, 0777)
 	if err != nil {
-		panic(fmt.Errorf("error creating output blob directory '%s', error: '%+v'", outputBlobDir, err))
+		panic(fmt.Errorf("error creating output blob directory '%s', error: '%+v'", outBlobs, err))
 	}
-	f, err := os.Create(outputMetaFile)
+	f, err := os.Create(outMeta)
 	if err != nil {
-		panic(fmt.Errorf("error creating output meta file '%s', error: '%+v'", outputMetaFile, err))
+		panic(fmt.Errorf("error creating output meta file '%s', error: '%+v'", outMeta, err))
 	}
 	f.Close() // nolint: errcheck
-	err = os.MkdirAll(outputEventsDir, 0777)
+	err = os.MkdirAll(outEvents, 0777)
 	if err != nil {
-		panic(fmt.Errorf("error creating output event directory '%s', error: '%+v'", outputEventsDir, err))
+		panic(fmt.Errorf("error creating output event directory '%s', error: '%+v'", outEvents, err))
 	}
 }
 
@@ -135,9 +139,7 @@ func (a *App) Close() {
 	}
 
 	// Clear directories
-	if err := os.RemoveAll(baseDir); err != nil {
-		panic(err)
-	}
+	_ = os.RemoveAll(a.baseDir)
 
 	defer a.Meta.Close()
 	defer a.Publisher.Close()
@@ -174,7 +176,8 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 	// Assume those that don't have a context are the first
 	// event in the graph or orphaned.
 	if context != nil {
-		err = a.Blob.GetBlobs(inputBlobDir, context.Files)
+		inBlobs := path.Join(a.baseDir, inputBlobDir())
+		err = a.Blob.GetBlobs(inBlobs, context.Files)
 		if err != nil {
 			respondWithError(err, http.StatusInternalServerError, w)
 			return
@@ -185,7 +188,8 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 				respondWithError(err, http.StatusInternalServerError, w)
 				return
 			}
-			err = ioutil.WriteFile(inputMetaFile, b, 0777)
+			inMeta := path.Join(a.baseDir, inputMetaFile())
+			err = ioutil.WriteFile(inMeta, b, 0777)
 			if err != nil {
 				respondWithError(err, http.StatusInternalServerError, w)
 				return
@@ -221,40 +225,44 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		"timestamp":     time.Now(),
 	}).Info("Done called. Committing module's state.")
 
+	outBlobs := path.Join(a.baseDir, outputBlobDir())
+	outMeta := path.Join(a.baseDir, outputMetaFile())
+	outEvents := path.Join(a.baseDir, outputEventsDir())
+
 	// Synchronize blob data with external blob store
-	blobURIs, err := a.commitBlob(outputBlobDir)
+	blobURIs, err := a.commitBlob(outBlobs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local blob directory
-	err = ClearDir(outputBlobDir)
+	err = types.ClearDir(outBlobs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 
 	// Synchronize metadata with external document store
-	err = a.commitMeta(outputMetaFile)
+	err = a.commitMeta(outMeta)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local metadata document
-	err = RemoveFile(outputMetaFile)
+	err = types.RemoveFile(outMeta)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 
 	// Synchronize events with external event system
-	err = a.commitEvents(outputEventsDir, blobURIs)
+	err = a.commitEvents(outEvents, blobURIs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local events directory
-	err = ClearDir(outputEventsDir)
+	err = types.ClearDir(outEvents)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -285,12 +293,19 @@ func (a *App) commitBlob(blobsPath string) (map[string]string, error) {
 	// TODO: Search recursively to support sub folders.
 	var fileNames []string
 	for _, file := range files {
-		fileNames = append(fileNames, path.Join(outputBlobDir, file.Name()))
+		fileNames = append(fileNames, path.Join(blobsPath, file.Name()))
 	}
 	blobURIs, err := a.Blob.PutBlobs(fileNames)
 	if err != nil {
 		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
+	a.Logger.WithFields(log.Fields{
+		"executionID":   a.executionID,
+		"eventID":       a.context.EventID,
+		"correlationID": a.context.CorrelationID,
+		"name":          a.context.Name,
+		"timestamp":     time.Now(),
+	}).Info("Committed blobs")
 	return blobURIs, nil
 }
 
@@ -317,6 +332,13 @@ func (a *App) commitMeta(metadataPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to add metadata document '%+v' with error: '%+v'", m, err)
 	}
+	a.Logger.WithFields(log.Fields{
+		"executionID":   a.executionID,
+		"eventID":       a.context.EventID,
+		"correlationID": a.context.CorrelationID,
+		"name":          a.context.Name,
+		"timestamp":     time.Now(),
+	}).Info("Committed metadata")
 	return nil
 }
 
@@ -331,7 +353,7 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 	}
 	for _, file := range files {
 		fileName := file.Name()
-		eventFilePath := path.Join(outputEventsDir, fileName)
+		eventFilePath := path.Join(eventsPath, fileName)
 		f, err := os.Open(eventFilePath)
 		defer f.Close() // nolint: errcheck
 		if err != nil {
@@ -353,6 +375,7 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 		// For each key/value in event data array.
 		for i, kvp := range eventKeyValuePairs {
 			// Check the key against required keys
+			fmt.Println(i)
 			switch kvp.Key {
 			case types.EventType:
 				// Check whether the event type is valid for this module
@@ -380,8 +403,8 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 		}
 
 		// Remove extracted files from event data array as no longer needed
-		eventKeyValuePairs = Remove(eventKeyValuePairs, eventTypeIndex)
-		eventKeyValuePairs = Remove(eventKeyValuePairs, filesIndex-1) // -1 as array will be shifted above
+		eventKeyValuePairs = types.Remove(eventKeyValuePairs, eventTypeIndex)
+		eventKeyValuePairs = types.Remove(eventKeyValuePairs, filesIndex-1) // -1 as array will be shifted above
 
 		// Get the files to include in event as an array
 		fileSlice := strings.Split(includedFilesCSV, ",")
@@ -396,12 +419,11 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 		}
 
 		// Create new event
-		eventID := NewGUID()
+		eventID := types.NewGUID()
 		event := common.Event{
 			PreviousStages: []string{},
 			EventID:        eventID,
 			Type:           eventType,
-			Data:           eventKeyValuePairs,
 		}
 
 		// Create a new context for the event.
@@ -411,12 +433,13 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 		// in the dispatcher.
 		context := &types.Context{
 			CorrelationID: a.context.CorrelationID,
+			ParentEventID: a.context.EventID,
 			EventID:       eventID,
-			ParentEventID: a.context.EventID, // Set self as parent
 		}
 		eventContext := types.EventContext{
 			Context: context,
 			Files:   fileSlice,
+			Data:    eventKeyValuePairs,
 		}
 		err = a.Meta.CreateEventContext(&eventContext)
 		if err != nil {
@@ -427,6 +450,13 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 			return fmt.Errorf("failed to publish event '%+v' with error '%+v'", event, err)
 		}
 	}
+	a.Logger.WithFields(log.Fields{
+		"executionID":   a.executionID,
+		"eventID":       a.context.EventID,
+		"correlationID": a.context.CorrelationID,
+		"name":          a.context.Name,
+		"timestamp":     time.Now(),
+	}).Info("Committed events")
 	return nil
 }
 
@@ -456,4 +486,20 @@ func respondWithError(err error, code int, w http.ResponseWriter) {
 	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(errRes)
+}
+
+func inputBlobDir() string {
+	return path.Join("in", "data")
+}
+func outputBlobDir() string {
+	return path.Join("out", "data")
+}
+func outputEventsDir() string {
+	return path.Join("out", "events")
+}
+func inputMetaFile() string {
+	return path.Join("in", "meta.json")
+}
+func outputMetaFile() string {
+	return path.Join("out", "meta.json")
 }

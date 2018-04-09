@@ -10,6 +10,7 @@ import (
 //Configuration represents the input configuration schema
 type Configuration struct {
 	SharedSecret            string               `description:"A shared secret to authenticate client requests with"`
+	BaseDir                 string               `description:"This base directory to use to store local files"`
 	Context                 *types.Context       `description:"The module details"`
 	ValidEventTypes         string               `description:"Valid event type names as a comma delimited list"`
 	ServerPort              int                  `description:"The port for the web server to listen on"`

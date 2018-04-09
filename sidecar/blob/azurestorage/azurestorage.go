@@ -5,10 +5,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
 // cSpell:ignore nolint, golint, sasuris, sasuri
@@ -66,10 +66,7 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 
 	for _, filePath := range filePaths {
 		_, nakedFilePath := path.Split(filePath)
-		blobPath := strings.Join([]string{
-			a.outputBlobPrefix,
-			nakedFilePath,
-		}, "-")
+		blobPath := types.JoinBlobPath(a.outputBlobPrefix, nakedFilePath)
 		file, err := os.Open(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read data from file '%s', error: '%+v'", filePath, err)
@@ -100,10 +97,7 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 	containerName := a.containerName
 	container := a.blobClient.GetContainerReference(containerName)
 	for _, filePath := range filePaths {
-		blobPath := strings.Join([]string{
-			a.inputBlobPrefix,
-			filePath,
-		}, "-")
+		blobPath := types.JoinBlobPath(a.inputBlobPrefix, filePath)
 		blobRef := container.GetBlobReference(blobPath)
 		blob, err := blobRef.Get(&storage.GetBlobOptions{})
 		if err != nil {

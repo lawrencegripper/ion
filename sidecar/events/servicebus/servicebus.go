@@ -78,8 +78,6 @@ func (s *ServiceBus) Publish(e common.Event) error {
 		return fmt.Errorf("error publishing event %+v", err)
 	}
 
-	fmt.Printf("%+v", res)
-
 	switch res.StatusCode {
 	case http.StatusCreated:
 		return nil

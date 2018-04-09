@@ -1,9 +1,10 @@
-package app
+package types
 
 import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/lawrencegripper/ion/common"
 	"github.com/twinj/uuid"
@@ -77,7 +78,15 @@ func NewGUID() string {
 }
 
 //Remove removes an entry from a key value pair array
-func Remove(s []common.KeyValuePair, i int) []common.KeyValuePair {
-	s[len(s)-1], s[i] = s[i], s[len(s)-1]
-	return s[:len(s)-1]
+func Remove(s []common.KeyValuePair, index int) []common.KeyValuePair {
+	return append(s[:index], s[index+1:]...)
+}
+
+//JoinBlobPath returns a formatted blob path
+func JoinBlobPath(strs ...string) string {
+	var allStrs []string
+	for _, s := range strs {
+		allStrs = append(allStrs, s)
+	}
+	return strings.Join(allStrs, "-")
 }
