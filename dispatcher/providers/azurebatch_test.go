@@ -29,6 +29,9 @@ func NewMockAzureBatchProvider(createTask func(taskDetails batch.TaskAddParamete
 	b.inprogressJobStore = map[string]messaging.Message{}
 	b.createTask = createTask
 	b.listTasks = listTasks
+	b.removeTask = func(t *batch.CloudTask) (autorest.Response, error) {
+		return autorest.Response{}, nil
+	}
 	return &b, nil
 }
 
@@ -122,6 +125,12 @@ func TestAzureBatchReconcileJobCompleted(t *testing.T) {
 
 	b, _ := NewMockAzureBatchProvider(create, list)
 
+	removeCalled := false
+	b.removeTask = func(t *batch.CloudTask) (autorest.Response, error) {
+		removeCalled = true
+		return autorest.Response{}, nil
+	}
+
 	wasAccepted := false
 	messageToSend := MockMessage{
 		MessageID: mockMessageID,
@@ -155,6 +164,10 @@ func TestAzureBatchReconcileJobCompleted(t *testing.T) {
 
 	if b.InProgressCount() != 0 {
 		t.Error("Reconcile should remove jobs from the inmemory store once it has accepted or rejected them")
+	}
+
+	if !removeCalled {
+		t.Error("Expected reconcile to remove completed task")
 	}
 }
 

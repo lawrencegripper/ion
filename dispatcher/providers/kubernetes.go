@@ -34,6 +34,7 @@ var _ Provider = &Kubernetes{}
 type Kubernetes struct {
 	createJob        func(*batchv1.Job) (*batchv1.Job, error)
 	listAllJobs      func() (*batchv1.JobList, error)
+	removeJob        func(*batchv1.Job) error
 	client           *kubernetes.Clientset
 	jobConfig        *types.JobConfig
 	inflightJobStore map[string]messaging.Message
@@ -83,6 +84,9 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 	}
 	k.listAllJobs = func() (*batchv1.JobList, error) {
 		return k.client.BatchV1().Jobs(k.Namespace).List(metav1.ListOptions{})
+	}
+	k.removeJob = func(j *batchv1.Job) error {
+		return k.client.BatchV1().Jobs(k.Namespace).Delete(j.Name, &metav1.DeleteOptions{})
 	}
 	return &k, nil
 }
@@ -144,6 +148,12 @@ func (k *Kubernetes) Reconcile() error {
 		for _, condition := range j.Status.Conditions {
 			// Job failed - reject the message so it goes back on the queue to be retried
 			if condition.Type == batchv1.JobFailed {
+				//Remove the job from k8s
+				err = k.removeJob(&j)
+				if err != nil {
+					log.WithError(err).WithField("job", j).WithField("messageID", messageID).Error("Failed to remove FAILED job from k8s")
+				}
+
 				err := sourceMessage.Reject()
 
 				if err != nil {
@@ -154,14 +164,18 @@ func (k *Kubernetes) Reconcile() error {
 					return err
 				}
 
-				// Todo: #61
-
 				//Remove the message from the inflight message store
 				delete(k.inflightJobStore, messageID)
 			}
 
 			// Job succeeded - accept the message so it is removed from the queue
 			if condition.Type == batchv1.JobComplete {
+				//Remove the job from k8s
+				err = k.removeJob(&j)
+				if err != nil {
+					log.WithError(err).WithField("job", j).WithField("messageID", messageID).Error("Failed to remove COMPLETED job from k8s")
+				}
+
 				err := sourceMessage.Accept()
 
 				if err != nil {
@@ -171,8 +185,6 @@ func (k *Kubernetes) Reconcile() error {
 					}).Error("failed to accept message")
 					return err
 				}
-
-				// Todo: #61
 
 				//Remove the message from the inflight message store
 				delete(k.inflightJobStore, messageID)
@@ -324,5 +336,5 @@ func getClientSet() (*kubernetes.Clientset, error) {
 }
 
 func getJobName(m messaging.Message) string {
-	return strings.ToLower(m.ID()) + "-a" + strconv.Itoa(m.DeliveryCount())
+	return strings.ToLower(m.ID()) + "-v" + strconv.Itoa(m.DeliveryCount())
 }

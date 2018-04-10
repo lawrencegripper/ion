@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
+
 	"github.com/Azure/go-autorest/autorest/azure"
 
 	"github.com/Azure/azure-sdk-for-go/services/batch/2017-09-01.6.0/batch"
@@ -38,6 +39,7 @@ type AzureBatch struct {
 	// Used to allow mocking of the batch api for testing
 	createTask func(taskDetails batch.TaskAddParameter) (autorest.Response, error)
 	listTasks  func() (*[]batch.CloudTask, error)
+	removeTask func(*batch.CloudTask) (autorest.Response, error)
 }
 
 // NewAzureBatchProvider creates a provider for azure batch.
@@ -99,6 +101,9 @@ func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []stri
 		}
 
 		return &currentTasks, nil
+	}
+	b.removeTask = func(t *batch.CloudTask) (autorest.Response, error) {
+		return b.taskClient.Delete(b.ctx, b.dispatcherName, *t.ID, nil, nil, nil, nil, "", "", nil, nil)
 	}
 
 	return &b, nil
@@ -240,7 +245,13 @@ func (b *AzureBatch) Reconcile() error {
 
 		// Job succeeded - accept the message so it is removed from the queue
 		if t.State == batch.TaskStateCompleted && *t.ExecutionInfo.ExitCode == 0 {
-			err := sourceMessage.Accept()
+			//Remove the task from batch
+			_, err := b.removeTask(&t)
+			if err != nil {
+				log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove COMPLETED task from batch")
+			}
+
+			err = sourceMessage.Accept()
 
 			if err != nil {
 				log.WithFields(log.Fields{
@@ -261,7 +272,13 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		if t.State == batch.TaskStateCompleted && *t.ExecutionInfo.ExitCode != 0 {
-			err := sourceMessage.Reject()
+			//Remove the task from batch
+			_, err := b.removeTask(&t)
+			if err != nil {
+				log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")
+			}
+
+			err = sourceMessage.Reject()
 
 			if err != nil {
 				log.WithFields(log.Fields{
