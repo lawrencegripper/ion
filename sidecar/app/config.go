@@ -22,4 +22,5 @@ type Configuration struct {
 	PrintConfig             bool                 `description:"Set to print config on start" export:"true"`
 	LogFile                 string               `description:"File to log output to"`
 	LogLevel                string               `description:"Logging level, possible values {debug, info, warn, error}"`
+	Development             bool                 `description:"A flag to enable development features"`
 }

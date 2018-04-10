@@ -226,6 +226,7 @@ func createModule(config *app.Configuration) (*app.App, error) {
 		sb,
 		blob,
 		logger,
+		true,
 	)
 
 	go a.Run(fmt.Sprintf(":%d", config.ServerPort))

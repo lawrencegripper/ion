@@ -75,6 +75,7 @@ func TestMain(m *testing.M) {
 		sb,
 		blob,
 		logger,
+		false,
 	)
 	go a.Run(fmt.Sprintf(":%d", 8080))
 	defer a.Close()

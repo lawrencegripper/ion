@@ -40,6 +40,7 @@ type App struct {
 	executionID     string
 	validEventTypes []string
 	state           int
+	development     bool
 }
 
 //Setup initializes application
@@ -50,7 +51,8 @@ func (a *App) Setup(
 	meta MetadataProvider,
 	publisher EventPublisher,
 	blob BlobProvider,
-	logger *log.Logger) {
+	logger *log.Logger,
+	developmentMode bool) {
 
 	MustNotBeNil(meta, publisher, blob, logger, context)
 	MustNotBeEmpty(secret, context.EventID)
@@ -71,6 +73,8 @@ func (a *App) Setup(
 	a.Publisher = publisher
 	a.Blob = blob
 	a.Logger = logger
+
+	a.development = developmentMode
 
 	a.Router = mux.NewRouter()
 	a.setupRoutes()
@@ -337,6 +341,9 @@ func (a *App) CommitMeta(metadataPath string) error {
 		"name":          a.context.Name,
 		"timestamp":     time.Now(),
 	}).Info("Committed metadata")
+	if a.development {
+		_ = writeDevelopmentFile("meta.json", insight)
+	}
 	return nil
 }
 
@@ -471,14 +478,28 @@ func (a *App) CommitEvents(eventsPath string, blobURIs map[string]string) error 
 		if err != nil {
 			return fmt.Errorf("failed to publish event '%+v' with error '%+v'", event, err)
 		}
+		if a.development {
+			_ = writeDevelopmentFile("context_"+fileName, eventContext)
+			_ = writeDevelopmentFile("event_"+fileName, eventContext)
+		}
 	}
-	a.Logger.WithFields(log.Fields{
-		"executionID":   a.executionID,
-		"eventID":       a.context.EventID,
-		"correlationID": a.context.CorrelationID,
-		"name":          a.context.Name,
-		"timestamp":     time.Now(),
-	}).Info("Committed events")
+	return nil
+}
+
+func writeDevelopmentFile(fileName string, obj interface{}) error {
+	if _, err := os.Stat(outputDevDir()); os.IsNotExist(err) {
+		_ = os.Mkdir(outputDevDir(), 0777)
+	}
+	// TODO: Handle errors here?
+	path := path.Join(outputDevDir(), "dev."+fileName)
+	b, err := json.Marshal(&obj)
+	if err != nil {
+		return fmt.Errorf("error generating development logs, '%+v'", err)
+	}
+	err = ioutil.WriteFile(path, b, 0777)
+	if err != nil {
+		return fmt.Errorf("error writing development logs, '%+v'", err)
+	}
 	return nil
 }
 
@@ -514,4 +535,7 @@ func inputMetaFile() string {
 }
 func outputMetaFile() string {
 	return path.Join("out", "meta.json")
+}
+func outputDevDir() string {
+	return path.Join("out", "dev")
 }
