@@ -179,7 +179,7 @@ func TestAzureIntegration(t *testing.T) {
 		t.Errorf("error reading in meta file '%s': '%+v'", inMetaFilePath, err)
 	}
 
-	var kvps []common.KeyValuePair
+	var kvps common.KeyValuePairs
 	err = json.Unmarshal(inMetaData, &kvps)
 	if err != nil {
 		t.Errorf("error decoding file '%s' content: '%+v'", inMetaFilePath, err)

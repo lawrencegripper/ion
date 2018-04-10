@@ -32,24 +32,24 @@ type EventPublisher interface {
 
 //Context carries the data for configuring the module
 type Context struct {
-	Name          string `bson:"name" json:"name"`
-	EventID       string `bson:"eventId" json:"eventId"`
-	CorrelationID string `bson:"correlationId" json:"correlationId"`
-	ParentEventID string `bson:"parentEventId" json:"parentEventId"`
+	Name          string `description:"module name" bson:"name" json:"name"`
+	EventID       string `description:"event identifier" bson:"eventId" json:"eventId"`
+	CorrelationID string `description:"correlation identifier" bson:"correlationId" json:"correlationId"`
+	ParentEventID string `description:"parent event identifier" bson:"parentEventId" json:"parentEventId"`
 }
 
 //EventContext is a single entry in a document
 type EventContext struct {
 	*Context
-	Files []string              `bson:"files" json:"files"`
-	Data  []common.KeyValuePair `bson:"data" json:"data"`
+	Files []string             `bson:"files" json:"files"`
+	Data  common.KeyValuePairs `bson:"data" json:"data"`
 }
 
 //Insight is used to export structure data
 type Insight struct {
 	*Context
-	ExecutionID string                `bson:"id" json:"id"`
-	Data        []common.KeyValuePair `bson:"data" json:"data"`
+	ExecutionID string               `bson:"id" json:"id"`
+	Data        common.KeyValuePairs `bson:"data" json:"data"`
 }
 
 //ErrorResponse is a struct intended as JSON HTTP response

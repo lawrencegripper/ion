@@ -90,6 +90,7 @@ def done():
 
 shared_secret = ""
 port = ""
+base_dir = "/ion/"
 if "SHARED_SECRET" in os.environ:
     shared_secret = os.environ["SHARED_SECRET"]
 else:
@@ -102,13 +103,18 @@ else:
     print("SIDECAR_PORT environment variable not set!")
     sys.exit(1)
 
+if "SIDECAR_BASE_DIR" in os.environ:
+    base_dir = os.environ["SIDECAR_BASE_DIR"]
+else:
+    print("SIDECAR_BASE_DIR not set, defaulting to /ion/")
+
 # Global vars
 sidecar_endpoint = "http://localhost:" + port
-input_dir = "/ion/in/data/"
-output_dir = "/ion/out/data/"
-events_dir = "/ion/out/events/"
-in_meta_path = "/ion/in/meta.json"
-out_meta_path = "/ion/out/meta.json"
+input_dir = "{}/in/data/".format(base_dir)
+output_dir = "{}/out/data/".format(base_dir)
+events_dir = "{}/out/events/".format(base_dir)
+in_meta_path = "{}/in/meta.json".format(base_dir)
+out_meta_path = "{}/out/meta.json".format(base_dir)
 ready_url = sidecar_endpoint + "/ready"
 done_url = sidecar_endpoint + "/done"
 

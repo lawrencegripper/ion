@@ -88,16 +88,18 @@ func runApp(config *app.Configuration) {
 
 	validEventTypes := strings.Split(config.ValidEventTypes, ",")
 
-	baseDir := ""
-	switch runtime.GOOS {
-	case "windows":
-		baseDir = defaultWindowsBaseDir
-	case "linux":
-		baseDir = defaultLinuxBaseDir
-	case "darwin":
-		baseDir = defaultDarwinBaseDir
-	default:
-		//noop
+	baseDir := config.BaseDir
+	if baseDir == "" {
+		switch runtime.GOOS {
+		case "windows":
+			baseDir = defaultWindowsBaseDir
+		case "linux":
+			baseDir = defaultLinuxBaseDir
+		case "darwin":
+			baseDir = defaultDarwinBaseDir
+		default:
+			//noop
+		}
 	}
 
 	app := app.App{}

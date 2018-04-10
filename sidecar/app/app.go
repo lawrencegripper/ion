@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lawrencegripper/ion/common"
-	"github.com/lawrencegripper/ion/sidecar/types"
+	. "github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,15 +28,15 @@ const (
 //App is the sidecar application
 type App struct {
 	Router    *mux.Router
-	Meta      types.MetadataProvider
-	Publisher types.EventPublisher
-	Blob      types.BlobProvider
+	Meta      MetadataProvider
+	Publisher EventPublisher
+	Blob      BlobProvider
 	Logger    *log.Logger
 
 	server          *http.Server
 	secretHash      string
 	baseDir         string
-	context         *types.Context
+	context         *Context
 	executionID     string
 	validEventTypes []string
 	state           int
@@ -45,15 +45,15 @@ type App struct {
 //Setup initializes application
 func (a *App) Setup(
 	secret, baseDir string,
-	context *types.Context,
+	context *Context,
 	validEventTypes []string,
-	meta types.MetadataProvider,
-	publisher types.EventPublisher,
-	blob types.BlobProvider,
+	meta MetadataProvider,
+	publisher EventPublisher,
+	blob BlobProvider,
 	logger *log.Logger) {
 
-	types.MustNotBeNil(meta, publisher, blob, logger, context)
-	types.MustNotBeEmpty(secret, context.EventID)
+	MustNotBeNil(meta, publisher, blob, logger, context)
+	MustNotBeEmpty(secret, context.EventID)
 
 	a.baseDir = baseDir
 	if baseDir == "" {
@@ -61,11 +61,11 @@ func (a *App) Setup(
 	}
 
 	a.state = stateNew
-	a.secretHash = types.Hash(secret)
+	a.secretHash = Hash(secret)
 	a.context = context
 	a.validEventTypes = validEventTypes
 
-	a.executionID = types.NewGUID()
+	a.executionID = NewGUID()
 
 	a.Meta = meta
 	a.Publisher = publisher
@@ -86,22 +86,17 @@ func (a *App) setupDirs() {
 	outMeta := path.Join(a.baseDir, outputMetaFile())
 	outEvents := path.Join(a.baseDir, outputEventsDir())
 
-	err := os.MkdirAll(inBlobs, 0777)
-	if err != nil {
-		panic(fmt.Errorf("error creating input blob directory '%s', error: '%+v'", inBlobs, err))
+	if err := CreateDirClean(inBlobs); err != nil {
+		panic(fmt.Sprintf("could not create input blob directory, %+v", err))
 	}
-	err = os.MkdirAll(outBlobs, 0777)
-	if err != nil {
-		panic(fmt.Errorf("error creating output blob directory '%s', error: '%+v'", outBlobs, err))
+	if err := CreateDirClean(outBlobs); err != nil {
+		panic(fmt.Sprintf("could not create output blob directory, %+v", err))
 	}
-	f, err := os.Create(outMeta)
-	if err != nil {
-		panic(fmt.Errorf("error creating output meta file '%s', error: '%+v'", outMeta, err))
+	if err := CreateFileClean(outMeta); err != nil {
+		panic(fmt.Sprintf("could not create output meta file, %+v", err))
 	}
-	f.Close() // nolint: errcheck
-	err = os.MkdirAll(outEvents, 0777)
-	if err != nil {
-		panic(fmt.Errorf("error creating output event directory '%s', error: '%+v'", outEvents, err))
+	if err := CreateDirClean(outEvents); err != nil {
+		panic(fmt.Sprintf("could not create output events directory, %+v", err))
 	}
 }
 
@@ -230,39 +225,39 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 	outEvents := path.Join(a.baseDir, outputEventsDir())
 
 	// Synchronize blob data with external blob store
-	blobURIs, err := a.commitBlob(outBlobs)
+	blobURIs, err := a.CommitBlob(outBlobs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local blob directory
-	err = types.ClearDir(outBlobs)
+	err = ClearDir(outBlobs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 
 	// Synchronize metadata with external document store
-	err = a.commitMeta(outMeta)
+	err = a.CommitMeta(outMeta)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local metadata document
-	err = types.RemoveFile(outMeta)
+	err = RemoveFile(outMeta)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 
 	// Synchronize events with external event system
-	err = a.commitEvents(outEvents, blobURIs)
+	err = a.CommitEvents(outEvents, blobURIs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
 	}
 	// Clear local events directory
-	err = types.ClearDir(outEvents)
+	err = ClearDir(outEvents)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -280,8 +275,8 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-//commitBlob commits the blob directory to an external blob provider
-func (a *App) commitBlob(blobsPath string) (map[string]string, error) {
+//CommitBlob commits the blob directory to an external blob provider
+func (a *App) CommitBlob(blobsPath string) (map[string]string, error) {
 	if _, err := os.Stat(blobsPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("blob output directory '%s' does not exists '%+v'", blobsPath, err)
 	}
@@ -309,8 +304,8 @@ func (a *App) commitBlob(blobsPath string) (map[string]string, error) {
 	return blobURIs, nil
 }
 
-//commitMeta commits the metadata document to an external provider
-func (a *App) commitMeta(metadataPath string) error {
+//CommitMeta commits the metadata document to an external provider
+func (a *App) CommitMeta(metadataPath string) error {
 	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
 		return fmt.Errorf("metadata file '%s' does not exists '%+v'", metadataPath, err)
 	}
@@ -318,12 +313,15 @@ func (a *App) commitMeta(metadataPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read metadata document '%s' with error '%+v'", metadataPath, err)
 	}
-	var m []common.KeyValuePair
+	if len(bytes) == 0 {
+		return nil // Handle no metadata
+	}
+	var m common.KeyValuePairs
 	err = json.Unmarshal(bytes, &m)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
 	}
-	insight := types.Insight{
+	insight := Insight{
 		Context:     a.context,
 		ExecutionID: a.executionID,
 		Data:        m,
@@ -342,8 +340,8 @@ func (a *App) commitMeta(metadataPath string) error {
 	return nil
 }
 
-//commitEvents commits the events directory to an external provider
-func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error {
+//CommitEvents commits the events directory to an external provider
+func (a *App) CommitEvents(eventsPath string, blobURIs map[string]string) error {
 	if _, err := os.Stat(eventsPath); os.IsNotExist(err) {
 		return fmt.Errorf("events output directory '%s' does not exists '%+v'", eventsPath, err)
 	}
@@ -351,6 +349,13 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 	if err != nil {
 		return err
 	}
+	// Read each of the event files stored in the
+	// output events directory. Events will be
+	// deserialized into an expected structure.
+	// Enriched, validated and then split into
+	// an event to send via the messaging system
+	// and a context document for the event to
+	// reference.
 	for _, file := range files {
 		fileName := file.Name()
 		eventFilePath := path.Join(eventsPath, fileName)
@@ -360,31 +365,30 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 			return fmt.Errorf("failed to read file '%s' with error: '%+v'", fileName, err)
 		}
 		// Decode event into map
-		var eventKeyValuePairs []common.KeyValuePair
+		var keyValuePairs common.KeyValuePairs
 		decoder := json.NewDecoder(f)
-		err = decoder.Decode(&eventKeyValuePairs)
+		err = decoder.Decode(&keyValuePairs)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", fileName, err)
 		}
 
-		// Check required fields
 		var eventType string
 		var includedFilesCSV string
 		var eventTypeIndex, filesIndex int
 
 		// For each key/value in event data array.
-		for i, kvp := range eventKeyValuePairs {
+		for i, kvp := range keyValuePairs {
 			// Check the key against required keys
 			switch kvp.Key {
-			case types.EventType:
+			case EventType:
 				// Check whether the event type is valid for this module
-				if a.isValidEvent(kvp.Value) == false {
+				if ContainsString(a.validEventTypes, kvp.Value) == false {
 					return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
 				}
 				eventType = kvp.Value
 				eventTypeIndex = i
 				break
-			case types.FilesToInclude:
+			case FilesToInclude:
 				includedFilesCSV = kvp.Value
 				filesIndex = i
 				break
@@ -393,52 +397,71 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 				break
 			}
 		}
-		// Check required types are fulfilled
+		itemsRemoved := 0
+
+		// [Required] Check that the key 'eventType' was found in the data
+		// if it wasn't return an error. If it was, remove it
+		// from the key value pairs as it is no longer needed
 		if eventType == "" {
 			return fmt.Errorf("all events must contain an 'eventType' field, error: '%+v'", err)
 		}
+		if err := keyValuePairs.Remove(eventTypeIndex); err != nil {
+			return fmt.Errorf("error removing event type from metadata: '%+v'", err)
+		}
+		itemsRemoved++
+
+		// [Optional] Check whether the key 'files' was supplied in order
+		// to pass file references to event context. If it wasn't, log it
+		// and ignore it. If it was, remove it from the key value pairs
+		// as it is no longer needed and then add the file list and their
+		// blob uri for each of the files to the event context.
+		var fileSlice []string
 		if len(includedFilesCSV) == 0 {
-			return fmt.Errorf("all events must contain a 'files' field, error: '%+v'", err)
-		}
-
-		// Remove extracted files from event data array as no longer needed
-		eventKeyValuePairs = types.Remove(eventKeyValuePairs, eventTypeIndex)
-		eventKeyValuePairs = types.Remove(eventKeyValuePairs, filesIndex-1) // -1 as array will be shifted above
-
-		// Get the files to include in event as an array
-		fileSlice := strings.Split(includedFilesCSV, ",")
-
-		// Append each file's name + external URI to the event data
-		for _, f := range fileSlice {
-			blobInfo := common.KeyValuePair{
-				Key:   f,
-				Value: blobURIs[f],
+			a.Logger.WithFields(log.Fields{
+				"executionID":   a.executionID,
+				"eventID":       a.context.EventID,
+				"correlationID": a.context.CorrelationID,
+				"name":          a.context.Name,
+				"timestamp":     time.Now(),
+			}).Debug("Event contains no file references")
+		} else {
+			if err := keyValuePairs.Remove(filesIndex - itemsRemoved); err != nil {
+				return fmt.Errorf("error removing event type from metadata: '%+v'", err)
 			}
-			eventKeyValuePairs = append(eventKeyValuePairs, blobInfo)
+			itemsRemoved++
+			fileSlice = strings.Split(includedFilesCSV, ",")
+			for _, f := range fileSlice {
+				blobInfo := common.KeyValuePair{
+					Key:   f,
+					Value: blobURIs[f],
+				}
+				keyValuePairs.Append(blobInfo)
+			}
 		}
 
-		// Create new event
-		eventID := types.NewGUID()
+		// Create new event to publish
+		// via the messaging system
+		eventID := NewGUID()
 		event := common.Event{
 			PreviousStages: []string{},
 			EventID:        eventID,
 			Type:           eventType,
 		}
 
-		// Create a new context for the event.
-		// We can only build a partial context
-		// as we don't know who will process the
-		// message. The context will be completed
-		// in the dispatcher.
-		context := &types.Context{
+		// Create a new context for the event
+		// to reference. We can only build a
+		// partial context as we don't know which
+		// modules will process the message.
+		// The context will be completed later.
+		context := &Context{
 			CorrelationID: a.context.CorrelationID,
 			ParentEventID: a.context.EventID,
 			EventID:       eventID,
 		}
-		eventContext := types.EventContext{
+		eventContext := EventContext{
 			Context: context,
 			Files:   fileSlice,
-			Data:    eventKeyValuePairs,
+			Data:    keyValuePairs,
 		}
 		err = a.Meta.CreateEventContext(&eventContext)
 		if err != nil {
@@ -460,29 +483,19 @@ func (a *App) commitEvents(eventsPath string, blobURIs map[string]string) error 
 }
 
 //getContext get context metadata document
-func (a *App) getContext() (*types.EventContext, error) {
+func (a *App) getContext() (*EventContext, error) {
 	context, _ := a.Meta.GetEventContextByID(a.context.EventID)
 	//TODO: Fail on error conditions other than not found
 	return context, nil
 }
 
-//isValidEvent checks the event type is in the list of valid event types
-func (a *App) isValidEvent(eventType string) bool {
-	for _, validEventType := range a.validEventTypes {
-		if eventType == validEventType {
-			return true
-		}
-	}
-	return false
-}
-
 //respondWithError returns a JSON formatted HTTP error
 func respondWithError(err error, code int, w http.ResponseWriter) {
-	errRes := &types.ErrorResponse{
+	errRes := &ErrorResponse{
 		StatusCode: code,
 		Message:    err.Error(),
 	}
-	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
+	w.Header().Set(ContentType, ContentTypeApplicationJSON)
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(errRes)
 }

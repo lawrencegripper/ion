@@ -7,6 +7,8 @@ import (
 	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
+// cSpell:ignore mongodb
+
 //Configuration represents the input configuration schema
 type Configuration struct {
 	SharedSecret            string               `description:"A shared secret to authenticate client requests with"`
@@ -21,5 +23,3 @@ type Configuration struct {
 	LogFile                 string               `description:"File to log output to"`
 	LogLevel                string               `description:"Logging level, possible values {debug, info, warn, error}"`
 }
-
-// cSpell:ignore mongodb
