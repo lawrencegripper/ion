@@ -93,6 +93,9 @@ func TestAzureIntegration(t *testing.T) {
 		t.Error(err)
 	}
 	defer module1.Close() // This is to ensure cleanup
+	defer func() {
+		_ = os.RemoveAll(inEventsDir) // This cleans up the local events directory created by the mock event publisher
+	}()
 
 	// Write an output image blob
 	blob1 := "img1.png"
@@ -195,9 +198,6 @@ func TestAzureIntegration(t *testing.T) {
 		}
 		break
 	}
-
-	// Clean up external resources
-	_ = os.RemoveAll(inEventsDir)
 }
 
 func createModule(config *app.Configuration) (*app.App, error) {
