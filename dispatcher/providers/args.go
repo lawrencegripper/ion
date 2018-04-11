@@ -3,6 +3,7 @@ package providers
 import (
 	"github.com/Azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
 	"github.com/joho/godotenv"
+	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
@@ -40,13 +41,17 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	log.WithField("correlationid", eventData.Context.CorrelationID).Debug("generating sidecar args for message")
+	context := eventData.Context
+	if context == nil {
+		context = &common.Context{} // Use type defaults if no context
+	}
+	log.WithField("correlationid", context.CorrelationID).Debug("generating sidecar args for message")
 	return []string{
-		"--azureblobprovider.containername=" + eventData.Context.CorrelationID,
+		"--azureblobprovider.containername=" + context.CorrelationID,
 		"--sharedsecret=" + m.ID(), //Todo: Investigate generating a more random secret
-		"--context.eventid=" + eventData.Context.EventID,
-		"--context.correlationid=" + eventData.Context.CorrelationID,
-		"--context.parenteventid=" + eventData.Context.ParentEventID,
+		"--context.eventid=" + context.EventID,
+		"--context.correlationid=" + context.CorrelationID,
+		"--context.parenteventid=" + context.ParentEventID,
 	}, nil
 }
 

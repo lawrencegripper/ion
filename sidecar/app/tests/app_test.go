@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 	logger := logrus.New()
 	logger.Out = os.Stdout
 
-	context := &types.Context{
+	context := &common.Context{
 		Name:          "testModule",
 		EventID:       "01010101",
 		CorrelationID: "frank",
