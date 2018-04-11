@@ -36,7 +36,7 @@ type App struct {
 	server          *http.Server
 	secretHash      string
 	baseDir         string
-	context         *types.Context
+	context         *common.Context
 	executionID     string
 	validEventTypes []string
 	state           int
@@ -46,7 +46,7 @@ type App struct {
 //Setup initializes application
 func (a *App) Setup(
 	secret, baseDir string,
-	context *types.Context,
+	context *common.Context,
 	validEventTypes []string,
 	meta types.MetadataProvider,
 	publisher types.EventPublisher,
@@ -446,25 +446,36 @@ func (a *App) CommitEvents(eventsPath string, blobURIs map[string]string) error 
 			}
 		}
 
-		// Create new event to publish
-		// via the messaging system
 		eventID := types.NewGUID()
-		event := common.Event{
-			PreviousStages: []string{},
-			EventID:        eventID,
-			Type:           eventType,
-		}
 
-		// Create a new context for the event
-		// to reference. We can only build a
-		// partial context as we don't know which
-		// modules will process the message.
+		// Create a new context for this event.
+		// We can only build a partial context
+		// as we don't know which modules will
+		// process the message.
 		// The context will be completed later.
-		context := &types.Context{
+		context := &common.Context{
 			CorrelationID: a.context.CorrelationID,
 			ParentEventID: a.context.EventID,
 			EventID:       eventID,
 		}
+
+		// Create a new event to publish
+		// via the messaging system.
+		// This will embed the context
+		// created above.
+		event := common.Event{
+			Context:        context,
+			PreviousStages: []string{},
+			Type:           eventType,
+		}
+
+		// Create an event context that
+		// can store additional metadata
+		// without bloating th event such
+		// as a list of files to process.
+		// This will be looked up by
+		// the processing modules using the
+		// event id.
 		eventContext := types.EventContext{
 			Context: context,
 			Files:   fileSlice,

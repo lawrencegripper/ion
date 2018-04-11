@@ -65,7 +65,7 @@ func TestAzureIntegration(t *testing.T) {
 	config := &app.Configuration{
 		SharedSecret: "secret",
 		BaseDir:      baseDir,
-		Context: &types.Context{
+		Context: &common.Context{
 			Name:          "testmodule",
 			EventID:       "1111111",
 			CorrelationID: "fish",
@@ -152,7 +152,7 @@ func TestAzureIntegration(t *testing.T) {
 
 	// Create Module #2
 	config.Context.ParentEventID = config.Context.EventID
-	config.Context.EventID = inEvent.EventID
+	config.Context.EventID = inEvent.Context.EventID
 	module2, err := createModule(config)
 	if err != nil {
 		t.Error(err)

@@ -12,7 +12,7 @@ import (
 // GetSharedSidecarArgs gets the shared arguments used by the sidecar container
 func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) []string {
 	return []string{
-		"--moduleName=" + c.ModuleName,
+		"--context.name=" + c.ModuleName,
 		"--azureblobprovider=true",
 		"--azureblobprovider.blobaccountname=" + c.Sidecar.AzureBlobProvider.BlobAccountName,
 		"--azureblobprovider.blobaccountkey=" + c.Sidecar.AzureBlobProvider.BlobAccountKey,
@@ -39,10 +39,11 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 		return []string{}, err
 	}
 	return []string{
-		"--azureblobprovider.containername=" + eventData.CorrelationID,
+		"--azureblobprovider.containername=" + eventData.Context.CorrelationID,
 		"--sharedsecret=" + m.ID(), //Todo: Investigate generating a more random secret
-		"--eventid=" + eventData.EventID,
-		"--correlationid=" + eventData.CorrelationID,
+		"--context.eventid=" + eventData.Context.EventID,
+		"--context.correlationid=" + eventData.Context.CorrelationID,
+		"--context.parenteventid=" + eventData.Context.ParentEventID,
 	}, nil
 }
 

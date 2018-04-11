@@ -29,9 +29,16 @@ func (kvps KeyValuePairs) Remove(index int) error {
 
 //Event the basic event data format
 type Event struct {
-	EventID        string        `json:"eventID"`
+	Context        *Context      `json:"context"`
 	Type           string        `json:"type"`
 	PreviousStages []string      `json:"previousStages"`
-	CorrelationID  string        `json:"correlationID"`
 	Data           KeyValuePairs `json:"data"`
+}
+
+//Context carries the data for configuring the module
+type Context struct {
+	Name          string `description:"module name" bson:"name" json:"name"`
+	EventID       string `description:"event identifier" bson:"eventId" json:"eventId"`
+	CorrelationID string `description:"correlation identifier" bson:"correlationId" json:"correlationId"`
+	ParentEventID string `description:"parent event identifier" bson:"parentEventId" json:"parentEventId"`
 }

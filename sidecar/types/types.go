@@ -30,24 +30,17 @@ type EventPublisher interface {
 	Close()
 }
 
-//Context carries the data for configuring the module
-type Context struct {
-	Name          string `description:"module name" bson:"name" json:"name"`
-	EventID       string `description:"event identifier" bson:"eventId" json:"eventId"`
-	CorrelationID string `description:"correlation identifier" bson:"correlationId" json:"correlationId"`
-	ParentEventID string `description:"parent event identifier" bson:"parentEventId" json:"parentEventId"`
-}
-
 //EventContext is a single entry in a document
 type EventContext struct {
-	*Context
-	Files []string             `bson:"files" json:"files"`
-	Data  common.KeyValuePairs `bson:"data" json:"data"`
+	*common.Context
+	ParentEventID string               `bson:"parentEventId" json:"parentEventId"`
+	Files         []string             `bson:"files" json:"files"`
+	Data          common.KeyValuePairs `bson:"data" json:"data"`
 }
 
 //Insight is used to export structure data
 type Insight struct {
-	*Context
+	*common.Context
 	ExecutionID string               `bson:"id" json:"id"`
 	Data        common.KeyValuePairs `bson:"data" json:"data"`
 }
