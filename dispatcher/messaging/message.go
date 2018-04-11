@@ -62,12 +62,7 @@ func (m *AmqpMessage) Accept() error {
 func (m *AmqpMessage) Reject() error {
 	// Todo: fix this!
 	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
-	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
-	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
-	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
-	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
-	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
-	m.OriginalMessage.Release()
+	m.OriginalMessage.Reject()
 	return nil
 }
 
