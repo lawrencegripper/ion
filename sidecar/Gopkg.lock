@@ -49,12 +49,6 @@
   version = "v1.6.1"
 
 [[projects]]
-  name = "github.com/gorilla/websocket"
-  packages = ["."]
-  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
-  version = "v1.2.0"
-
-[[projects]]
   name = "github.com/marstr/guid"
   packages = ["."]
   revision = "8bd9a64bf37eb297b492a4101fb28e80ac0b290f"
@@ -83,15 +77,6 @@
   packages = ["."]
   revision = "835a10bbd6bce40820349a68b1368a62c3c5617c"
   version = "v1.0.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/vulcand/oxy"
-  packages = [
-    "forward",
-    "utils"
-  ]
-  revision = "7f6fe9ff96f956fd9203dcb8f84204f09eabc468"
 
 [[projects]]
   branch = "master"
@@ -128,6 +113,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2d59debbefd9555297e8b8cd5389561d24d8c70db12a8a65dd79c689e01d7819"
+  inputs-digest = "09bac22c63c17c14f157011aa1f738503ad7ffe2701c6c534033e4379c391e9f"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -5,13 +5,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
-//TODO: Cache auth token for reuse
+// cSpell:ignore nolint, golint, sasuris, sasuri
 
 //Config to setup a BlobStorage blob provider
 type Config struct {
@@ -23,22 +23,24 @@ type Config struct {
 //BlobStorage is responsible for handling the connections to Azure Blob Storage
 // nolint: golint
 type BlobStorage struct {
-	blobClient    storage.BlobStorageClient
-	containerName string
-	blobPrefix    string
+	blobClient       storage.BlobStorageClient
+	containerName    string
+	outputBlobPrefix string
+	inputBlobPrefix  string
 }
 
 //NewBlobStorage creates a new Azure Blob Storage object
-func NewBlobStorage(config *Config, blobPrefix string) (*BlobStorage, error) {
+func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string) (*BlobStorage, error) {
 	blobClient, err := storage.NewBasicClient(config.BlobAccountName, config.BlobAccountKey)
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage blobClient: %+v", err)
 	}
 	blob := blobClient.GetBlobService()
 	asb := &BlobStorage{
-		blobClient:    blob,
-		containerName: config.ContainerName,
-		blobPrefix:    blobPrefix,
+		blobClient:       blob,
+		containerName:    config.ContainerName,
+		outputBlobPrefix: outputBlobPrefix,
+		inputBlobPrefix:  inputBlobPrefix,
 	}
 	return asb, nil
 }
@@ -64,10 +66,7 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 
 	for _, filePath := range filePaths {
 		_, nakedFilePath := path.Split(filePath)
-		blobPath := strings.Join([]string{
-			a.blobPrefix,
-			nakedFilePath,
-		}, "-")
+		blobPath := types.JoinBlobPath(a.outputBlobPrefix, nakedFilePath)
 		file, err := os.Open(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read data from file '%s', error: '%+v'", filePath, err)
@@ -98,10 +97,7 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 	containerName := a.containerName
 	container := a.blobClient.GetContainerReference(containerName)
 	for _, filePath := range filePaths {
-		blobPath := strings.Join([]string{
-			a.blobPrefix,
-			filePath,
-		}, "-")
+		blobPath := types.JoinBlobPath(a.inputBlobPrefix, filePath)
 		blobRef := container.GetBlobReference(blobPath)
 		blob, err := blobRef.Get(&storage.GetBlobOptions{})
 		if err != nil {

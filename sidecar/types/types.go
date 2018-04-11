@@ -7,6 +7,8 @@ import (
 	"github.com/lawrencegripper/ion/common"
 )
 
+// cSpell:ignore bson
+
 //MetadataProvider is a document storage DB for storing document data
 type MetadataProvider interface {
 	GetEventContextByID(id string) (*EventContext, error)
@@ -30,20 +32,17 @@ type EventPublisher interface {
 
 //EventContext is a single entry in a document
 type EventContext struct {
-	EventID       string                `bson:"id" json:"id"`
-	CorrelationID string                `bson:"correlationId" json:"correlationId"`
-	ParentEventID string                `bson:"parentEventId" json:"parentEventId"`
-	Files         []string              `bson:"files" json:"files"`
-	Data          []common.KeyValuePair `bson:"data" json:"data"`
+	*common.Context
+	ParentEventID string               `bson:"parentEventId" json:"parentEventId"`
+	Files         []string             `bson:"files" json:"files"`
+	Data          common.KeyValuePairs `bson:"data" json:"data"`
 }
 
-//Insight todo
+//Insight is used to export structure data
 type Insight struct {
-	ExecutionID   string                `bson:"id" json:"id"`
-	CorrelationID string                `bson:"correlationId" json:"correlationId"`
-	EventID       string                `bson:"eventId" json:"eventId"`
-	ParentEventID string                `bson:"parentEventId" json:"parentEventId"`
-	Data          []common.KeyValuePair `bson:"data" json:"data"`
+	*common.Context
+	ExecutionID string               `bson:"id" json:"id"`
+	Data        common.KeyValuePairs `bson:"data" json:"data"`
 }
 
 //ErrorResponse is a struct intended as JSON HTTP response

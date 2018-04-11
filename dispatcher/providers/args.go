@@ -3,6 +3,7 @@ package providers
 import (
 	"github.com/Azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
 	"github.com/joho/godotenv"
+	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
@@ -14,7 +15,7 @@ import (
 // GetSharedSidecarArgs gets the shared arguments used by the sidecar container
 func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) []string {
 	return []string{
-		"--moduleName=" + c.ModuleName,
+		"--context.name=" + c.ModuleName,
 		"--azureblobprovider=true",
 		"--azureblobprovider.blobaccountname=" + c.Sidecar.AzureBlobProvider.BlobAccountName,
 		"--azureblobprovider.blobaccountkey=" + c.Sidecar.AzureBlobProvider.BlobAccountKey,
@@ -40,13 +41,17 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	log.WithField("correlationid", eventData.CorrelationID).Debug("generating sidecar args for message")
+	context := eventData.Context
+	if context == nil {
+		context = &common.Context{} // Use type defaults if no context
+	}
+	log.WithField("correlationid", context.CorrelationID).Debug("generating sidecar args for message")
 	return []string{
-		"--azureblobprovider.containername=" + eventData.CorrelationID,
+		"--azureblobprovider.containername=" + context.CorrelationID,
 		"--sharedsecret=" + m.ID(), //Todo: Investigate generating a more random secret
-		"--eventid=" + eventData.EventID,
-		"--correlationid=" + eventData.CorrelationID,
-		"--azureblobprovider.containername=" + eventData.CorrelationID,
+		"--context.eventid=" + context.EventID,
+		"--context.correlationid=" + context.CorrelationID,
+		"--context.parenteventid=" + context.ParentEventID,
 	}, nil
 }
 

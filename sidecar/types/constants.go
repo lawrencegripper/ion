@@ -1,5 +1,7 @@
 package types
 
+// cSpell:ignore inmemory, mongodb
+
 const (
 	//ContentType represents the 'Content-Type' HTTP header key
 	ContentType string = "Content-Type"

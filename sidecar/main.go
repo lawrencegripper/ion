@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/containous/flaeg"
@@ -15,8 +16,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// cSpell:ignore flaeg, logrus, mongodb
+
 const (
-	defaultPort = 8080
+	defaultPort           = 8080
+	defaultWindowsBaseDir = "" // blank will result in /ion/... being used
+	defaultLinuxBaseDir   = ""
+	defaultDarwinBaseDir  = ""
 )
 
 func main() {
@@ -34,7 +40,7 @@ func main() {
 			if config.PrintConfig {
 				fmt.Println(prettyPrintStruct(*config))
 			}
-			if config.SharedSecret == "" || config.EventID == "" || config.CorrelationID == "" {
+			if config.SharedSecret == "" || config.Context.EventID == "" || config.Context.CorrelationID == "" {
 				return fmt.Errorf("Missing configuration. Use '--printconfig' to show current config on start")
 			}
 			runApp(config)
@@ -82,17 +88,31 @@ func runApp(config *app.Configuration) {
 
 	validEventTypes := strings.Split(config.ValidEventTypes, ",")
 
+	baseDir := config.BaseDir
+	if baseDir == "" {
+		switch runtime.GOOS {
+		case "windows":
+			baseDir = defaultWindowsBaseDir
+		case "linux":
+			baseDir = defaultLinuxBaseDir
+		case "darwin":
+			baseDir = defaultDarwinBaseDir
+		default:
+			//noop
+		}
+	}
+
 	app := app.App{}
 	app.Setup(
 		config.SharedSecret,
-		config.EventID,
-		config.CorrelationID,
-		config.ModuleName,
+		baseDir,
+		config.Context,
 		validEventTypes,
 		metaProvider,
 		eventProvider,
 		blobProvider,
 		logger,
+		config.Development,
 	)
 
 	defer app.Close()
@@ -134,9 +154,9 @@ func getBlobProvider(config *app.Configuration) types.BlobProvider {
 	blobProviders := make([]types.BlobProvider, 0)
 	if config.AzureBlobProvider != nil {
 		c := config.AzureBlobProvider
-		azureBlob, err := azurestorage.NewBlobStorage(c, strings.Join([]string{
-			config.EventID,
-			config.ModuleName}, "-"))
+		azureBlob, err := azurestorage.NewBlobStorage(c,
+			types.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
+			types.JoinBlobPath(config.Context.EventID, config.Context.Name))
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
 		}

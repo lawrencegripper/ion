@@ -12,6 +12,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+// cSpell:ignore mongodb, bson, upsert
+
 //Config used to setup a MongoDB metastore provider
 type Config struct {
 	Name       string `description:"MongoDB database name"`
@@ -68,7 +70,7 @@ func (db *MongoDB) GetEventContextByID(id string) (*types.EventContext, error) {
 	return &eventContext, nil
 }
 
-//CreateEventContext creats a new event context document
+//CreateEventContext creates a new event context document
 func (db *MongoDB) CreateEventContext(eventContext *types.EventContext) error {
 	b, err := json.Marshal(*eventContext)
 	if err != nil {
@@ -77,7 +79,7 @@ func (db *MongoDB) CreateEventContext(eventContext *types.EventContext) error {
 	var bsonDocument interface{}
 	err = bson.UnmarshalJSON(b, &bsonDocument)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
+		return fmt.Errorf("error de-serializing to BSON: %+v", err)
 	}
 	selector := bson.M{"id": eventContext.EventID}
 	update := bson.M{"$set": eventContext}
@@ -97,7 +99,7 @@ func (db *MongoDB) CreateInsight(insight *types.Insight) error {
 	var bsonDocument interface{}
 	err = bson.UnmarshalJSON(b, &bsonDocument)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling into BSON: %+v", err)
+		return fmt.Errorf("error de-serializing into BSON: %+v", err)
 	}
 	selector := bson.M{"id": insight.ExecutionID}
 	update := bson.M{"$set": insight}

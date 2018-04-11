@@ -45,5 +45,7 @@ func (e *EventPublisher) Publish(event common.Event) error {
 
 //Close is a mock implementation of the Close method
 func (e *EventPublisher) Close() {
-	_ = os.RemoveAll(e.baseDir)
+	// We do not clean up here as we assume this is being used in a test
+	// where events need to be maintained outside the life span of a
+	// module.
 }

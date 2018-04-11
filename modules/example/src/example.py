@@ -55,9 +55,10 @@ def ready():
         try:
             res = requests.get(ready_url, headers=headers)
             if res.status_code != 200:
+                print("ready returned an error...")
                 body = json.loads(res.text)
                 print("response: {}".format(body))
-                raise ValueError("Sidecar could not become ready")
+                sys.exit(1)
             return
         except Exception:
             count += 1
@@ -90,6 +91,7 @@ def done():
 
 shared_secret = ""
 port = ""
+base_dir = "/ion/"
 if "SHARED_SECRET" in os.environ:
     shared_secret = os.environ["SHARED_SECRET"]
 else:
@@ -102,13 +104,18 @@ else:
     print("SIDECAR_PORT environment variable not set!")
     sys.exit(1)
 
+if "SIDECAR_BASE_DIR" in os.environ:
+    base_dir = os.environ["SIDECAR_BASE_DIR"]
+else:
+    print("SIDECAR_BASE_DIR not set, defaulting to /ion/")
+
 # Global vars
 sidecar_endpoint = "http://localhost:" + port
-input_dir = "/ion/in/data/"
-output_dir = "/ion/out/data/"
-events_dir = "/ion/out/events/"
-in_meta_path = "/ion/in/meta.json"
-out_meta_path = "/ion/out/meta.json"
+input_dir = "{}/in/data/".format(base_dir)
+output_dir = "{}/out/data/".format(base_dir)
+events_dir = "{}/out/events/".format(base_dir)
+in_meta_path = "{}/in/meta.json".format(base_dir)
+out_meta_path = "{}/out/meta.json".format(base_dir)
 ready_url = sidecar_endpoint + "/ready"
 done_url = sidecar_endpoint + "/done"
 
@@ -142,7 +149,7 @@ for i in range(0, 5):
     },
     {
         "key": "files",
-        "value": outf.name
+        "value": out_file
     }]
     with open(os.path.join(events_dir, "event" + str(i) + ".json"), 'w') as evf:
         print("writing event {}".format(evf.name))
@@ -154,8 +161,8 @@ insight = [{
     "value": "facebook"
 },
 {
-    "key": "imageRef",
-    "value": out_file
+    "key": "imageMD5",
+    "value": "1a79a4d60de6718e8e5b326e338ae533"
 }]
 with open(out_meta_path, 'w') as mf:
     print("writing insight {}".format(mf.name))

@@ -1,14 +1,16 @@
-package app
+package types
 
 import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
-	"github.com/lawrencegripper/ion/common"
 	"github.com/twinj/uuid"
 	"os"
 )
+
+// cSpell:ignore twinj, uuid, nolint, strs, objs, GUID
 
 //CompareHash compares a secret string against a hash
 func CompareHash(secret, secretHash string) error {
@@ -74,8 +76,42 @@ func NewGUID() string {
 	return guid
 }
 
-//Remove removes an entry from a key value pair array
-func Remove(s []common.KeyValuePair, i int) []common.KeyValuePair {
-	s[len(s)-1], s[i] = s[i], s[len(s)-1]
-	return s[:len(s)-1]
+//JoinBlobPath returns a formatted blob path
+func JoinBlobPath(strs ...string) string {
+	var allStrs []string
+	for _, s := range strs {
+		allStrs = append(allStrs, s)
+	}
+	return strings.Join(allStrs, "-")
+}
+
+//ContainsString checks whether a string is in a slice of strings
+func ContainsString(slice []string, target string) bool {
+	for _, s := range slice {
+		if s == target {
+			return true
+		}
+	}
+	return false
+}
+
+//CreateDirClean creates a directory - deleting any existing directory
+func CreateDirClean(dirPath string) error {
+	_ = os.RemoveAll(dirPath)
+	if err := os.MkdirAll(dirPath, 0777); err != nil {
+		return fmt.Errorf("error creating directory '%s': '%+v'", dirPath, err)
+	}
+	return nil
+}
+
+//CreateFileClean creates a file - deleting any existing file
+func CreateFileClean(filePath string) error {
+	_ = os.Remove(filePath)
+
+	f, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("error creating file '%s': '%+v'", filePath, err)
+	}
+	defer f.Close() // nolint: errcheck
+	return nil
 }

@@ -3,8 +3,11 @@ package app
 import (
 	"net/http"
 
+	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
+
+// cSpell:ignore debugf, logrus
 
 const secret string = "secret"
 
@@ -13,7 +16,7 @@ func AddAuth(secretHash string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			sec := r.Header.Get(secret)
-			err := CompareHash(sec, secretHash)
+			err := types.CompareHash(sec, secretHash)
 			if err != nil {
 				respondWithError(err, http.StatusUnauthorized, w)
 				return
