@@ -66,7 +66,7 @@ func TestIsValidEvent(t *testing.T) {
 	for _, test := range testCases {
 		contains := ContainsString(test.slice, test.target)
 		if contains != test.contains {
-			t.Errorf("expecting '%s' but got '%s' for event '%s'", test.contains, contains, test.target)
+			t.Errorf("expecting '%t' but got '%t' for event '%s'", test.contains, contains, test.target)
 		}
 	}
 }

@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to create in memory DB with error '%+v'", err))
 	}
-	blob, err := filesystem.NewFileSystemStorage(&filesystem.Config{
+	blob, err := filesystem.NewBlobStorage(&filesystem.Config{
 		BaseDir: persistentBlobDir,
 	})
 	if err != nil {

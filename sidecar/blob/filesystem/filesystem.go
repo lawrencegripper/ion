@@ -12,25 +12,25 @@ type Config struct {
 	BaseDir string `description:"Base directory used to persist files"`
 }
 
-//FileSystemStorage stores blobs on local disk
-type FileSystemStorage struct {
+//BlobStorage stores blobs on local disk
+type BlobStorage struct {
 	baseDir string
 }
 
-//NewFileSystemStorage creates a new file system blob provider
-func NewFileSystemStorage(config *Config) (*FileSystemStorage, error) {
+//NewBlobStorage creates a new file system blob provider
+func NewBlobStorage(config *Config) (*BlobStorage, error) {
 	err := os.MkdirAll(config.BaseDir, 0777)
 	if err != nil {
 		return nil, fmt.Errorf("error creating directory for filesystem blob provider '%+v'", err)
 	}
-	fs := &FileSystemStorage{
+	fs := &BlobStorage{
 		baseDir: config.BaseDir,
 	}
 	return fs, nil
 }
 
 //PutBlobs puts in the filesystem directory
-func (a *FileSystemStorage) PutBlobs(filePaths []string) (map[string]string, error) {
+func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 	uris := make(map[string]string)
 	for _, filePath := range filePaths {
 		_, nakedFilePath := path.Split(filePath)
@@ -44,7 +44,7 @@ func (a *FileSystemStorage) PutBlobs(filePaths []string) (map[string]string, err
 }
 
 //GetBlobs gets each of the referenced blobs from the file system
-func (a *FileSystemStorage) GetBlobs(outputDir string, filePaths []string) error {
+func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 	for _, file := range filePaths {
 		srcPath := path.Join(a.baseDir, file)
 		_, err := os.Stat(srcPath)
@@ -60,7 +60,7 @@ func (a *FileSystemStorage) GetBlobs(outputDir string, filePaths []string) error
 }
 
 //Close cleans up any external resources
-func (a *FileSystemStorage) Close() {
+func (a *BlobStorage) Close() {
 }
 
 //copy a file from a source path to a destination path
@@ -69,17 +69,17 @@ func copy(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer in.Close() //nolint:errcheck
 
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer out.Close() //nolint:errcheck
 
 	_, err = io.Copy(out, in)
 	if err != nil {
 		return err
 	}
-	return out.Close()
+	return out.Close() //nolint:errcheck
 }

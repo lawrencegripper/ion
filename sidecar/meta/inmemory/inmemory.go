@@ -1,10 +1,11 @@
-package inmemory
+package inmemory //nolint:golint
 
 import (
 	"fmt"
 	"github.com/lawrencegripper/ion/sidecar/types"
 )
 
+//nolint:golint
 //InMemoryDB is an in memory DB
 type InMemoryDB struct {
 	Insights map[string]types.Insight

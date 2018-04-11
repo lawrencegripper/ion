@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lawrencegripper/ion/common"
-	. "github.com/lawrencegripper/ion/sidecar/types"
+	types "github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,15 +28,15 @@ const (
 //App is the sidecar application
 type App struct {
 	Router    *mux.Router
-	Meta      MetadataProvider
-	Publisher EventPublisher
-	Blob      BlobProvider
+	Meta      types.MetadataProvider
+	Publisher types.EventPublisher
+	Blob      types.BlobProvider
 	Logger    *log.Logger
 
 	server          *http.Server
 	secretHash      string
 	baseDir         string
-	context         *Context
+	context         *types.Context
 	executionID     string
 	validEventTypes []string
 	state           int
@@ -46,16 +46,16 @@ type App struct {
 //Setup initializes application
 func (a *App) Setup(
 	secret, baseDir string,
-	context *Context,
+	context *types.Context,
 	validEventTypes []string,
-	meta MetadataProvider,
-	publisher EventPublisher,
-	blob BlobProvider,
+	meta types.MetadataProvider,
+	publisher types.EventPublisher,
+	blob types.BlobProvider,
 	logger *log.Logger,
 	developmentMode bool) {
 
-	MustNotBeNil(meta, publisher, blob, logger, context)
-	MustNotBeEmpty(secret, context.EventID)
+	types.MustNotBeNil(meta, publisher, blob, logger, context)
+	types.MustNotBeEmpty(secret, context.EventID)
 
 	a.baseDir = baseDir
 	if baseDir == "" {
@@ -63,11 +63,11 @@ func (a *App) Setup(
 	}
 
 	a.state = stateNew
-	a.secretHash = Hash(secret)
+	a.secretHash = types.Hash(secret)
 	a.context = context
 	a.validEventTypes = validEventTypes
 
-	a.executionID = NewGUID()
+	a.executionID = types.NewGUID()
 
 	a.Meta = meta
 	a.Publisher = publisher
@@ -90,16 +90,16 @@ func (a *App) setupDirs() {
 	outMeta := path.Join(a.baseDir, outputMetaFile())
 	outEvents := path.Join(a.baseDir, outputEventsDir())
 
-	if err := CreateDirClean(inBlobs); err != nil {
+	if err := types.CreateDirClean(inBlobs); err != nil {
 		panic(fmt.Sprintf("could not create input blob directory, %+v", err))
 	}
-	if err := CreateDirClean(outBlobs); err != nil {
+	if err := types.CreateDirClean(outBlobs); err != nil {
 		panic(fmt.Sprintf("could not create output blob directory, %+v", err))
 	}
-	if err := CreateFileClean(outMeta); err != nil {
+	if err := types.CreateFileClean(outMeta); err != nil {
 		panic(fmt.Sprintf("could not create output meta file, %+v", err))
 	}
-	if err := CreateDirClean(outEvents); err != nil {
+	if err := types.CreateDirClean(outEvents); err != nil {
 		panic(fmt.Sprintf("could not create output events directory, %+v", err))
 	}
 }
@@ -235,7 +235,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Clear local blob directory
-	err = ClearDir(outBlobs)
+	err = types.ClearDir(outBlobs)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -248,7 +248,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Clear local metadata document
-	err = RemoveFile(outMeta)
+	err = types.RemoveFile(outMeta)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -261,7 +261,7 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Clear local events directory
-	err = ClearDir(outEvents)
+	err = types.ClearDir(outEvents)
 	if err != nil {
 		respondWithError(err, http.StatusInternalServerError, w)
 		return
@@ -325,7 +325,7 @@ func (a *App) CommitMeta(metadataPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
 	}
-	insight := Insight{
+	insight := types.Insight{
 		Context:     a.context,
 		ExecutionID: a.executionID,
 		Data:        m,
@@ -387,15 +387,15 @@ func (a *App) CommitEvents(eventsPath string, blobURIs map[string]string) error 
 		for i, kvp := range keyValuePairs {
 			// Check the key against required keys
 			switch kvp.Key {
-			case EventType:
+			case types.EventType:
 				// Check whether the event type is valid for this module
-				if ContainsString(a.validEventTypes, kvp.Value) == false {
+				if types.ContainsString(a.validEventTypes, kvp.Value) == false {
 					return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
 				}
 				eventType = kvp.Value
 				eventTypeIndex = i
 				break
-			case FilesToInclude:
+			case types.FilesToInclude:
 				includedFilesCSV = kvp.Value
 				filesIndex = i
 				break
@@ -448,7 +448,7 @@ func (a *App) CommitEvents(eventsPath string, blobURIs map[string]string) error 
 
 		// Create new event to publish
 		// via the messaging system
-		eventID := NewGUID()
+		eventID := types.NewGUID()
 		event := common.Event{
 			PreviousStages: []string{},
 			EventID:        eventID,
@@ -460,12 +460,12 @@ func (a *App) CommitEvents(eventsPath string, blobURIs map[string]string) error 
 		// partial context as we don't know which
 		// modules will process the message.
 		// The context will be completed later.
-		context := &Context{
+		context := &types.Context{
 			CorrelationID: a.context.CorrelationID,
 			ParentEventID: a.context.EventID,
 			EventID:       eventID,
 		}
-		eventContext := EventContext{
+		eventContext := types.EventContext{
 			Context: context,
 			Files:   fileSlice,
 			Data:    keyValuePairs,
@@ -504,7 +504,7 @@ func writeDevelopmentFile(fileName string, obj interface{}) error {
 }
 
 //getContext get context metadata document
-func (a *App) getContext() (*EventContext, error) {
+func (a *App) getContext() (*types.EventContext, error) {
 	context, _ := a.Meta.GetEventContextByID(a.context.EventID)
 	//TODO: Fail on error conditions other than not found
 	return context, nil
@@ -512,11 +512,11 @@ func (a *App) getContext() (*EventContext, error) {
 
 //respondWithError returns a JSON formatted HTTP error
 func respondWithError(err error, code int, w http.ResponseWriter) {
-	errRes := &ErrorResponse{
+	errRes := &types.ErrorResponse{
 		StatusCode: code,
 		Message:    err.Error(),
 	}
-	w.Header().Set(ContentType, ContentTypeApplicationJSON)
+	w.Header().Set(types.ContentType, types.ContentTypeApplicationJSON)
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(errRes)
 }

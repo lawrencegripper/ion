@@ -104,7 +104,7 @@ func CreateDirClean(dirPath string) error {
 	return nil
 }
 
-//CreateFileIfNotExist creates a file - deleting any existing file
+//CreateFileClean creates a file - deleting any existing file
 func CreateFileClean(filePath string) error {
 	_ = os.Remove(filePath)
 

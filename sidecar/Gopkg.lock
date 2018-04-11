@@ -49,12 +49,6 @@
   version = "v1.6.1"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/lawrencegripper/ion"
-  packages = ["common"]
-  revision = "b420401ad1d96c583a070fec253e59a15a24a78b"
-
-[[projects]]
   name = "github.com/marstr/guid"
   packages = ["."]
   revision = "8bd9a64bf37eb297b492a4101fb28e80ac0b290f"
