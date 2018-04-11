@@ -74,9 +74,23 @@ func main() {
 
 			listener := servicebus.NewListener(ctx, config)
 			sidecarArgs := providers.GetSharedSidecarArgs(config, listener.AccessKeys)
-			provider, err := providers.NewKubernetesProvider(config, sidecarArgs)
-			if err != nil {
-				log.WithError(err).Panic("Couldn't create kubernetes provider")
+
+			var provider providers.Provider
+
+			if config.AzureBatch != nil {
+				log.Info("Using Azure batch provider...")
+				batchProvider, err := providers.NewAzureBatchProvider(config, sidecarArgs)
+				if err != nil {
+					log.WithError(err).Panic("Couldn't create azure batch provider")
+				}
+				provider = batchProvider
+			} else {
+				log.Info("Defaulting to using Kubernetes provider...")
+				k8sProvider, err := providers.NewKubernetesProvider(config, sidecarArgs)
+				if err != nil {
+					log.WithError(err).Panic("Couldn't create kubernetes provider")
+				}
+				provider = k8sProvider
 			}
 
 			var wg sync.WaitGroup
