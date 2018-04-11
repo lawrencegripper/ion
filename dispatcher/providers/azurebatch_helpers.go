@@ -130,8 +130,12 @@ func createOrGetJob(p *AzureBatch, auth autorest.Authorizer) {
 		}
 
 		p.jobClient = &jobClient
+	} else if currentJob.State == batch.JobStateDeleting {
+		log.Info("Job is being deleted... Waiting then will retry")
+		time.Sleep(time.Minute)
+		createOrGetJob(p, auth)
 	} else {
-		// unknown case...
+		log.Info(currentJob)
 		panic(err)
 	}
 }

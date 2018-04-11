@@ -222,12 +222,17 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 			Value: message.ID(), //Todo: source from common place with args
 		},
 	}
-	for k, v := range k.workerEnvVars {
+	for key, value := range k.workerEnvVars {
 		envVar := apiv1.EnvVar{
-			Name:  k,
-			Value: fmt.Sprintf("%v", v),
+			Name:  key,
+			Value: fmt.Sprintf("%v", value),
 		}
 		workerEnvVars = append(workerEnvVars, envVar)
+	}
+
+	pullPolicy := apiv1.PullIfNotPresent
+	if k.jobConfig.PullAlways {
+		pullPolicy = apiv1.PullAlways
 	}
 
 	kjob, err := k.createJob(&batchv1.Job{
@@ -245,9 +250,10 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 				Spec: apiv1.PodSpec{
 					Containers: []apiv1.Container{
 						{
-							Name:  "sidecar",
-							Image: k.jobConfig.SidecarImage,
-							Args:  fullSidecarArgs,
+							Name:            "sidecar",
+							Image:           k.jobConfig.SidecarImage,
+							Args:            fullSidecarArgs,
+							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
 									Name:      "ionvolume",
@@ -259,7 +265,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							Name:            "worker",
 							Image:           k.jobConfig.WorkerImage,
 							Env:             workerEnvVars,
-							ImagePullPolicy: apiv1.PullAlways,
+							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
 									Name:      "ionvolume",

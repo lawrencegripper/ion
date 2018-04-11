@@ -25,9 +25,11 @@ func main() {
 	}
 
 	config := &types.Configuration{
-		Hostname: hostName,
+		Hostname:            hostName,
+		KubernetesNamespace: "default",
 		Job: &types.JobConfig{
 			MaxRunningTimeMins: 10,
+			PullAlways:         true,
 		},
 	}
 

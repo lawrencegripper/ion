@@ -29,6 +29,7 @@ type JobConfig struct {
 	RetryCount         int    `description:"Max number of times a job can be retried"`
 	WorkerImage        string `description:"Image to use for the worker"`
 	SidecarImage       string `description:"Image to use for the sidecar"`
+	PullAlways         bool   `description:"Should docker images always be pulled"`
 }
 
 // SidecarConfig configures the information about the jobs which will be run

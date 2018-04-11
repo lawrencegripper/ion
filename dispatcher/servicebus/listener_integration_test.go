@@ -42,11 +42,11 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Paniced: %v", prettyPrintStruct(r))
-		}
-	}()
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		t.Errorf("Paniced: %v", prettyPrintStruct(r))
+	// 	}
+	// }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()

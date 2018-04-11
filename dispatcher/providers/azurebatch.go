@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/Azure/go-autorest/autorest/azure"
 
@@ -143,11 +144,17 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		workerEnvVars = append(workerEnvVars, envVar)
 	}
 
+	pullPolicy := apiv1.PullIfNotPresent
+	if b.jobConfig.PullAlways {
+		pullPolicy = apiv1.PullAlways
+	}
+
 	containers := []apiv1.Container{
 		{
-			Name:  "sidecar",
-			Image: b.jobConfig.SidecarImage,
-			Args:  fullSidecarArgs,
+			Name:            "sidecar",
+			Image:           b.jobConfig.SidecarImage,
+			Args:            fullSidecarArgs,
+			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
 					Name:      "ionvolume",
@@ -159,7 +166,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 			Name:            "worker",
 			Image:           b.jobConfig.WorkerImage,
 			Env:             workerEnvVars,
-			ImagePullPolicy: apiv1.PullAlways,
+			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
 					Name:      "ionvolume",
@@ -173,7 +180,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 	podCommand, err := getPodCommand(batchPodComponents{
 		Containers: containers,
 		PodName:    message.ID(),
-		TaskID:     message.ID(),
+		TaskID:     message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
 		Volumes: []apiv1.Volume{
 			{
 				Name: "ionvolume",
