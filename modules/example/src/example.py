@@ -55,9 +55,10 @@ def ready():
         try:
             res = requests.get(ready_url, headers=headers)
             if res.status_code != 200:
+                print("ready returned an error...")
                 body = json.loads(res.text)
                 print("response: {}".format(body))
-                raise ValueError("Sidecar could not become ready")
+                sys.exit(1)
             return
         except Exception:
             count += 1
@@ -148,7 +149,7 @@ for i in range(0, 5):
     },
     {
         "key": "files",
-        "value": outf.name
+        "value": out_file
     }]
     with open(os.path.join(events_dir, "event" + str(i) + ".json"), 'w') as evf:
         print("writing event {}".format(evf.name))
@@ -160,8 +161,8 @@ insight = [{
     "value": "facebook"
 },
 {
-    "key": "imageRef",
-    "value": out_file
+    "key": "imageMD5",
+    "value": "1a79a4d60de6718e8e5b326e338ae533"
 }]
 with open(out_meta_path, 'w') as mf:
     print("writing insight {}".format(mf.name))

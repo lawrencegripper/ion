@@ -5,6 +5,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
+	log "github.com/sirupsen/logrus"
+
 	"os"
 	"strconv"
 )
@@ -22,7 +24,7 @@ func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) 
 		"--mongodbmetaprovider.password=" + c.Sidecar.MongoDBMetaProvider.Password,
 		"--mongodbmetaprovider.port=" + strconv.Itoa(c.Sidecar.MongoDBMetaProvider.Port),
 		"--servicebuseventprovider=true",
-		"--servicebuseventprovider.Namespace=" + c.ModuleName,
+		"--servicebuseventprovider.Namespace=" + c.ServiceBusNamespace,
 		"--servicebuseventprovider.Topic=" + c.SubscribesToEvent,
 		"--servicebuseventprovider.key=" + *sbKeys.PrimaryKey,
 		"--servicebuseventprovider.authorizationrulename=" + *sbKeys.KeyName,
@@ -38,6 +40,7 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
+	log.WithField("correlationid", eventData.Context.CorrelationID).Debug("generating sidecar args for message")
 	return []string{
 		"--azureblobprovider.containername=" + eventData.Context.CorrelationID,
 		"--sharedsecret=" + m.ID(), //Todo: Investigate generating a more random secret

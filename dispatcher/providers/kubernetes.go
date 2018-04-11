@@ -15,7 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -26,7 +25,6 @@ const (
 	dispatcherNameLabel = "dispatchername"
 	messageIDLabel      = "messageid"
 	deliverycountlabel  = "deliverycount"
-	namespacePrefix     = "mlop-"
 )
 
 //Check providers match interface at compile time
@@ -76,11 +74,7 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 	}
 	k.client = client
 
-	namespace, err := createNamespaceForModule(config.ModuleName, client)
-	if err != nil {
-		return nil, err
-	}
-	k.Namespace = namespace
+	k.Namespace = config.KubernetesNamespace
 	k.jobConfig = config.Job
 	k.dispatcherName = config.Hostname
 	k.inflightJobStore = map[string]messaging.Message{}
@@ -132,10 +126,17 @@ func (k *Kubernetes) Reconcile() error {
 				continue
 			}
 			// Is it ours and we've forgotten
-			if dipatcherName != k.dispatcherName {
-				log.WithField("job", j).Info("job seen which dispatcher stared but doesn't have source message... likely following a dispatcher restart")
+			if dipatcherName == k.dispatcherName {
+				//log.WithField("job", j).Info("job seen which dispatcher stared but doesn't have source message... likely following a dispatcher restart")
+				// Todo: Should we clean these up at some point. Maybe after a wait time?
+				// We want to leave them for a bit as they may be the result of a crash
+				// in which case we can use them to recover
 				continue
 			}
+
+			//Unknown case?!
+			log.WithField("job", j).Info("unknown case when reconciling job")
+			continue
 		}
 
 		// Todo: Handle jobs which have overrun their Max execution time
@@ -153,6 +154,8 @@ func (k *Kubernetes) Reconcile() error {
 					return err
 				}
 
+				// Todo: #61
+
 				//Remove the message from the inflight message store
 				delete(k.inflightJobStore, messageID)
 			}
@@ -168,6 +171,8 @@ func (k *Kubernetes) Reconcile() error {
 					}).Error("failed to accept message")
 					return err
 				}
+
+				// Todo: #61
 
 				//Remove the message from the inflight message store
 				delete(k.inflightJobStore, messageID)
@@ -213,7 +218,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		workerEnvVars = append(workerEnvVars, envVar)
 	}
 
-	_, err = k.createJob(&batchv1.Job{
+	kjob, err := k.createJob(&batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   getJobName(message),
 			Labels: labels,
@@ -274,6 +279,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		return err
 	}
 
+	log.WithField("messageid", message.ID()).Infof("pod created for message %s", kjob.GetSelfLink())
 	k.inflightJobStore[message.ID()] = message
 
 	return nil
@@ -315,25 +321,6 @@ func getClientSet() (*kubernetes.Clientset, error) {
 	}
 
 	return clientset, nil
-}
-
-func createNamespaceForModule(moduleName string, client *kubernetes.Clientset) (string, error) {
-	// create a namespace for the module
-	// Todo: add regex validation to ensure namespace is valid in k8 before submitting
-	// a DNS-1123 label must consist of lower case alphanumeric characters or '-', and
-	// must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?'
-	namespace := namespacePrefix + strings.ToLower(moduleName)
-	_, err := client.CoreV1().Namespaces().Create(&apiv1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
-		},
-	})
-
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return "", err
-	}
-
-	return namespace, nil
 }
 
 func getJobName(m messaging.Message) string {
