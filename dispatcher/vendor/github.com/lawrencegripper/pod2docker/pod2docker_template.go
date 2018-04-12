@@ -1,8 +1,9 @@
-package providers
+package pod2docker
 
 // Todo: Investigate a better way to inline this template - especially when escaping the backticks.
 // Consider: https://mattjibson.com/blog/2014/11/19/esc-embedding-static-assets/
 const azureBatchPodTemplate = `
+#!/bin/bash
 set -eE 
 trap cleanup EXIT
 
@@ -19,7 +20,6 @@ fi
 {{/* Vars */}}
 {{$podName := .PodName}}
 {{$volumes := .Volumes}}
-{{$taskID := .TaskID}}
 
 {{/* Login to required image repositories */}}
 {{range .PullCredentials }}
@@ -28,21 +28,25 @@ docker login -u {{.Username}} -p {{.Password}} {{.Server}}
 
 function cleanup(){
     {{/* Remove the containers, network and volumes */}}
+
     echo 'Pod Exited: Removing all containers'
-    
     if ls container-* 1> /dev/null 2>&1; then
         for line in ` + "`ls container-*`" + `
         do    
-            id=$(cat $line) 
+            id=$(cat $line)
+            echo '-Logs container..'
+            docker logs $id
             echo '-Removing container..'
             docker rm -f $id
-            rm $line
+            rm -f $line
+            rm -f *.log
         done    
     fi
     echo '-Removing pause container..'
-    docker rm -f {{$taskID}} || echo 'Remove pause container failed'
+    docker rm -f {{$podName}} || echo 'Remove pause container failed'
+    rm -f ./pauseid.cid
     echo '-Removing network container..'
-    docker network rm {{$taskID}} || echo 'Remove network failed'
+    docker network rm {{$podName}} || echo 'Remove network failed'
     
     echo '-Removing volumes..'        
     {{range .Volumes}}
@@ -51,8 +55,8 @@ function cleanup(){
 }
 
 {{/* Create Pod network and start it */}}
-docker network create {{.TaskID}}
-docker run -d --network {{.TaskID}} --name {{.TaskID}} --cidfile="./pauseid.cid" gcr.io/google_containers/pause:1.0  
+docker network create {{$podName}}
+docker run -d --network {{$podName}} --name {{$podName}} --cidfile="./pauseid.cid" gcr.io/google_containers/pause:1.0  
 
 {{/* Handle volumes */}}
 {{range .Volumes}}
@@ -69,7 +73,7 @@ docker volume create {{$podName}}_{{.Name}}
     {{if isPullAlways .}}
 docker pull {{$container.Image}}
     {{end}}
-docker run -d --network container:{{$taskID}} --ipc container:{{$taskID}} \
+docker run -d --network container:{{$podName}} --ipc container:{{$podName}} \
     {{- range $index, $envs := $container.Env}}
 -e "{{$envs.Name}}:{{$envs.Value}}" \
     {{- end}}
@@ -80,7 +84,6 @@ docker run -d --network container:{{$taskID}} --ipc container:{{$taskID}} \
 {{end}}
 
 {{/* Symlink all container logs files to task directory */}}
-{{/* sudo ls item-* | xargs -n 1 cat | sudo xargs -n 1 docker inspect --format='{{.LogPath}}' | xargs -n 1 -i ln -s {} ./barry.txt */}}
 {{range $index, $container := .Containers}}
 container_{{$index}}_ID=$(<./container-{{$index}}.cid)
 container_{{$index}}_Log_Path=$(docker inspect --format='{{"{{.LogPath}}"}}' $container_{{$index}}_ID)
@@ -97,7 +100,11 @@ id=$(cat $line)
 docker wait $id &
 done
 
-wait -n
+while [ $(jobs -p | wc -l) -ne {{.Containers | len}} ]
+do
+   sleep 2
+done
+
 
 {{/* Get exit codes from containers */}}
 echo 'Checking container exit codes'
@@ -107,7 +114,7 @@ do
     id=$(cat $line) 
     exitCode=$(docker inspect $id | jq '.[].State.ExitCode')
     echo 'ID: ' $id ' ExitCode: ' $exitCode
-    if [ $exitCode -gt 0 ]
+    if [ $exitCode -ne 0 ]
     then
         $overallExitCode=$exitCode
     fi

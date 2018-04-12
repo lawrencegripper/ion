@@ -13,8 +13,8 @@ import (
 	"github.com/lawrencegripper/ion/dispatcher/helpers"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
+	"github.com/lawrencegripper/pod2docker"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
 	apiv1 "k8s.io/api/core/v1"
 )
 
@@ -176,11 +176,9 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		},
 	}
 
-	// Todo: Pull this out into a standalone package once stabilized
-	podCommand, err := getPodCommand(batchPodComponents{
+	podCommand, err := pod2docker.GetBashCommand(pod2docker.PodComponents{
 		Containers: containers,
-		PodName:    message.ID(),
-		TaskID:     message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
+		PodName:    message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
 		Volumes: []apiv1.Volume{
 			{
 				Name: "ionvolume",
@@ -315,20 +313,4 @@ func (b *AzureBatch) Reconcile() error {
 	}
 
 	return nil
-}
-
-type imageRegistryCredential struct {
-	Server   string `json:"server,omitempty"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-}
-
-// BatchPodComponents provides details for the batch task wrapper
-// to run a pod
-type batchPodComponents struct {
-	PullCredentials []imageRegistryCredential
-	Containers      []v1.Container
-	Volumes         []v1.Volume
-	PodName         string
-	TaskID          string
 }
