@@ -18,6 +18,10 @@
   name = "k8s.io/client-go"
   version = "kubernetes-1.9.2"
 
+[[constraint]]
+  name = "github.com/lawrencegripper/pod2docker"
+  version = "0.2"
+
 [prune]
   go-tests = true
   unused-packages = true

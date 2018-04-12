@@ -26,6 +26,9 @@ func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error)
 	k.inflightJobStore = map[string]messaging.Message{}
 	k.createJob = create
 	k.listAllJobs = list
+	k.removeJob = func(j *batchv1.Job) error {
+		return nil
+	}
 	return &k, nil
 }
 
@@ -78,6 +81,73 @@ func TestDispatchAddsJob(t *testing.T) {
 	jobsLen := len(inMemMockJobStore)
 	if jobsLen != 1 {
 		t.Errorf("Job count incorrected Expected: 1 Got: %v", jobsLen)
+	}
+}
+
+func TestDispatchCleansupJobs(t *testing.T) {
+	inMemMockJobStore := map[string]*batchv1.Job{}
+
+	create := func(b *batchv1.Job) (*batchv1.Job, error) {
+		if b == nil {
+			t.Error("attempted to create nil job")
+		}
+		inMemMockJobStore[b.Name] = b
+
+		return b, nil
+	}
+
+	list := func() (*batchv1.JobList, error) {
+		array := []batchv1.Job{}
+		for _, v := range inMemMockJobStore {
+			array = append(array, *v)
+		}
+		return &batchv1.JobList{
+			Items: array,
+		}, nil
+	}
+
+	remove := func(b *batchv1.Job) error {
+		delete(inMemMockJobStore, b.Name)
+		return nil
+	}
+
+	k, _ := NewMockKubernetesProvider(create, list)
+	k.removeJob = remove
+
+	// Send two messages
+	messageToSend0 := newNoOpMockMessage(mockMessageID)
+	err := k.Dispatch(messageToSend0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	messageToSend1 := newNoOpMockMessage(mockMessageID + "1")
+	err = k.Dispatch(messageToSend1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Set one job as failed and one completed
+	job := inMemMockJobStore[getJobName(messageToSend0)]
+	log.WithField("j", inMemMockJobStore).Info("job")
+	job.Status.Conditions = append(job.Status.Conditions, batchv1.JobCondition{
+		Type: batchv1.JobComplete,
+	})
+	job1 := inMemMockJobStore[getJobName(messageToSend1)]
+	job1.Status.Conditions = append(job1.Status.Conditions, batchv1.JobCondition{
+		Type: batchv1.JobFailed,
+	})
+
+	// Reconcile the jobs
+	err = k.Reconcile()
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Check to see that jobs are removed from k8s via the removejob func
+	jobsLen := len(inMemMockJobStore)
+	if jobsLen != 0 {
+		t.Errorf("Job count incorrected Expected: 0 Got: %v", jobsLen)
 	}
 }
 
@@ -324,6 +394,18 @@ type MockMessage struct {
 	Accepted           func()
 	Rejected           func()
 	JSONValue          string
+}
+
+func newNoOpMockMessage(id string) MockMessage {
+	message := MockMessage{}
+	message.MessageID = id
+	message.Accepted = func() {
+		log.WithField("messageID", message.MessageID).Info("message accepted")
+	}
+	message.Rejected = func() {
+		log.WithField("messageID", message.MessageID).Info("message rejected")
+	}
+	return message
 }
 
 // DeliveryCount get number of times the message has ben delivered

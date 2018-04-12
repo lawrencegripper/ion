@@ -2,7 +2,6 @@ package providers
 
 import (
 	"context"
-	"fmt"
 	"github.com/lawrencegripper/ion/dispatcher/helpers"
 	"github.com/lawrencegripper/ion/dispatcher/types"
 	log "github.com/sirupsen/logrus"
@@ -11,228 +10,134 @@ import (
 	"time"
 )
 
-// TestIntegrationAzureBatchDispatch_SuccessfulModule performs an end-2-end integration test scheduling work onto Azure Batch
-func TestIntegrationAzureBatchDispatch_SuccessfulModule(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode...")
-	}
-
-	config := &types.Configuration{
-		Hostname:          mockDispatcherName,
-		ModuleName:        "ModuleName",
-		SubscribesToEvent: "ExampleEvent",
-		LogLevel:          "Debug",
-		ClientID:          os.Getenv("AZURE_CLIENT_ID"),
-		ClientSecret:      os.Getenv("AZURE_CLIENT_SECRET"),
-		ResourceGroup:     os.Getenv("AZURE_RESOURCE_GROUP"),
-		SubscriptionID:    os.Getenv("AZURE_SUBSCRIPTION_ID"),
-		TenantID:          os.Getenv("AZURE_TENANT_ID"),
-		Job: &types.JobConfig{
-			SidecarImage: "busybox",
-			WorkerImage:  "workerimagetest",
-		},
-		AzureBatch: &types.AzureBatchConfig{
-			BatchAccountLocation: os.Getenv("AZURE_BATCH_ACCOUNT_LOCATION"),
-			BatchAccountName:     os.Getenv("AZURE_BATCH_ACCOUNT_NAME"),
-			JobID:                helpers.RandomName(12),
-			PoolID:               "testpool",
-		},
-	}
-
-	p, err := NewAzureBatchProvider(config, []string{"-examplearg1=1"})
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-	defer func() {
-		_, err := p.jobClient.Delete(p.ctx, p.dispatcherName, nil, nil, nil, nil, "", "", nil, nil)
-		if err != nil {
-			fmt.Println(err)
-		}
-	}()
-
-	messageAccepted := false
-	messageRejected := false
-	message := MockMessage{
-		MessageID: helpers.RandomName(12),
-	}
-	message.Accepted = func() {
-		messageAccepted = true
-	}
-	message.Rejected = func() {
-		messageRejected = true
-	}
-
-	err = p.Dispatch(message)
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-
-	ctx := context.Background()
-	waitCtx, cancel := context.WithTimeout(ctx, time.Minute*4)
-	defer cancel()
-
-	for {
-		if _, ok := waitCtx.Deadline(); !ok {
-			t.Log("Timedout")
-			break
-		}
-
-		log.Info("Checking for completed task")
-
-		//Get scheduled jobs
-		tasksPtr, err := p.listTasks()
-		if err != nil {
-			t.Log("Failed retreiving tasks from Azure Batch")
-			t.Error(err)
-		}
-		if tasksPtr == nil {
-			t.Log("Failed retreiving tasks from Azure Batch - tasks nil")
-			t.Fail()
-		}
-		tasks := *tasksPtr
-
-		if len(tasks) != 1 {
-			t.Error("Expected to only find 1 job")
-		}
-		log.WithField("tasks", tasks).Info("Found tasks...")
-		for _, task := range tasks {
-			if task.ExecutionInfo == nil || task.ExecutionInfo.ExitCode == nil {
-				continue
-			}
-			exitCode := *task.ExecutionInfo.ExitCode
-			if exitCode != 0 {
-				t.Error("The task failed to execute in Azure batch")
-				t.Fail()
-				return
-			} else if exitCode == 0 {
-				t.Log("Task completed with zero exit code - happy days!")
-				return
-			}
-
-		}
-		time.Sleep(time.Second * 5)
-	}
-
-	if !messageAccepted {
-		t.Error("Expected message to be accepted")
-	}
-
-	if messageRejected {
-		t.Error("Message rejected - was expecting it to be accepted")
-	}
+func init() {
+	log.SetLevel(log.FatalLevel)
 }
 
-// TestIntegrationAzureBatchDispatch_FailingModule Tests that the dispatcher correctly handles a task that has failed in Azure Batch
-func TestIntegrationAzureBatchDispatch_FailingModule(t *testing.T) {
+// TestIntegrationAzureBatchDispatch performs an end-2-end integration test scheduling work onto Azure Batch
+func TestIntegrationAzureBatchDispatch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
-	config := &types.Configuration{
-		Hostname:          mockDispatcherName,
-		ModuleName:        "ModuleName",
-		SubscribesToEvent: "ExampleEvent",
-		LogLevel:          "Debug",
-		ClientID:          os.Getenv("AZURE_CLIENT_ID"),
-		ClientSecret:      os.Getenv("AZURE_CLIENT_SECRET"),
-		ResourceGroup:     os.Getenv("AZURE_RESOURCE_GROUP"),
-		SubscriptionID:    os.Getenv("AZURE_SUBSCRIPTION_ID"),
-		TenantID:          os.Getenv("AZURE_TENANT_ID"),
-		Job: &types.JobConfig{
-			SidecarImage: "sidecarimagetest",
-			WorkerImage:  "workerimagetest",
+	testCases := []struct {
+		name                  string
+		dockerimage           string
+		expectedExitCode      int32
+		expectMessageAccepted bool
+		expectMessageRejected bool
+	}{
+		{
+			name:                  "successful_module",
+			dockerimage:           "lawrencegripper/busyboxecho",
+			expectedExitCode:      0,
+			expectMessageAccepted: true,
 		},
-		AzureBatch: &types.AzureBatchConfig{
-			BatchAccountLocation: os.Getenv("AZURE_BATCH_ACCOUNT_LOCATION"),
-			BatchAccountName:     os.Getenv("AZURE_BATCH_ACCOUNT_NAME"),
-			JobID:                helpers.RandomName(12),
-			PoolID:               "testpool",
+		{
+			name:                  "failing_module",
+			dockerimage:           "imagethatdoesntexist",
+			expectedExitCode:      125,
+			expectMessageAccepted: false,
 		},
 	}
 
-	p, err := NewAzureBatchProvider(config, []string{"-examplearg1=1"})
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-	defer func() {
-		_, err := p.jobClient.Delete(p.ctx, p.dispatcherName, nil, nil, nil, nil, "", "", nil, nil)
-		if err != nil {
-			fmt.Println(err)
-		}
-	}()
-
-	messageAccepted := false
-	messageRejected := false
-	message := MockMessage{
-		MessageID: helpers.RandomName(12),
-	}
-	message.Accepted = func() {
-		messageAccepted = true
-	}
-	message.Rejected = func() {
-		messageRejected = true
-	}
-
-	err = p.Dispatch(message)
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-
-	ctx := context.Background()
-	waitCtx, cancel := context.WithTimeout(ctx, time.Minute*4)
-	defer cancel()
-
-	for {
-		if _, ok := waitCtx.Deadline(); !ok {
-			t.Log("Timedout")
-			break
-		}
-
-		log.Info("Checking for completed task")
-
-		//Get scheduled jobs
-		tasksPtr, err := p.listTasks()
-		if err != nil {
-			t.Log("Failed retreiving tasks from Azure Batch")
-			t.Error(err)
-		}
-		if tasksPtr == nil {
-			t.Log("Failed retreiving tasks from Azure Batch - tasks nil")
-			t.Fail()
-		}
-		tasks := *tasksPtr
-
-		if len(tasks) != 1 {
-			t.Error("Expected to only find 1 job")
-		}
-		log.WithField("tasks", tasks).Info("Found tasks...")
-		for _, task := range tasks {
-			if task.ExecutionInfo == nil || task.ExecutionInfo.ExitCode == nil {
-				continue
-			}
-			exitCode := *task.ExecutionInfo.ExitCode
-			if exitCode != 0 {
-				t.Error("The task failed to execute in Azure batch")
-				t.Fail()
-				return
-			} else if exitCode == 0 {
-				t.Log("Task completed with zero exit code - happy days!")
-				return
+	for _, test := range testCases {
+		test := test
+		t.Run("Set:"+test.name, func(t *testing.T) {
+			config := &types.Configuration{
+				Hostname:          mockDispatcherName,
+				ModuleName:        "ModuleName",
+				SubscribesToEvent: "ExampleEvent",
+				LogLevel:          "Debug",
+				ClientID:          os.Getenv("AZURE_CLIENT_ID"),
+				ClientSecret:      os.Getenv("AZURE_CLIENT_SECRET"),
+				ResourceGroup:     os.Getenv("AZURE_RESOURCE_GROUP"),
+				SubscriptionID:    os.Getenv("AZURE_SUBSCRIPTION_ID"),
+				TenantID:          os.Getenv("AZURE_TENANT_ID"),
+				Job: &types.JobConfig{
+					SidecarImage: test.dockerimage,
+					WorkerImage:  test.dockerimage,
+				},
+				AzureBatch: &types.AzureBatchConfig{
+					BatchAccountLocation: os.Getenv("AZURE_BATCH_ACCOUNT_LOCATION"),
+					BatchAccountName:     os.Getenv("AZURE_BATCH_ACCOUNT_NAME"),
+					JobID:                helpers.RandomName(12),
+					PoolID:               "testpool",
+				},
 			}
 
-		}
-		time.Sleep(time.Second * 5)
+			p, err := NewAzureBatchProvider(config, []string{"-examplearg1=1"})
+			if err != nil {
+				t.Error(err)
+				t.FailNow()
+			}
+
+			messageAccepted := false
+			messageRejected := false
+			message := MockMessage{
+				MessageID: helpers.RandomName(6),
+			}
+			message.Accepted = func() {
+				messageAccepted = true
+			}
+			message.Rejected = func() {
+				messageRejected = true
+			}
+
+			err = p.Dispatch(message)
+			if err != nil {
+				t.Error(err)
+				t.FailNow()
+			}
+
+			ctx := context.Background()
+			waitCtx, cancel := context.WithTimeout(ctx, time.Minute*4)
+			defer cancel()
+
+			for {
+				if _, ok := waitCtx.Deadline(); !ok {
+					t.Log("Timedout")
+					break
+				}
+
+				log.Info("Checking for completed task")
+
+				//Get task
+				task, err := p.taskClient.Get(p.ctx, p.dispatcherName, message.ID(), "", "", nil, nil, nil, nil, "", "", nil, nil)
+				if err != nil {
+					t.Error(err)
+				}
+
+				if task.ExecutionInfo == nil || task.ExecutionInfo.ExitCode == nil || *task.ID != message.ID() || task.State != "completed" {
+					time.Sleep(time.Second * 5)
+					continue
+				}
+
+				exitCode := *task.ExecutionInfo.ExitCode
+				t.Log(exitCode)
+
+				if exitCode == test.expectedExitCode {
+					t.Logf("Success - Error code: %v expected: %v", exitCode, test.expectedExitCode)
+				} else {
+					t.Errorf("Error code: %v expected: %v", exitCode, test.expectedExitCode)
+				}
+				break
+			}
+
+			err = p.Reconcile()
+			if err != nil {
+				t.Error(err)
+			}
+
+			if test.expectMessageAccepted && !messageAccepted {
+				t.Error("Message wasn't accepted")
+			}
+
+			if test.expectMessageRejected && !messageRejected {
+				t.Error("Message wasn't rejected")
+			}
+		})
+
 	}
 
-	if !messageAccepted {
-		t.Error("Expected message to be accepted")
-	}
-
-	if messageRejected {
-		t.Error("Message rejected - was expecting it to be accepted")
-	}
 }

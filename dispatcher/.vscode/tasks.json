@@ -1,0 +1,70 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Test Everything",
+            "command": "export $(cat ./.vscode/private.env | xargs) && go test ./...",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "args": [
+                "-test.timeout",
+                "5m"
+            ],
+            "problemMatcher": "$go"
+        },
+        {
+            "label": "Test Providers",
+            "command": "export $(cat ./.vscode/private.env | xargs) && go test ./providers/...",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "args": [
+                "-test.timeout",
+                "2m"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "new"
+            },
+            "problemMatcher": "$go"
+        },
+        {
+            "label": "Test Listener",
+            "command": "export $(cat ./.vscode/private.env | xargs) && go test ./servicebus/...",
+            "type": "shell",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "new"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "args": [
+                "-test.timeout",
+                "2m"
+            ],
+            "problemMatcher": "$go"
+        }
+    ]
+}

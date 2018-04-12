@@ -34,11 +34,13 @@ var _ Provider = &Kubernetes{}
 type Kubernetes struct {
 	createJob        func(*batchv1.Job) (*batchv1.Job, error)
 	listAllJobs      func() (*batchv1.JobList, error)
+	removeJob        func(*batchv1.Job) error
 	client           *kubernetes.Clientset
 	jobConfig        *types.JobConfig
 	inflightJobStore map[string]messaging.Message
 	dispatcherName   string
 	Namespace        string
+	pullSecret       string
 	sidecarArgs      []string
 	workerEnvVars    map[string]interface{}
 }
@@ -74,7 +76,8 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 	}
 	k.client = client
 
-	k.Namespace = config.KubernetesNamespace
+	k.Namespace = config.Kubernetes.Namespace
+	k.pullSecret = config.Kubernetes.ImagePullSecretName
 	k.jobConfig = config.Job
 	k.dispatcherName = config.Hostname
 	k.inflightJobStore = map[string]messaging.Message{}
@@ -83,6 +86,9 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 	}
 	k.listAllJobs = func() (*batchv1.JobList, error) {
 		return k.client.BatchV1().Jobs(k.Namespace).List(metav1.ListOptions{})
+	}
+	k.removeJob = func(j *batchv1.Job) error {
+		return k.client.BatchV1().Jobs(k.Namespace).Delete(j.Name, &metav1.DeleteOptions{})
 	}
 	return &k, nil
 }
@@ -144,6 +150,12 @@ func (k *Kubernetes) Reconcile() error {
 		for _, condition := range j.Status.Conditions {
 			// Job failed - reject the message so it goes back on the queue to be retried
 			if condition.Type == batchv1.JobFailed {
+				//Remove the job from k8s
+				err = k.removeJob(&j)
+				if err != nil {
+					log.WithError(err).WithField("job", j).WithField("messageID", messageID).Error("Failed to remove FAILED job from k8s")
+				}
+
 				err := sourceMessage.Reject()
 
 				if err != nil {
@@ -154,14 +166,18 @@ func (k *Kubernetes) Reconcile() error {
 					return err
 				}
 
-				// Todo: #61
-
 				//Remove the message from the inflight message store
 				delete(k.inflightJobStore, messageID)
 			}
 
 			// Job succeeded - accept the message so it is removed from the queue
 			if condition.Type == batchv1.JobComplete {
+				//Remove the job from k8s
+				err = k.removeJob(&j)
+				if err != nil {
+					log.WithError(err).WithField("job", j).WithField("messageID", messageID).Error("Failed to remove COMPLETED job from k8s")
+				}
+
 				err := sourceMessage.Accept()
 
 				if err != nil {
@@ -171,8 +187,6 @@ func (k *Kubernetes) Reconcile() error {
 					}).Error("failed to accept message")
 					return err
 				}
-
-				// Todo: #61
 
 				//Remove the message from the inflight message store
 				delete(k.inflightJobStore, messageID)
@@ -210,15 +224,20 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 			Value: message.ID(), //Todo: source from common place with args
 		},
 	}
-	for k, v := range k.workerEnvVars {
+	for key, value := range k.workerEnvVars {
 		envVar := apiv1.EnvVar{
-			Name:  k,
-			Value: fmt.Sprintf("%v", v),
+			Name:  key,
+			Value: fmt.Sprintf("%v", value),
 		}
 		workerEnvVars = append(workerEnvVars, envVar)
 	}
 
-	kjob, err := k.createJob(&batchv1.Job{
+	pullPolicy := apiv1.PullIfNotPresent
+	if k.jobConfig.PullAlways {
+		pullPolicy = apiv1.PullAlways
+	}
+
+	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   getJobName(message),
 			Labels: labels,
@@ -233,9 +252,10 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 				Spec: apiv1.PodSpec{
 					Containers: []apiv1.Container{
 						{
-							Name:  "sidecar",
-							Image: k.jobConfig.SidecarImage,
-							Args:  fullSidecarArgs,
+							Name:            "sidecar",
+							Image:           k.jobConfig.SidecarImage,
+							Args:            fullSidecarArgs,
+							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
 									Name:      "ionvolume",
@@ -247,7 +267,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							Name:            "worker",
 							Image:           k.jobConfig.WorkerImage,
 							Env:             workerEnvVars,
-							ImagePullPolicy: apiv1.PullAlways,
+							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
 									Name:      "ionvolume",
@@ -268,7 +288,18 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 				},
 			},
 		},
-	})
+	}
+
+	// Set pull secrete if specified
+	if k.pullSecret != "" {
+		job.Spec.Template.Spec.ImagePullSecrets = []apiv1.LocalObjectReference{
+			{
+				Name: k.pullSecret,
+			},
+		}
+	}
+
+	kjob, err := k.createJob(job)
 
 	if err != nil {
 		log.WithError(err).Error("failed scheduling k8s job")
@@ -324,5 +355,5 @@ func getClientSet() (*kubernetes.Clientset, error) {
 }
 
 func getJobName(m messaging.Message) string {
-	return strings.ToLower(m.ID()) + "-a" + strconv.Itoa(m.DeliveryCount())
+	return strings.ToLower(m.ID()) + "-v" + strconv.Itoa(m.DeliveryCount())
 }

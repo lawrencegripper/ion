@@ -3,6 +3,8 @@ package providers
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	"github.com/Azure/go-autorest/autorest/azure"
 
 	"github.com/Azure/azure-sdk-for-go/services/batch/2017-09-01.6.0/batch"
@@ -11,8 +13,8 @@ import (
 	"github.com/lawrencegripper/ion/dispatcher/helpers"
 	"github.com/lawrencegripper/ion/dispatcher/messaging"
 	"github.com/lawrencegripper/ion/dispatcher/types"
+	"github.com/lawrencegripper/pod2docker"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
 	apiv1 "k8s.io/api/core/v1"
 )
 
@@ -38,6 +40,7 @@ type AzureBatch struct {
 	// Used to allow mocking of the batch api for testing
 	createTask func(taskDetails batch.TaskAddParameter) (autorest.Response, error)
 	listTasks  func() (*[]batch.CloudTask, error)
+	removeTask func(*batch.CloudTask) (autorest.Response, error)
 }
 
 // NewAzureBatchProvider creates a provider for azure batch.
@@ -100,6 +103,9 @@ func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []stri
 
 		return &currentTasks, nil
 	}
+	b.removeTask = func(t *batch.CloudTask) (autorest.Response, error) {
+		return b.taskClient.Delete(b.ctx, b.dispatcherName, *t.ID, nil, nil, nil, nil, "", "", nil, nil)
+	}
 
 	return &b, nil
 }
@@ -138,11 +144,17 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		workerEnvVars = append(workerEnvVars, envVar)
 	}
 
+	pullPolicy := apiv1.PullIfNotPresent
+	if b.jobConfig.PullAlways {
+		pullPolicy = apiv1.PullAlways
+	}
+
 	containers := []apiv1.Container{
 		{
-			Name:  "sidecar",
-			Image: b.jobConfig.SidecarImage,
-			Args:  fullSidecarArgs,
+			Name:            "sidecar",
+			Image:           b.jobConfig.SidecarImage,
+			Args:            fullSidecarArgs,
+			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
 					Name:      "ionvolume",
@@ -154,7 +166,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 			Name:            "worker",
 			Image:           b.jobConfig.WorkerImage,
 			Env:             workerEnvVars,
-			ImagePullPolicy: apiv1.PullAlways,
+			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
 					Name:      "ionvolume",
@@ -164,11 +176,9 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		},
 	}
 
-	// Todo: Pull this out into a standalone package once stabilized
-	podCommand, err := getPodCommand(batchPodComponents{
+	podComponent := pod2docker.PodComponents{
 		Containers: containers,
-		PodName:    message.ID(),
-		TaskID:     message.ID(),
+		PodName:    message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
 		Volumes: []apiv1.Volume{
 			{
 				Name: "ionvolume",
@@ -177,7 +187,19 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 				},
 			},
 		},
-	})
+	}
+
+	if b.batchConfig.ImageRepositoryServer != "" {
+		podComponent.PullCredentials = []pod2docker.ImageRegistryCredential{
+			{
+				Server:   b.batchConfig.ImageRepositoryServer,
+				Username: b.batchConfig.ImageRepositoryUsername,
+				Password: b.batchConfig.ImageRepositoryPassword,
+			},
+		}
+	}
+
+	podCommand, err := pod2docker.GetBashCommand(podComponent)
 
 	log.WithField("commandtoexec", podCommand).Info("Created command for Batch")
 
@@ -239,46 +261,62 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		// Job succeeded - accept the message so it is removed from the queue
-		if t.State == batch.TaskStateCompleted && *t.ExecutionInfo.ExitCode == 0 {
-			err := sourceMessage.Accept()
-
-			if err != nil {
+		if t.State == batch.TaskStateCompleted {
+			if *t.ExecutionInfo.ExitCode == 0 {
+				// Task has completed successfully
 				log.WithFields(log.Fields{
 					"message": sourceMessage,
 					"task":    t,
-				}).Error("failed to accept message")
-				return err
-			}
+				}).Info("Task completed with success exit code")
 
-			log.WithFields(log.Fields{
-				"message": sourceMessage,
-				"task":    t,
-			}).Info("Task completed with success exit code")
+				//Remove the task from batch
+				_, err := b.removeTask(&t)
+				if err != nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove COMPLETED task from batch")
+				}
 
-			//Remove the message from the inflight message store
-			delete(b.inprogressJobStore, messageID)
-			continue
-		}
+				//ACK the message to remove from queue
+				err = sourceMessage.Accept()
 
-		if t.State == batch.TaskStateCompleted && *t.ExecutionInfo.ExitCode != 0 {
-			err := sourceMessage.Reject()
+				if err != nil {
+					log.WithFields(log.Fields{
+						"message": sourceMessage,
+						"task":    t,
+					}).Error("failed to accept message")
+					return err
+				}
 
-			if err != nil {
+				//Remove the message from the inflight message store
+				delete(b.inprogressJobStore, messageID)
+				continue
+			} else {
+				//Task has failed!
 				log.WithFields(log.Fields{
 					"message": sourceMessage,
 					"task":    t,
-				}).Error("failed to accept message")
-				return err
+				}).Info("Task completed with failed exit code")
+
+				//Remove the task from batch
+				_, err := b.removeTask(&t)
+				if err != nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")
+				}
+
+				//ACK the message to remove from queue
+				err = sourceMessage.Reject()
+
+				if err != nil {
+					log.WithFields(log.Fields{
+						"message": sourceMessage,
+						"task":    t,
+					}).Error("failed to accept message")
+					return err
+				}
+
+				//Remove the message from the inflight message store
+				delete(b.inprogressJobStore, messageID)
+				continue
 			}
-
-			log.WithFields(log.Fields{
-				"message": sourceMessage,
-				"task":    t,
-			}).Info("Task completed with failed exit code")
-
-			//Remove the message from the inflight message store
-			delete(b.inprogressJobStore, messageID)
-			continue
 		}
 
 		if t.State != batch.TaskStateCompleted {
@@ -291,20 +329,4 @@ func (b *AzureBatch) Reconcile() error {
 	}
 
 	return nil
-}
-
-type imageRegistryCredential struct {
-	Server   string `json:"server,omitempty"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-}
-
-// BatchPodComponents provides details for the batch task wrapper
-// to run a pod
-type batchPodComponents struct {
-	PullCredentials []imageRegistryCredential
-	Containers      []v1.Container
-	Volumes         []v1.Volume
-	PodName         string
-	TaskID          string
 }

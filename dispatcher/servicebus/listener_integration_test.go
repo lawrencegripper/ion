@@ -42,11 +42,11 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Paniced: %v", prettyPrintStruct(r))
-		}
-	}()
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		t.Errorf("Paniced: %v", prettyPrintStruct(r))
+	// 	}
+	// }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
@@ -64,6 +64,19 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Error(err)
 	}
 
+	depth, err := listener.GetQueueDepth()
+	if err != nil || depth == nil {
+		t.Error("Failed to get queue depth")
+		t.Error(err)
+	}
+
+	derefDepth := *depth
+
+	if derefDepth != 1 {
+		t.Errorf("Expected queue depth of 1 Got:%v", derefDepth)
+		t.Fail()
+	}
+
 	message, err := listener.AmqpReceiver.Receive(ctx)
 	if err != nil {
 		t.Error(err)
@@ -74,13 +87,13 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Value)
 	}
 
-	depth, err := listener.GetQueueDepth()
+	depth, err = listener.GetQueueDepth()
 	if err != nil || depth == nil {
 		t.Error("Failed to get queue depth")
 		t.Error(err)
 	}
 
-	derefDepth := *depth
+	derefDepth = *depth
 
 	if derefDepth != 0 {
 		t.Errorf("Expected queue depth of 0 Got:%v", derefDepth)
@@ -127,7 +140,7 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 		t.Error("first delivery has wrong count")
 	}
 
-	message.Reject()
+	message.Release()
 
 	// Currently fails here as the rejected message is put in the deadletter queue.
 	checkUntil := time.Now().Add(time.Second * 12)
@@ -146,7 +159,7 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 
 	// Todo: Currently unable to handle this here. Release doesn't increment the deliverycount reject deadletters the message
 	if messageSecondDelivery.Header.DeliveryCount != 1 {
-		t.Error("redelivered message count doens't have correct delivery count set")
+		t.Errorf("Expected DeliveryCount of 1 Has: %v", messageSecondDelivery.Header.DeliveryCount)
 	}
 
 	messageSecondDelivery.Accept()
