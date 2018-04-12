@@ -40,6 +40,7 @@ type Kubernetes struct {
 	inflightJobStore map[string]messaging.Message
 	dispatcherName   string
 	Namespace        string
+	pullSecret       string
 	sidecarArgs      []string
 	workerEnvVars    map[string]interface{}
 }
@@ -75,7 +76,8 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 	}
 	k.client = client
 
-	k.Namespace = config.KubernetesNamespace
+	k.Namespace = config.Kubernetes.Namespace
+	k.pullSecret = config.Kubernetes.ImagePullSecretName
 	k.jobConfig = config.Job
 	k.dispatcherName = config.Hostname
 	k.inflightJobStore = map[string]messaging.Message{}
@@ -235,7 +237,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
-	kjob, err := k.createJob(&batchv1.Job{
+	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   getJobName(message),
 			Labels: labels,
@@ -286,7 +288,18 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 				},
 			},
 		},
-	})
+	}
+
+	// Set pull secrete if specified
+	if k.pullSecret != "" {
+		job.Spec.Template.Spec.ImagePullSecrets = []apiv1.LocalObjectReference{
+			{
+				Name: k.pullSecret,
+			},
+		}
+	}
+
+	kjob, err := k.createJob(job)
 
 	if err != nil {
 		log.WithError(err).Error("failed scheduling k8s job")

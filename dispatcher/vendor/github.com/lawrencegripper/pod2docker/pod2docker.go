@@ -8,7 +8,8 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-type imageRegistryCredential struct {
+// ImageRegistryCredential - Used to input a credential used by docker login
+type ImageRegistryCredential struct {
 	Server   string `json:"server,omitempty"`
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
@@ -16,7 +17,7 @@ type imageRegistryCredential struct {
 
 // PodComponents provides details to run a pod
 type PodComponents struct {
-	PullCredentials []imageRegistryCredential
+	PullCredentials []ImageRegistryCredential
 	Containers      []v1.Container
 	Volumes         []v1.Volume
 	PodName         string

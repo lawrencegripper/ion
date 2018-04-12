@@ -143,8 +143,8 @@
 [[projects]]
   name = "github.com/lawrencegripper/pod2docker"
   packages = ["."]
-  revision = "f65e2d3eff6455ace8085d005cb685cde1582277"
-  version = "v0.1"
+  revision = "f511a5c5eac0f95e94adcf1736d12e6de6609092"
+  version = "v0.2"
 
 [[projects]]
   name = "github.com/modern-go/concurrent"
@@ -401,6 +401,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d7cabd041d1187ec04c79861564c66c53a790dc7537da3b849adbcee6929254a"
+  inputs-digest = "ce315a20d135812e305de51ceae8ac9640ddb1f78770604a2f07d018658f885e"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -176,7 +176,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		},
 	}
 
-	podCommand, err := pod2docker.GetBashCommand(pod2docker.PodComponents{
+	podComponent := pod2docker.PodComponents{
 		Containers: containers,
 		PodName:    message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
 		Volumes: []apiv1.Volume{
@@ -187,7 +187,19 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 				},
 			},
 		},
-	})
+	}
+
+	if b.batchConfig.ImageRepositoryServer != "" {
+		podComponent.PullCredentials = []pod2docker.ImageRegistryCredential{
+			{
+				Server:   b.batchConfig.ImageRepositoryServer,
+				Username: b.batchConfig.ImageRepositoryUsername,
+				Password: b.batchConfig.ImageRepositoryPassword,
+			},
+		}
+	}
+
+	podCommand, err := pod2docker.GetBashCommand(podComponent)
 
 	log.WithField("commandtoexec", podCommand).Info("Created command for Batch")
 

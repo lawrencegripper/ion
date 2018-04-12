@@ -17,10 +17,10 @@ type Configuration struct {
 	TenantID            string            `description:"TentantID for Azure"`
 	LogSensitiveConfig  bool              `description:"Print out sensitive config when logging"`
 	ModuleConfigPath    string            `description:"Path to environment variables file for module"`
-	KubernetesNamespace string            `description:"Namespace in which to schedule jobs in k8s"`
+	Kubernetes          *KubernetesConfig `description:"Configure k8s provider"`
 	Job                 *JobConfig        `description:"Configure settings for the jobs to be run"`
 	Sidecar             *SidecarConfig    `description:"Configure settings for the sidecar"`
-	AzureBatch          *AzureBatchConfig `description:"Configure AzureBatch"`
+	AzureBatch          *AzureBatchConfig `description:"Configure AzureBatch provider"`
 }
 
 // JobConfig configures the information about the jobs which will be run
@@ -57,11 +57,20 @@ type AzureBlobConfig struct {
 
 // AzureBatchConfig - Basic azure config used to interact with ARM resources.
 type AzureBatchConfig struct {
-	ResourceGroup        string `description:"~~Todo~~"`
-	PoolID               string `description:"~~Todo~~"`
-	JobID                string `description:"~~Todo~~"`
-	BatchAccountName     string `description:"~~Todo~~"`
-	BatchAccountLocation string `description:"~~Todo~~"`
+	ResourceGroup           string `description:"~~Todo~~"`
+	PoolID                  string `description:"~~Todo~~"`
+	JobID                   string `description:"~~Todo~~"`
+	BatchAccountName        string `description:"~~Todo~~"`
+	BatchAccountLocation    string `description:"~~Todo~~"`
+	ImageRepositoryServer   string `description:"~~Todo~~"`
+	ImageRepositoryUsername string `description:"~~Todo~~"`
+	ImageRepositoryPassword string `description:"~~Todo~~"`
+}
+
+// KubernetesConfig - k8s config used to schedule jobs.
+type KubernetesConfig struct {
+	Namespace           string `description:"The namespace in which jobs will be created"`
+	ImagePullSecretName string `description:"~~Todo~~"`
 }
 
 // RedactConfigSecrets strips sensitive data from the config
