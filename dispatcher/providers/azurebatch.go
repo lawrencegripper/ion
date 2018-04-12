@@ -261,58 +261,62 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		// Job succeeded - accept the message so it is removed from the queue
-		if t.State == batch.TaskStateCompleted && *t.ExecutionInfo.ExitCode == 0 {
-			//Remove the task from batch
-			_, err := b.removeTask(&t)
-			if err != nil {
-				log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove COMPLETED task from batch")
-			}
-
-			err = sourceMessage.Accept()
-
-			if err != nil {
+		if t.State == batch.TaskStateCompleted {
+			if *t.ExecutionInfo.ExitCode == 0 {
+				// Task has completed successfully
 				log.WithFields(log.Fields{
 					"message": sourceMessage,
 					"task":    t,
-				}).Error("failed to accept message")
-				return err
-			}
+				}).Info("Task completed with success exit code")
 
-			log.WithFields(log.Fields{
-				"message": sourceMessage,
-				"task":    t,
-			}).Info("Task completed with success exit code")
+				//Remove the task from batch
+				_, err := b.removeTask(&t)
+				if err != nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove COMPLETED task from batch")
+				}
 
-			//Remove the message from the inflight message store
-			delete(b.inprogressJobStore, messageID)
-			continue
-		}
+				//ACK the message to remove from queue
+				err = sourceMessage.Accept()
 
-		if t.State == batch.TaskStateCompleted && *t.ExecutionInfo.ExitCode != 0 {
-			//Remove the task from batch
-			_, err := b.removeTask(&t)
-			if err != nil {
-				log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")
-			}
+				if err != nil {
+					log.WithFields(log.Fields{
+						"message": sourceMessage,
+						"task":    t,
+					}).Error("failed to accept message")
+					return err
+				}
 
-			err = sourceMessage.Reject()
-
-			if err != nil {
+				//Remove the message from the inflight message store
+				delete(b.inprogressJobStore, messageID)
+				continue
+			} else {
+				//Task has failed!
 				log.WithFields(log.Fields{
 					"message": sourceMessage,
 					"task":    t,
-				}).Error("failed to accept message")
-				return err
+				}).Info("Task completed with failed exit code")
+
+				//Remove the task from batch
+				_, err := b.removeTask(&t)
+				if err != nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")
+				}
+
+				//ACK the message to remove from queue
+				err = sourceMessage.Reject()
+
+				if err != nil {
+					log.WithFields(log.Fields{
+						"message": sourceMessage,
+						"task":    t,
+					}).Error("failed to accept message")
+					return err
+				}
+
+				//Remove the message from the inflight message store
+				delete(b.inprogressJobStore, messageID)
+				continue
 			}
-
-			log.WithFields(log.Fields{
-				"message": sourceMessage,
-				"task":    t,
-			}).Info("Task completed with failed exit code")
-
-			//Remove the message from the inflight message store
-			delete(b.inprogressJobStore, messageID)
-			continue
 		}
 
 		if t.State != batch.TaskStateCompleted {
