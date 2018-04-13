@@ -120,7 +120,7 @@ func TestRemoveFile(t *testing.T) {
 		},
 		{
 			filename: "",
-			removed:  false,
+			removed:  true,
 		},
 	}
 	for _, test := range testCases {
