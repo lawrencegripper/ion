@@ -48,16 +48,16 @@ For more details on modules: please refer to the [Module docs](modules/README.md
 ### Sidecar
 Each module is co-scheduled with a sidecar. The sidecar provides a hook into the platform that the module can leverage. This includes getting data from previous modules, storing new data and publishing new events. As the sidecar is co-scheduled in a shared namespace, your module will be able to access the sidecar over `localhost`. The sidecar relies on 3 external components; a document store for metadata, a blob storage provider and a messaging system.
 Currently supported metadata stores include:
-* MongoDB
-* Azure CosmosDB
+* [MongoDB](https://www.mongodb.com/)
+* [Azure CosmosDB](https://docs.microsoft.com/en-us/azure/cosmos-db/introduction)
 * In-memory (for testing only)
 
 Currently supported blob storage providers include:
-* Azure Blob Storage
+* [Azure Blob Storage](https://azure.microsoft.com/en-gb/services/storage/)
 * FileSystem (for testing only)
 
 Currently supported messaging systems include:
-* Azure Service Bus
+* [Azure Service Bus](https://azure.microsoft.com/en-us/services/service-bus/)
 
 The components the Sidecar uses are configurable, if you wish to add support for a currently unsupported technology please review the existing components, implement the interface ensuring similar behaviour and submit a PR.
 

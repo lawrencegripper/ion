@@ -1,12 +1,91 @@
 # Sidecar
-The sidecar is deployed alongside your module. The sidecar is responsible for 2 things:
+The sidecar is co-scheduled with a module. The sidecar shares the execution environment with the module and is responsible for 2 things:
 
-1. Setting up the execution environment
-2. Synchronizing state to external providers
+1. Fetching any input files and data from Ion's data plane.
+2. Committing output files to Ion's data plane.
 
-# Data
-A module should work with files on the local file system with as little knowledge of the surrounding system as possible.
-However, data is expected to be written/read using a particular directory structure:
+The sidecar runs as a separate container but leverages a shared volume with the module's container. When instructed to do so, the Sidecar will synchronize the data in this volume with Ion's data plane.
+
+## Data Plane
+The sidecar uses a provider for storing blob data and another provider for storing meta data. These backing stores are then responsible for handling the data persistence. These providers are know in the abstract as Ion's data plane.
+
+![](../docs/ion-module.png)
+
+## Getting the Sidecar
+Now that you've Ionized your module, you probably want to check that it integrates with Ion's Sidecar properly. In order to do this, grab the latest release of the Sidecar binary from the [releases page](https://github.com/lawrencegripper/ion/releases).
+
+## Running the Sidecar
+The Sidecar binary can be ran as follows:
+
+**Windows Powershell**
+```powershell
+.\sidecar.exe `
+--context.correlationid=<correlationid> `
+--context.eventid=<eventid>`
+--context.parenteventid=<parenteventid> `
+--context.name=<name> `
+--loglevel=info `
+--logfile=<logfile> `
+--serverport=8080 `
+--sharedsecret=<sharedsecret> `
+--valideventtypes=<valideventtypes> `
+--azureblobprovider=true `
+--azureblobprovider.blobaccountkey=<blobaccountkey> `
+--azureblobprovider.blobaccountname=<blobaccountname> `
+--azureblobprovider.containername=<containername> `
+--mongodbmetaprovider=true `
+--mongodbmetaprovider.collection=<collection> `
+--mongodbmetaprovider.name=<name> `
+--mongodbmetaprovider.password=<password> `
+--mongodbmetaprovider.port=<port> `
+--servicebuseventprovider=true `
+--servicebuseventprovider.authorizationrulename=<authorizationrulename> `
+--servicebuseventprovider.key=<key> `
+--servicebuseventprovider.namespace=<namespace> `
+--servicebuseventprovider.topic=<topic>
+```
+
+**Linux Bash**
+
+```bash
+./sidecar \
+--context.correlationid=<correlationid> \
+--context.eventid=<eventid> \
+--context.parenteventid=<parenteventid> \
+--context.name=<name> \
+--loglevel=info \
+--logfile=<logfile> \
+--serverport=8080 \
+--sharedsecret=<sharedsecret> \
+--valideventtypes=<valideventtypes> \
+--azureblobprovider=true \
+--azureblobprovider.blobaccountkey=<blobaccountkey> \
+--azureblobprovider.blobaccountname=<blobaccountname> \
+--azureblobprovider.containername=<containername> \
+--mongodbmetaprovider=true \
+--mongodbmetaprovider.collection=<collection> \
+--mongodbmetaprovider.name=<name> \
+--mongodbmetaprovider.password=<password> \
+--mongodbmetaprovider.port=10255 \
+--servicebuseventprovider=true \
+--servicebuseventprovider.authorizationrulename=<authorizationrulename> \
+--servicebuseventprovider.key=<key> \
+--servicebuseventprovider.namespace=<namespace> \
+--servicebuseventprovider.topic=<topic>
+```
+
+> **NOTE:** You can supply the `--development=true` argument to enabled development mode
+
+### Development Mode
+Development mode allows you to run the sidecar without the Dispatcher. This will leverage the filesystem and in-memory providers to handle blobs, metadata and events.
+
+Development mode will also dump data of interest out to a `dev` folder to help you debug issues.
+
+> **Coming Soon:** Offline Mode - use a local Dispatcher to simulate Ion without any external services.
+
+# Data Handling
+A module should work with files on the local file system as any other process would.
+However, _persistent_ data is expected to be written/read using a particular directory structure:
 
 ## `in/data`
 Any input files that your module needs will be available in the input blob directory `in/data` after you have called [ready](#ready).
@@ -19,7 +98,7 @@ This file will need to be deserialized from JSON into an instance of `common.Key
 Any output files you wish to store should be written to `out/data`. These will be persisted after you call [done](#done).
 
 ## `out/meta.json`
-Any insights you wish to store should be written to the JSON file `out/meta.json`. This will be persisted after you call [done](#done).
+Any insights you wish to export should be written to the JSON file `out/meta.json`. This will be persisted after you call [done](#done). This is intended for data you want to store for later analysis and does not get passed to subsequent modules.
 
 ### `Insight Schema`
 
@@ -27,11 +106,11 @@ Key value pairs can only currently be stored as strings and should be serialized
 ```json
 [
   {
-  "key": "key `
+  "key": "key",
   "value": "value"
   },
   {
-    "key": "key1 `
+    "key": "key1",
     "value": "value1"
   },
   ...
@@ -39,7 +118,7 @@ Key value pairs can only currently be stored as strings and should be serialized
 ```
 
 ## `out/events`
-Any events you wish to publish should be stored as JSON files in `out/events`
+Any events you wish to publish should be stored as JSON files in `out/events`. Any _optional_ key/value data will be made available to subsequent modules in their `in/meta.json` file. _Required_ key/value data will be extracted.
 
 ### `Events Schema`
 
@@ -47,15 +126,15 @@ Key value pairs can only currently be stored as strings.
 ```json
 [
   {
-    "key": "eventType ` [required]
+    "key": "eventType", [required]
     "value": "myEventType"
   },
   {
-    "key": "files ` [required]
+    "key": "files", [required]
     "value": "myblob.png,myblob2.png"
   },
   {
-    "key": "key ` [optional]
+    "key": "key", [optional]
     "value": "value"
   },
   ...
@@ -108,67 +187,3 @@ Synchronous call to commit state when module is done.
 
 `{"secret": "<shared_secret>"}`
 
-## Getting the Sidecar
-Now that you've Ionized your module, you probably want to check that it integrates with Ion's Sidecar properly. In order to do this, grab the latest release of the Sidecar binary from the [releases page](https://github.com/lawrencegripper/ion/releases).
-
-## Running the Sidecar
-The Sidecar binary can be ran as follows:
-
-**Windows Powershell**
-.\sidecar.exe --context.correlationid=<correlationid>`
---context.eventid=<eventid>`
---context.parenteventid=<parenteventid> `
---context.name=<name> `
---loglevel=info `
---logfile=<logfile> `
---serverport=8080 `
---sharedsecret=<sharedsecret> `
---valideventtypes=<valideventtypes> `
---azureblobprovider=true `
---azureblobprovider.blobaccountkey=<blobaccountkey> `
---azureblobprovider.blobaccountname=<blobaccountname> `
---azureblobprovider.containername=<containername> `
---mongodbmetaprovider=true `
---mongodbmetaprovider.collection=<collection> `
---mongodbmetaprovider.name=<name> `
---mongodbmetaprovider.password=<password> `
---mongodbmetaprovider.port=<port> `
---servicebuseventprovider=true `
---servicebuseventprovider.authorizationrulename=<authorizationrulename> `
---servicebuseventprovider.key=<key> `
---servicebuseventprovider.namespace=<namespace> `
---servicebuseventprovider.topic=<topic>
-
-**Linux Bash**
-./sidecar --context.correlationid=<correlationid> \
---context.eventid=<eventid> \
---context.parenteventid=<parenteventid> \
---context.name=<name> \
---loglevel=info \
---logfile=<logfile> \
---serverport=8080 \
---sharedsecret=<sharedsecret> \
---valideventtypes=<valideventtypes> \
---azureblobprovider=true \
---azureblobprovider.blobaccountkey=<blobaccountkey> \
---azureblobprovider.blobaccountname=<blobaccountname> \
---azureblobprovider.containername=<containername> \
---mongodbmetaprovider=true \
---mongodbmetaprovider.collection=<collection> \
---mongodbmetaprovider.name=<name> \
---mongodbmetaprovider.password=<password> \
---mongodbmetaprovider.port=10255 \
---servicebuseventprovider=true \
---servicebuseventprovider.authorizationrulename=<authorizationrulename> \
---servicebuseventprovider.key=<key> \
---servicebuseventprovider.namespace=<namespace> \
---servicebuseventprovider.topic=<topic>
-
-> **NOTE:** You can supply the `--development=true` argument to enabled development mode
-
-### Development Mode
-Development mode allows you to run the sidecar without the dispatcher. This will leverage the filesystem and in-memory providers to handle blobs, metadata and events.
-
-Development mode will also dump data of interest out to the `out/dev` folder to help you debug issues.
-
-> **Coming Soon:** Offline Mode - Develop with no external dependencies
