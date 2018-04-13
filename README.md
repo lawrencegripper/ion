@@ -6,6 +6,9 @@
 
 **Ion** is a scalable, event-driven, task-oriented, processing platform. It allows you to create complex workflows as a graph of loosley coupled tasks. You define your control logic using programming languages so you are not constrained by a DSL or markdown language.
 
+
+![](docs/ion-toplevel-1.png)
+
 ## Goals
 * Scalable
 * Flexible

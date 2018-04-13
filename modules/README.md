@@ -1,6 +1,8 @@
 # Module
 A module is a processing unit or task. It can be written in any language as long as it has all its dependencies packaged into a container. A module can trigger other modules using events and can then pass data to those modules.
 
+![](../docs/ion-module.png)
+
 ## Writing a Module
 The recommended approach to writing a module is to write your processing code without any integration with Ion. For instance, if I wanted to write a module to resize an image. I could write a simple Python script to read a file from disk, use OpenCV to resize it, then write it to disk again.
 
