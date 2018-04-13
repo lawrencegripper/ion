@@ -29,4 +29,7 @@ const (
 
 	//FilesToInclude is the key in the metadata to extract the event type using
 	FilesToInclude string = "files"
+
+	//DevBaseDir is the base directory for development mode output
+	DevBaseDir string = ".dev"
 )

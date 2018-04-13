@@ -102,6 +102,14 @@ func (a *App) setupDirs() {
 	if err := types.CreateDirClean(outEvents); err != nil {
 		panic(fmt.Sprintf("could not create output events directory, %+v", err))
 	}
+
+	if a.development {
+		if _, err := os.Stat(types.DevBaseDir); os.IsNotExist(err) {
+			_ = os.Mkdir(types.DevBaseDir, 0777)
+		}
+		devPath := path.Join(types.DevBaseDir, a.context.EventID)
+		_ = os.Mkdir(devPath, 0777)
+	}
 }
 
 //setupRoutes initializes the API routing
@@ -206,6 +214,11 @@ func (a *App) OnReady(w http.ResponseWriter, r *http.Request) {
 	}).Info("Ready complete. Module's environment prepared.")
 
 	w.WriteHeader(http.StatusOK)
+
+	if a.development {
+		var empty struct{}
+		_ = writeDevFile("ready", a.context.EventID, empty)
+	}
 }
 
 //OnDone is called when the module is finished and wishes to commit their state to an external provider
@@ -277,6 +290,11 @@ func (a *App) OnDone(w http.ResponseWriter, r *http.Request) {
 	}).Info("Done complete. Module's state committed.")
 
 	w.WriteHeader(http.StatusOK)
+
+	if a.development {
+		var empty struct{}
+		_ = writeDevFile("done", a.context.EventID, empty)
+	}
 }
 
 //CommitBlob commits the blob directory to an external blob provider
@@ -342,7 +360,7 @@ func (a *App) CommitMeta(metadataPath string) error {
 		"timestamp":     time.Now(),
 	}).Info("Committed metadata")
 	if a.development {
-		_ = writeDevelopmentFile("meta.json", insight)
+		_ = writeDevFile("meta.json", a.context.EventID, insight)
 	}
 	return nil
 }
@@ -490,19 +508,16 @@ func (a *App) CommitEvents(eventsPath string, blobURIs map[string]string) error 
 			return fmt.Errorf("failed to publish event '%+v' with error '%+v'", event, err)
 		}
 		if a.development {
-			_ = writeDevelopmentFile("context_"+fileName, eventContext)
-			_ = writeDevelopmentFile("event_"+fileName, eventContext)
+			_ = writeDevFile("context_"+fileName, a.context.EventID, eventContext)
+			_ = writeDevFile("event_"+fileName, a.context.EventID, eventContext)
 		}
 	}
 	return nil
 }
 
-func writeDevelopmentFile(fileName string, obj interface{}) error {
-	if _, err := os.Stat(outputDevDir()); os.IsNotExist(err) {
-		_ = os.Mkdir(outputDevDir(), 0777)
-	}
+func writeDevFile(fileName, dir string, obj interface{}) error {
 	// TODO: Handle errors here?
-	path := path.Join(outputDevDir(), "dev."+fileName)
+	path := path.Join(types.DevBaseDir, dir, "dev."+fileName)
 	b, err := json.Marshal(&obj)
 	if err != nil {
 		return fmt.Errorf("error generating development logs, '%+v'", err)
@@ -546,7 +561,4 @@ func inputMetaFile() string {
 }
 func outputMetaFile() string {
 	return path.Join("out", "meta.json")
-}
-func outputDevDir() string {
-	return path.Join("out", "dev")
 }
