@@ -147,6 +147,7 @@ func validateConfig(c *app.Configuration) error {
 	// Alternatively, we allow multiple
 	// provider configs and just return the
 	// first we check against.
+	return nil
 }
 
 func getMetaProvider(config *app.Configuration) types.MetadataProvider {
@@ -171,7 +172,8 @@ func getMetaProvider(config *app.Configuration) types.MetadataProvider {
 func getBlobProvider(config *app.Configuration) types.BlobProvider {
 	if config.Development {
 		fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
-			BaseDir: path.Join(types.DevBaseDir, "blobs"),
+			InputDir:  path.Join(types.DevBaseDir, config.Context.ParentEventID, "blobs"),
+			OutputDir: path.Join(types.DevBaseDir, config.Context.EventID, "blobs"),
 		})
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
