@@ -63,6 +63,9 @@ func ClearDir(dirPath string) error {
 
 //RemoveFile removes a file from the file system
 func RemoveFile(filePath string) error {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil // If file doesn't exist - return as if succeeded
+	}
 	err := os.Remove(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to remove file at path '%s' with error: '%+v'", filePath, err)

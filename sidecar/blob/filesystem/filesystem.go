@@ -9,22 +9,25 @@ import (
 
 //Config to setup a FileSystem storage provider
 type Config struct {
-	BaseDir string `description:"Base directory used to persist files"`
+	InputDir  string `description:"Input directory used to persist files"`
+	OutputDir string `description:"Output directory used to persist files"`
 }
 
 //BlobStorage stores blobs on local disk
 type BlobStorage struct {
-	baseDir string
+	inDir  string
+	outDir string
 }
 
 //NewBlobStorage creates a new file system blob provider
 func NewBlobStorage(config *Config) (*BlobStorage, error) {
-	err := os.MkdirAll(config.BaseDir, 0777)
+	err := os.MkdirAll(config.OutputDir, 0777)
 	if err != nil {
 		return nil, fmt.Errorf("error creating directory for filesystem blob provider '%+v'", err)
 	}
 	fs := &BlobStorage{
-		baseDir: config.BaseDir,
+		inDir:  config.InputDir,
+		outDir: config.OutputDir,
 	}
 	return fs, nil
 }
@@ -34,7 +37,7 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 	uris := make(map[string]string)
 	for _, filePath := range filePaths {
 		_, nakedFilePath := path.Split(filePath)
-		destPath := path.Join(a.baseDir, nakedFilePath)
+		destPath := path.Join(a.outDir, nakedFilePath)
 		if err := copy(filePath, destPath); err != nil {
 			return nil, fmt.Errorf("error copying file to blob storage '%+v'", err)
 		}
@@ -46,7 +49,7 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 //GetBlobs gets each of the referenced blobs from the file system
 func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 	for _, file := range filePaths {
-		srcPath := path.Join(a.baseDir, file)
+		srcPath := path.Join(a.inDir, file)
 		_, err := os.Stat(srcPath)
 		if err != nil {
 			return fmt.Errorf("error getting blob '%s': '%+v'", file, err)

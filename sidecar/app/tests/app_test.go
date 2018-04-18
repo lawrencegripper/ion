@@ -25,19 +25,23 @@ var inputMetaFilePath string
 
 //TODO: Use individual directories per test to enable parallelism
 
-var persistentBlobDir string
+var persistentInBlobDir string
+var persistentOutBlobDir string
 var persistentEventsDir string
 
 var a app.App
 var db types.MetadataProvider
 
 func TestMain(m *testing.M) {
+	eventID := "01010101"
+	parentEventID := "10101010"
 	outputBlobDir = path.Join("testdata", "out", "data")
 	inputBlobDir = path.Join("testdata", "in", "data")
 	outputEventsDir = path.Join("testdata", "out", "events")
 	outputMetaFilePath = path.Join("testdata", "out", "meta.json")
 	inputMetaFilePath = path.Join("testdata", "out", "meta.json")
-	persistentBlobDir = path.Join("testdata", "blob")
+	persistentInBlobDir = path.Join("testdata", parentEventID, "blob")
+	persistentOutBlobDir = path.Join("testdata", eventID, "blob")
 	persistentEventsDir = path.Join("testdata", "events")
 
 	var err error
@@ -46,7 +50,8 @@ func TestMain(m *testing.M) {
 		panic(fmt.Sprintf("failed to create in memory DB with error '%+v'", err))
 	}
 	blob, err := filesystem.NewBlobStorage(&filesystem.Config{
-		BaseDir: persistentBlobDir,
+		InputDir:  persistentInBlobDir,
+		OutputDir: persistentOutBlobDir,
 	})
 	if err != nil {
 		panic(fmt.Sprintf("failed to create file system storage with error '%+v'", err))
@@ -120,7 +125,7 @@ func TestCommitBlob(t *testing.T) {
 			t.Errorf("error commiting test blobs '%+v'", err)
 			continue
 		}
-		files, err := ioutil.ReadDir(persistentBlobDir)
+		files, err := ioutil.ReadDir(persistentOutBlobDir)
 		if err != nil {
 			t.Errorf("error reading blob directory '%+v'", err)
 			continue
@@ -137,11 +142,11 @@ func TestCommitBlob(t *testing.T) {
 		}
 
 		// Refresh blob directory between tests
-		_ = os.RemoveAll(persistentBlobDir)
-		_ = os.Mkdir(persistentBlobDir, 0777)
+		_ = os.RemoveAll(persistentOutBlobDir)
+		_ = os.Mkdir(persistentOutBlobDir, 0777)
 	}
 	// Clear blob directory
-	_ = os.RemoveAll(persistentBlobDir)
+	_ = os.RemoveAll(persistentOutBlobDir)
 }
 
 func TestCommitMeta(t *testing.T) {

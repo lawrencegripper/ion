@@ -3,14 +3,19 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+
 	"os"
+	"path"
 	"runtime"
 	"strings"
 
 	"github.com/containous/flaeg"
 	"github.com/lawrencegripper/ion/sidecar/app"
 	"github.com/lawrencegripper/ion/sidecar/blob/azurestorage"
+	"github.com/lawrencegripper/ion/sidecar/blob/filesystem"
+	"github.com/lawrencegripper/ion/sidecar/events/mock"
 	"github.com/lawrencegripper/ion/sidecar/events/servicebus"
+	"github.com/lawrencegripper/ion/sidecar/meta/inmemory"
 	"github.com/lawrencegripper/ion/sidecar/meta/mongodb"
 	"github.com/lawrencegripper/ion/sidecar/types"
 	log "github.com/sirupsen/logrus"
@@ -19,8 +24,10 @@ import (
 // cSpell:ignore flaeg, logrus, mongodb
 
 const (
-	defaultPort           = 8080
-	defaultWindowsBaseDir = "" // blank will result in /ion/... being used
+	defaultPort = 8080
+
+	// blank base dir will result in /ion/ being used
+	defaultWindowsBaseDir = ""
 	defaultLinuxBaseDir   = ""
 	defaultDarwinBaseDir  = ""
 )
@@ -40,8 +47,8 @@ func main() {
 			if config.PrintConfig {
 				fmt.Println(prettyPrintStruct(*config))
 			}
-			if config.SharedSecret == "" || config.Context.EventID == "" || config.Context.CorrelationID == "" {
-				return fmt.Errorf("Missing configuration. Use '--printconfig' to show current config on start")
+			if err := validateConfig(config); err != nil {
+				return err
 			}
 			runApp(config)
 			return nil
@@ -130,28 +137,49 @@ func addDefaults(c *app.Configuration) {
 	}
 }
 
+func validateConfig(c *app.Configuration) error {
+	if c.SharedSecret == "" || c.Context.EventID == "" || c.Context.CorrelationID == "" {
+		return fmt.Errorf("Missing configuration. Use '--printconfig' to show current config on start")
+	}
+	//TODO: When more providers are added,
+	// we need to check the configuration to
+	// ensure only 1 for each type is set.
+	// Alternatively, we allow multiple
+	// provider configs and just return the
+	// first we check against.
+	return nil
+}
+
 func getMetaProvider(config *app.Configuration) types.MetadataProvider {
-	metaProviders := make([]types.MetadataProvider, 0)
+	if config.Development {
+		inMemDB, err := inmemory.NewInMemoryDB()
+		if err != nil {
+			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
+		}
+		return inMemDB
+	}
 	if config.MongoDBMetaProvider != nil {
 		c := config.MongoDBMetaProvider
 		mongoDB, err := mongodb.NewMongoDB(c)
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish metadata store with provider '%s', error: %+v", types.MetaProviderMongoDB, err))
 		}
-		metaProviders = append(metaProviders, mongoDB)
+		return mongoDB
 	}
-	// Do this rather than return a subset (first) of the providers to encourage quick failure
-	if len(metaProviders) > 1 {
-		panic("Only 1 metadata provider can be supplied")
-	}
-	if len(metaProviders) == 0 {
-		panic("No metadata provider supplied, please add one.")
-	}
-	return metaProviders[0]
+	return nil
 }
 
 func getBlobProvider(config *app.Configuration) types.BlobProvider {
-	blobProviders := make([]types.BlobProvider, 0)
+	if config.Development {
+		fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
+			InputDir:  path.Join(types.DevBaseDir, config.Context.ParentEventID, "blobs"),
+			OutputDir: path.Join(types.DevBaseDir, config.Context.EventID, "blobs"),
+		})
+		if err != nil {
+			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
+		}
+		return fsBlob
+	}
 	if config.AzureBlobProvider != nil {
 		c := config.AzureBlobProvider
 		azureBlob, err := azurestorage.NewBlobStorage(c,
@@ -160,34 +188,23 @@ func getBlobProvider(config *app.Configuration) types.BlobProvider {
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
 		}
-		blobProviders = append(blobProviders, azureBlob)
+		return azureBlob
 	}
-	// Do this rather than return a subset (first) of the providers to encourage quick failure
-	if len(blobProviders) > 1 {
-		panic("Only 1 metadata provider can be supplied")
-	}
-	if len(blobProviders) == 0 {
-		panic("No metadata provider supplied, please add one.")
-	}
-	return blobProviders[0]
+	return nil
 }
 
 func getEventProvider(config *app.Configuration) types.EventPublisher {
-	eventProviders := make([]types.EventPublisher, 0)
+	if config.Development {
+		fsEvents := mock.NewEventPublisher(path.Join(types.DevBaseDir, "events"))
+		return fsEvents
+	}
 	if config.ServiceBusEventProvider != nil {
 		c := config.ServiceBusEventProvider
 		serviceBus, err := servicebus.NewServiceBus(c)
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish event publisher with provider '%s', error: %+v", types.EventProviderServiceBus, err))
 		}
-		eventProviders = append(eventProviders, serviceBus)
+		return serviceBus
 	}
-	// Do this rather than return a subset (first) of the providers to encourage quick failure
-	if len(eventProviders) > 1 {
-		panic("Only 1 metadata provider can be supplied")
-	}
-	if len(eventProviders) == 0 {
-		panic("No metadata provider supplied, please add one.")
-	}
-	return eventProviders[0]
+	return nil
 }

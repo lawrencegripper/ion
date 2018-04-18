@@ -8,25 +8,20 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"strconv"
 	"testing"
 
 	"github.com/lawrencegripper/ion/common"
 	"github.com/lawrencegripper/ion/sidecar/app"
-	"github.com/lawrencegripper/ion/sidecar/blob/azurestorage"
+	"github.com/lawrencegripper/ion/sidecar/blob/filesystem"
 	"github.com/lawrencegripper/ion/sidecar/events/mock"
-	"github.com/lawrencegripper/ion/sidecar/meta/mongodb"
+	"github.com/lawrencegripper/ion/sidecar/meta/inmemory"
 	"github.com/lawrencegripper/ion/sidecar/types"
 	"github.com/sirupsen/logrus"
 )
 
-// cSpell:ignore logrus, mongodb
+var sharedDB *inmemory.InMemoryDB
 
-var eventTypes = []string{
-	"face_detected",
-}
-
-func TestAzureIntegration(t *testing.T) {
+func TestDevIntegration(t *testing.T) {
 
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
@@ -49,52 +44,30 @@ func TestAzureIntegration(t *testing.T) {
 	inDir := path.Join(baseDir, "in")
 	inDataDir := path.Join(inDir, "data")
 	inMetaFilePath := path.Join(inDir, "meta.json")
-	inEventsDir := "mockevents"
-	inEventFilePath := path.Join(inEventsDir, "event0.json")
-
-	mongoDBPort := os.Getenv("MONGODB_PORT")
-	if mongoDBPort == "" {
-		t.Errorf("env var 'MONGODB_PORT' not set!")
-	}
-
-	port, err := strconv.ParseInt(mongoDBPort, 10, strconv.IntSize)
-	if err != nil {
-		t.Errorf("env var 'MONGODB_PORT' should be an integer!")
-	}
+	eventID := "1111111"
 
 	config := &app.Configuration{
 		SharedSecret: "secret",
 		BaseDir:      baseDir,
 		Context: &common.Context{
 			Name:          "testmodule",
-			EventID:       "1111111",
+			EventID:       eventID,
 			CorrelationID: "fish",
 			ParentEventID: "",
 		},
-		ServerPort: 8080,
-		AzureBlobProvider: &azurestorage.Config{
-			BlobAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
-			BlobAccountKey:  os.Getenv("AZURE_STORAGE_ACCOUNT_KEY"),
-			ContainerName:   "frank",
-		},
-		MongoDBMetaProvider: &mongodb.Config{
-			Name:       os.Getenv("MONGODB_NAME"),
-			Password:   os.Getenv("MONGODB_PASSWORD"),
-			Collection: os.Getenv("MONGODB_COLLECTION"),
-			Port:       int(port),
-		},
+		ServerPort:  8080,
 		PrintConfig: false,
 		LogLevel:    "Debug",
+		Development: true,
 	}
 
-	// Create Module #1
-	module1, err := createModule(config)
+	module1, err := createDevModule(config)
 	if err != nil {
 		t.Error(err)
 	}
 	defer module1.Close() // This is to ensure cleanup
 	defer func() {
-		_ = os.RemoveAll(inEventsDir) // This cleans up the local events directory created by the mock event publisher
+		_ = os.RemoveAll(types.DevBaseDir) // Clean up development files
 	}()
 
 	// Write an output image blob
@@ -131,16 +104,28 @@ func TestAzureIntegration(t *testing.T) {
 		t.Errorf("error calling ready '%+v'", err)
 	}
 
+	// Check dev.ready exists in development dir
+	readyPath := path.Join(types.DevBaseDir, eventID, "dev.ready")
+	if _, err := os.Stat(readyPath); os.IsNotExist(err) {
+		t.Errorf("dev.ready file should exist at path '%s'", readyPath)
+	}
+
 	// Done will commit the written files to external providers
 	if err := executeRequest(client, config.SharedSecret, fmt.Sprintf("%v", config.ServerPort), "done"); err != nil {
 		t.Errorf("error calling done '%+v'", err)
+	}
+
+	// Check dev.done exists in development dir
+	donePath := path.Join(types.DevBaseDir, eventID, "dev.done")
+	if _, err := os.Stat(donePath); os.IsNotExist(err) {
+		t.Errorf("dev.done file should exist at path '%s'", donePath)
 	}
 
 	// Clear local module directories
 	module1.Close()
 
 	// Hydrate event
-	b, err := ioutil.ReadFile(inEventFilePath)
+	b, err := ioutil.ReadFile(path.Join(types.DevBaseDir, config.Context.EventID, "events", "event0.json"))
 	if err != nil {
 		t.Errorf("error reading event from disk '%+v'", err)
 	}
@@ -150,10 +135,9 @@ func TestAzureIntegration(t *testing.T) {
 		t.Errorf("error unmarshalling event '%+v'", err)
 	}
 
-	// Create Module #2
 	config.Context.ParentEventID = config.Context.EventID
 	config.Context.EventID = inEvent.Context.EventID
-	module2, err := createModule(config)
+	module2, err := createDevModule(config)
 	if err != nil {
 		t.Error(err)
 	}
@@ -200,18 +184,22 @@ func TestAzureIntegration(t *testing.T) {
 	}
 }
 
-func createModule(config *app.Configuration) (*app.App, error) {
-	db, err := mongodb.NewMongoDB(config.MongoDBMetaProvider)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to mongodb with error '%+v'", err)
+func createDevModule(config *app.Configuration) (*app.App, error) {
+	if sharedDB == nil {
+		var err error
+		sharedDB, err = inmemory.NewInMemoryDB()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err)
+		}
 	}
-	blob, err := azurestorage.NewBlobStorage(config.AzureBlobProvider,
-		types.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
-		types.JoinBlobPath(config.Context.EventID, config.Context.Name))
+	fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
+		InputDir:  path.Join(types.DevBaseDir, config.Context.ParentEventID, "blobs"),
+		OutputDir: path.Join(types.DevBaseDir, config.Context.EventID, "blobs"),
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to azure storage with error '%+v'", err)
+		return nil, fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err)
 	}
-	sb := mock.NewEventPublisher("mockevents")
+	fsEvents := mock.NewEventPublisher(path.Join(types.DevBaseDir, config.Context.EventID, "events"))
 
 	logger := logrus.New()
 	logger.Out = os.Stdout
@@ -222,51 +210,13 @@ func createModule(config *app.Configuration) (*app.App, error) {
 		config.BaseDir,
 		config.Context,
 		eventTypes,
-		db,
-		sb,
-		blob,
+		sharedDB,
+		fsEvents,
+		fsBlob,
 		logger,
 		config.Development,
 	)
 
 	go a.Run(fmt.Sprintf(":%d", config.ServerPort))
 	return &a, nil
-}
-
-func writeOutputBlob(path string) error {
-	err := ioutil.WriteFile(path, []byte("image1"), 0777)
-	if err != nil {
-		return fmt.Errorf("error writing file '%s', '%+v'", path, err)
-	}
-	return nil
-}
-
-func writeOutputBytes(bytes []byte, path string) error {
-	err := ioutil.WriteFile(path, bytes, 0777)
-	if err != nil {
-		return fmt.Errorf("error writing file '%s', '%+v'", bytes, err)
-	}
-	return nil
-}
-
-func executeRequest(client *http.Client, secret, port, path string) error {
-	req, err := http.NewRequest(http.MethodGet, "http://localhost:"+port+"/"+path, nil)
-	req.Header.Set("secret", secret)
-	res, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error calling '%s' '%+v'", path, err)
-	}
-	if res.StatusCode != http.StatusOK {
-		var httpError types.ErrorResponse
-		b, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return fmt.Errorf("unknown error returned from '%s'", path)
-		}
-		err = json.Unmarshal(b, &httpError)
-		if err != nil {
-			return fmt.Errorf("unknown error returned from '%s'", path)
-		}
-		return fmt.Errorf("error returned from '%s' '%+v'", path, httpError)
-	}
-	return nil
 }
