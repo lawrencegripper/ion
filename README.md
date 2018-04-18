@@ -4,7 +4,10 @@
 
 > **Warning**: Ion is currently under initial development - please **do not** use in production and have patience whilst we flesh things out!
 
-**Ion** is a scalable, event-driven, task-oriented, processing platform. It allows you to create complex workflows as a graph of tasks. You define your control logic using programming languages so you are not constrained by a DSL or markdown language.
+**Ion** is a scalable, event-driven, task-oriented, processing platform. It allows you to create complex workflows as a graph of loosley coupled tasks. You define your control logic using programming languages so you are not constrained by a DSL or markdown language.
+
+
+![](docs/ion-toplevel-1.png)
 
 ## Goals
 * Scalable
@@ -23,11 +26,12 @@ The Ion platform is comprised of 4 main components:
 4. [Sidecar](#sidecar)
 
 ### Dispatchers
-Dispatchers can be configured to subscribe to certain event topics on an external messaging service. Multiple Dispatchers can subscribe for the same events to allow scalability. When a Dispatcher dequeues a message, it extracts requirements about the job, applies business logic rules and then optionally dispatches a new job to be scheduled onto an appropriate execution environment.
-Currently supported executors include:
-* Kubernetes
-* Azure Batch
-* Azure Container Instances (ACI) 
+Dispatchers can be configured to subscribe to certain event topics on an external messaging service. Multiple Dispatchers can subscribe for the same events to allow scalability. When a Dispatcher dequeues a message, it extracts requirements about the job, applies business logic rules and then dispatches a new job to be scheduled onto an appropriate execution environment.
+Supported executors include:
+* [Kubernetes](https://kubernetes.io/)
+* [Azure Batch](https://azure.microsoft.com/en-us/services/batch/)
+* [Azure Container Instances (ACI)](https://azure.microsoft.com/en-us/services/container-instances/) - Coming Soon
+* Local
 
 The Dispatcher uses `providers` to schedule jobs onto execution environments. If you wish to add support for a new executor, please consider writing a custom provider and submitting a PR.
 
@@ -42,18 +46,18 @@ A module is analogous to a discrete task. It is the program that the user wishes
 For more details on modules: please refer to the [Module docs](modules/README.md)
 
 ### Sidecar
-Each module is co-scheduled with a sidecar. The sidecar provides an API into the platform that the module can leverage. This includes getting data from previous modules, storing new data and publishing new events. As the sidecar is co-scheduled in a shared namespace, your module will be able to access the sidecar over `localhost`. The sidecar relies on 3 external components; a document store for metadata, a blob storage provider and a messaging system.
+Each module is co-scheduled with a sidecar. The sidecar provides a hook into the platform that the module can leverage. This includes getting data from previous modules, storing new data and publishing new events. As the sidecar is co-scheduled in a shared namespace, your module will be able to access the sidecar over `localhost`. The sidecar relies on 3 external components; a document store for metadata, a blob storage provider and a messaging system.
 Currently supported metadata stores include:
-* MongoDB
-* Azure CosmosDB
+* [MongoDB](https://www.mongodb.com/)
+* [Azure CosmosDB](https://docs.microsoft.com/en-us/azure/cosmos-db/introduction)
 * In-memory (for testing only)
 
 Currently supported blob storage providers include:
-* Azure Blob Storage
+* [Azure Blob Storage](https://azure.microsoft.com/en-gb/services/storage/)
 * FileSystem (for testing only)
 
 Currently supported messaging systems include:
-* Azure Service Bus
+* [Azure Service Bus](https://azure.microsoft.com/en-us/services/service-bus/)
 
 The components the Sidecar uses are configurable, if you wish to add support for a currently unsupported technology please review the existing components, implement the interface ensuring similar behaviour and submit a PR.
 

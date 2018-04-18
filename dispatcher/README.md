@@ -1,4 +1,82 @@
-# Testing
+# Dispatcher
+A Dispatcher is responsible for picking up events from a messaging topic and then scheduling a job using an appropriate provider i.e. Kubernetes. Once the Dispatcher has scheduled the job, it will monitor its progress until termination. Once the job is terminated, depending on its exit status, the Dispatcher will either mark the event as fulfilled or not. If an event is marked as not fulfilled or the job times out, the event will be requeued and re-processed. If this continues multiple times, the event will eventually end up being put on a dead letter queue.
+
+![](../docs/dispatcher.png)
+
+# Getting the Dispatcher
+When you're ready to dispatch your module onto an execution environment, you'll need to download the Dispatcher from the [releases page](https://github.com/lawrencegripper/ion/releases).
+
+# Running the Dispatcher
+You can run the Dispatcher locally against a Kubernetes cluster as long as you have a Kubernetes config set. Otherwise, you'll need to deploy the Dispatcher to Kubernetes so it can use the built in config.
+
+## Running the Dispatcher locally
+Once you have the Dispatcher binary, you can simply run it using one of the following commands:
+
+**Windows Powershell**
+```powershell
+.\dispatcher `
+--sidecar.azureblobprovider.blobaccountkey=<blobaccountkey> `
+--sidecar.azureblobprovider.blobaccountname=<blobaccountname> `
+--loglevel=debug `
+--modulename=<modulename> `
+--kubernetesnamespace=default `
+--sidecar.mongodbmetaprovider=true `
+--sidecar.mongodbmetaprovider.collection=<collection> `
+--sidecar.mongodbmetaprovider.name=<name> `
+--sidecar.mongodbmetaprovider.password=<password> `
+--sidecar.mongodbmetaprovider.port=10255 `
+--sidecar.serverport=8080 `
+--servicebusnamespace=<servicebusnamespace> `
+--resourcegroup=<resourcegroup> `
+--subscribestoevent=<subscribestoevent> `
+--eventspublished=<eventspublished> `
+--job.workerimage=<workerimage> `
+--job.sidecarimage=<sidecarimage> `
+--job.retrycount=0 `
+--clientid=<clientid> `
+--clientsecret=<clientsecret> `
+--tenantid=<tenantid> `
+--subscriptionid=<subscriptionid>
+```
+
+**Linux Bash**
+```bash
+./dispatcher \
+--sidecar.azureblobprovider.blobaccountkey=<blobaccountkey> \
+--sidecar.azureblobprovider.blobaccountname=<blobaccountname> \
+--loglevel=debug \
+--modulename=<modulename> \
+--kubernetesnamespace=default \
+--sidecar.mongodbmetaprovider=true \
+--sidecar.mongodbmetaprovider.collection=<collection> \
+--sidecar.mongodbmetaprovider.name=<name> \
+--sidecar.mongodbmetaprovider.password=<password> \
+--sidecar.mongodbmetaprovider.port=10255 \
+--sidecar.serverport=8080 \
+--servicebusnamespace=<servicebusnamespace> \
+--resourcegroup=<resourcegroup> \
+--subscribestoevent=<subscribestoevent> \
+--eventspublished=<eventspublished> \
+--job.workerimage=<workerimage> \
+--job.sidecarimage=<sidecarimage> \
+--job.retrycount=0 \
+--clientid=<clientid> \
+--clientsecret=<clientsecret> \
+--tenantid=<tenantid> \
+--subscriptionid=<subscriptionid>
+```
+
+## Running the Dispatcher on Kubernetes
+We've provided a [Helm](https://helm.sh/) chart to make it easy to deploy the Dispatcher to Kubernetes.
+
+> NOTE: Ensure you have helm installed on the Kubernetes cluster. Instructions on doing so are [here](https://docs.helm.sh/using_helm/#installing-helm).
+
+Simply update the `values.yaml` file inside the `dispatcher/helm/` directory with your desired configuration and then use
+helm to install the chart.
+
+`helm install -f values.yaml ./dispatcher`
+
+# Testing the Dispatcher
 
 Integration tests expect the following environment variables
 
@@ -11,8 +89,8 @@ AZURE_TENANT_ID=
 AZURE_SERVICEBUS_NAMESPACE=anExistingNamespaceNameHere
 
 ```
-
-The following vscode launch.json will kick them off. Edit the "program" property to point to your desired go package. 
+Write the above environment variables to a file such as `private.env` in the workspace root.
+Then you can use the following vscode `launch.json` to kick the tests off. Edit the "program" property to point to your desired go package. 
 
 ```json
 {
