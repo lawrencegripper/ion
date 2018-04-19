@@ -16,11 +16,13 @@ func TestIntegrationKubernetesDispatch(t *testing.T) {
 	}
 
 	config := &types.Configuration{
-		Hostname:            mockDispatcherName,
-		ModuleName:          "ModuleName",
-		SubscribesToEvent:   "ExampleEvent",
-		KubernetesNamespace: "integrationtesting-ion",
-		LogLevel:            "Debug",
+		Hostname:          mockDispatcherName,
+		ModuleName:        "ModuleName",
+		SubscribesToEvent: "ExampleEvent",
+		Kubernetes: &types.KubernetesConfig{
+			Namespace: "integrationtesting-ion",
+		},
+		LogLevel: "Debug",
 		Job: &types.JobConfig{
 			SidecarImage: "sidecarimagetest",
 			WorkerImage:  "workerimagetest",
