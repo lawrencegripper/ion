@@ -135,12 +135,6 @@
   version = "1.0.1"
 
 [[projects]]
-  name = "github.com/lawrencegripper/ion"
-  packages = ["common"]
-  revision = "b420401ad1d96c583a070fec253e59a15a24a78b"
-  version = "v0.0.1"
-
-[[projects]]
   name = "github.com/lawrencegripper/pod2docker"
   packages = ["."]
   revision = "f511a5c5eac0f95e94adcf1736d12e6de6609092"

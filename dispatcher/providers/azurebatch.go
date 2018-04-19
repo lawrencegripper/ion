@@ -189,7 +189,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		},
 	}
 
-	if b.batchConfig.ImageRepositoryServer != "" {
+	if b.batchConfig != nil && b.batchConfig.ImageRepositoryServer != "" {
 		podComponent.PullCredentials = []pod2docker.ImageRegistryCredential{
 			{
 				Server:   b.batchConfig.ImageRepositoryServer,
