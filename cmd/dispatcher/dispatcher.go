@@ -11,7 +11,7 @@ func NewDispatcherCommand() *cobra.Command {
 		Short: "ion-dispatcher: ...",
 	}
 
-	dispatcherCmd.AddCommand(NewCmdServe())
+	dispatcherCmd.AddCommand(NewCmdStart())
 
 	return dispatcherCmd
 }

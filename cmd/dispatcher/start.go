@@ -6,14 +6,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdServe() *cobra.Command {
+func NewCmdStart() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "serve",
-		//Short:
+		Use: "start",
+		Short: "Instanciate the dispatcher to process events"
 		Run: func(cmd *cobra.Command, args []string) {
+			//TODO Prepare all CLI flags & configs here and then start call Run()
+
 			dispatcher.Run()
 		},
 	}
+
+	//cmd.PersistentFlags().
 
 	return cmd
 }

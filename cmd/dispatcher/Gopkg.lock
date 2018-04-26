@@ -117,6 +117,12 @@
   version = "0.3.2"
 
 [[projects]]
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
+
+[[projects]]
   name = "github.com/joho/godotenv"
   packages = ["."]
   revision = "a79fa1e548e2c689c241d10173efd51e5d689d5b"
@@ -133,6 +139,20 @@
   packages = ["."]
   revision = "59fac5042749a5afb9af70e813da1dd5474f0167"
   version = "1.0.1"
+
+[[projects]]
+  branch = "refactor_1"
+  name = "github.com/lawrencegripper/ion"
+  packages = [
+    "internal/app/dispatcher",
+    "internal/app/dispatcher/helpers",
+    "internal/app/dispatcher/messaging",
+    "internal/app/dispatcher/providers",
+    "internal/pkg/common",
+    "internal/pkg/servicebus",
+    "internal/pkg/types"
+  ]
+  revision = "36c90497e8dd85d9b63e127d22d086eeaff91ea9"
 
 [[projects]]
   name = "github.com/lawrencegripper/pod2docker"
@@ -187,6 +207,12 @@
   packages = ["."]
   revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
   version = "v1.0.5"
+
+[[projects]]
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  revision = "a1f051bc3eba734da4772d60e2d677f47cf93ef4"
+  version = "v0.0.2"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -395,6 +421,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ce315a20d135812e305de51ceae8ac9640ddb1f78770604a2f07d018658f885e"
+  inputs-digest = "961b68186e2e87dced58d24807643975d562bf08dc90512c79827531ebbc5852"
   solver-name = "gps-cdcl"
   solver-version = 1

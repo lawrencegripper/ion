@@ -1,0 +1,6 @@
+kubernetes:
+  namespace: "default"
+
+job:
+  max_running_time_mins: 10
+  pull_always: true
