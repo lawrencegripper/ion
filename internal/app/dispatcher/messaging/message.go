@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/lawrencegripper/ion/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
 
+	log "github.com/sirupsen/logrus"
 	"pack.ag/amqp"
 )
 

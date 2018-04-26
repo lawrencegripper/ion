@@ -9,8 +9,8 @@ import (
 
 	"pack.ag/amqp"
 
-	"github.com/lawrencegripper/ion/dispatcher/helpers"
-	"github.com/lawrencegripper/ion/dispatcher/types"
+	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
+	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
 

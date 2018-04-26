@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lawrencegripper/ion/dispatcher/types"
+	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/Azure/go-autorest/autorest"

@@ -2,12 +2,13 @@ package providers
 
 import (
 	"context"
-	"github.com/lawrencegripper/ion/dispatcher/helpers"
-	"github.com/lawrencegripper/ion/dispatcher/types"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
+	"github.com/lawrencegripper/ion/internal/pkg/types"
+	log "github.com/sirupsen/logrus"
 )
 
 func init() {

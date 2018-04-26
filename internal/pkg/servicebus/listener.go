@@ -3,19 +3,18 @@ package servicebus
 import (
 	"context"
 	"fmt"
-	"github.com/Azure/go-autorest/autorest/azure"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/Azure/go-autorest/autorest/to"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2017-05-10/resources"
 	"github.com/Azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
-	"github.com/lawrencegripper/ion/dispatcher/helpers"
-	"github.com/lawrencegripper/ion/dispatcher/types"
+	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
+	"github.com/lawrencegripper/ion/internal/pkg/types"
 	"pack.ag/amqp"
 )
 

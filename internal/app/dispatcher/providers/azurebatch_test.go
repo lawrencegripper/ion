@@ -8,8 +8,8 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 
 	"github.com/Azure/azure-sdk-for-go/services/batch/2017-09-01.6.0/batch"
-	"github.com/lawrencegripper/ion/dispatcher/messaging"
-	"github.com/lawrencegripper/ion/dispatcher/types"
+	"github.com/lawrencegripper/ion/internal/app/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/internal/pkg/types"
 )
 
 const (

@@ -3,9 +3,9 @@ package providers
 import (
 	"github.com/Azure/azure-sdk-for-go/services/servicebus/mgmt/2017-04-01/servicebus"
 	"github.com/joho/godotenv"
-	"github.com/lawrencegripper/ion/common"
-	"github.com/lawrencegripper/ion/dispatcher/messaging"
-	"github.com/lawrencegripper/ion/dispatcher/types"
+	"github.com/lawrencegripper/ion/internal/app/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
+	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 
 	"os"
