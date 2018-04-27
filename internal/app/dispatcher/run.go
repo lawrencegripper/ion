@@ -2,7 +2,6 @@ package dispatcher
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -149,9 +148,4 @@ func Run() {
 	if err := flaeg.Run(); err != nil {
 		fmt.Printf("Error %s \n", err.Error())
 	}
-}
-
-func prettyPrintStruct(item interface{}) string {
-	b, _ := json.MarshalIndent(item, "", " ")
-	return string(b)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/lawrencegripper/ion/internal/pkg/tools"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 
 	log "github.com/sirupsen/logrus"
@@ -34,9 +35,16 @@ func NewDispatcherCommand() *cobra.Command {
 		Short: "ion-dispatcher: ...",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			cfg.LogLevel = viper.GetString("loglevel")
+			cfg.PrintConfig = viper.GetBool("printconfig")
+			cfg.LogSensitiveConfig = viper.GetBool("logsensitiveconfig")
 
-			if 
-			log.Println(cfg)
+			if cfg.PrintConfig {
+				if cfg.LogSensitiveConfig {
+					log.Infoln(tools.PrettyPrintStruct(cfg))
+				} else {
+					log.Infoln(tools.PrettyPrintStruct(types.RedactConfigSecrets(&cfg)))
+				}
+			}
 		},
 	}
 
@@ -54,6 +62,7 @@ func NewDispatcherCommand() *cobra.Command {
 	dispatcherCmd.PersistentFlags().String("tenantid", "", "TentantID for Azure")
 	dispatcherCmd.PersistentFlags().Bool("logsensitiveconfig", false, "Print out sensitive config when logging")
 	dispatcherCmd.PersistentFlags().String("moduleconfigpath", "", "Path to environment variables file for module")
+	dispatcherCmd.PersistentFlags().Bool("printconfig", false, "Print out sensitive config when logging")
 
 	// Read config file
 	var cfgFile string
@@ -66,6 +75,8 @@ func NewDispatcherCommand() *cobra.Command {
 
 	// Bing flags and config files
 	viper.BindPFlag("loglevel", dispatcherCmd.PersistentFlags().Lookup("loglevel"))
+	viper.BindPFlag("logsensitiveconfig", dispatcherCmd.PersistentFlags().Lookup("logsensitiveconfig"))
+	viper.BindPFlag("printconfig", dispatcherCmd.PersistentFlags().Lookup("printconfig"))
 
 	// Add sub-commands
 	dispatcherCmd.AddCommand(NewCmdStart())
