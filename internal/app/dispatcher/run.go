@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
-	"github.com/containous/flaeg"
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/messaging" //TODO couldn't it be moved into internal/pkg ?
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/providers" //TODO couldn't it be moved into internal/pkg ?
 	"github.com/lawrencegripper/ion/internal/pkg/servicebus"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
+
+	"github.com/containous/flaeg"
+	log "github.com/sirupsen/logrus"
 )
 
 func Run() {
