@@ -12,10 +12,9 @@ FROM alpine:3.7
 ARG SERVICE=dispatcher
 RUN apk --no-cache --update add \
     ca-certificates
-WORKDIR /usr/local
-COPY --from=builder /go/bin/$SERVICE ./bin
-COPY --from=builder /go/src/github.com/lawrencegripper/ion/configs ./etc
-#RUN chmod +x $SERVICE
+WORKDIR /usr/local/bin
+COPY --from=builder /go/bin/$SERVICE .
+COPY --from=builder /go/src/github.com/lawrencegripper/ion/configs ../etc
 
-# it does accept the variable ${etc_dir} in the parameters
-CMD ["./dispatcher", "--config", "/usr/local/etc"]
+# it does accept the variable $SERVICE
+CMD ["dispatcher", "--config", "/usr/local/etc"]

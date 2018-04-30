@@ -12,8 +12,8 @@ FROM alpine:3.7
 ARG SERVICE=sidecar
 RUN apk --no-cache --update add \
     ca-certificates
-WORKDIR /usr/local
-COPY --from=builder /go/bin/$SERVICE ./bin
+WORKDIR /usr/local/bin
+COPY --from=builder /go/bin/$SERVICE .
 
-# it does accept the variable ${etc_dir} in the parameters
-CMD ["./sidecar"]
+# it does accept the variable $SERVICE
+CMD ["sidecar"]
