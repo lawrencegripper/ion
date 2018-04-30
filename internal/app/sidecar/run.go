@@ -43,7 +43,7 @@ func Run(config app.Configuration) error {
 	logger.Out = os.Stdout
 
 	if config.LogFile != "" {
-		file, err := os.OpenFile("test.log", os.O_CREATE|os.O_WRONLY, 0666)
+		file, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY, 0666)
 		if err == nil {
 			logger.Out = file
 		} else {

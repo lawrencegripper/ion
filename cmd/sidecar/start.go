@@ -16,8 +16,15 @@ func NewStartCommand() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "start",
 		Short: "ion-sidecar to embed in the processing",
-		RunE:  func(cmd *cobra.Command, args []string) error { return sidecar.Run(config) },
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			// check emptyness of required parameters
+			arr := []string{"azure-name", "azure-key", "azure-container", "mongo-name", "mongo-db", "bus-namespace", "bus-topic", "bus-key", "bus-rule-name"}
+			for _, v := range arr {
+				if sidecarCmdConfig.GetString(v) == "" {
+					return errors.New("The parameter \"" + v + "\" cannot be empty")
+				}
+			}
+
 			sidecarConfig.BaseDir = sidecarCmdConfig.GetString("base-dir")
 			sidecarConfig.Context.Name = sidecarCmdConfig.GetString("module-name")
 			sidecarConfig.ServerPort = sidecarCmdConfig.GetInt("port")
@@ -36,19 +43,13 @@ func NewStartCommand() *cobra.Command {
 			sidecarConfig.ServiceBusEventProvider.Key = sidecarCmdConfig.GetString("bus-key")
 			sidecarConfig.ServiceBusEventProvider.AuthorizationRuleName = sidecarCmdConfig.GetString("bus-rule-name")
 
-			// check emptyness of required parameters
-			arr := []string{"azure-name", "azure-key", "azure-container", "mongo-name", "mongo-db", "bus-namespace", "bus-topic", "bus-key", "bus-rule-name"}
-			for _, v := range arr {
-				if sidecarCmdConfig.GetString(v) == "" {
-					return errors.New("The parameter \"" + v + "\" cannot be empty")
-				}
-			}
-
 			if sidecarConfig.PrintConfig {
 				fmt.Println(tools.PrettyPrintStruct(sidecarConfig))
 			}
+
 			return nil
 		},
+		Run: func(cmd *cobra.Command, args []string) { sidecar.Run(config) },
 	}
 
 	flags := cmd.PersistentFlags()

@@ -22,8 +22,9 @@ func NewSidecarCommand() *cobra.Command {
 			sidecarConfig.LogLevel = sidecarCmdConfig.GetString("log-level")
 			sidecarConfig.Development = sidecarCmdConfig.GetBool("development")
 			sidecarConfig.PrintConfig, _ = cmd.Flags().GetBool("printconfig")
+
 			if sidecarConfig.LogLevel != "debug" && sidecarConfig.LogLevel != "info" && sidecarConfig.LogLevel != "warn" && sidecarConfig.LogLevel != "error" {
-				return errors.New("Unkown log level = " + sidecarConfig.LogLevel)
+				return errors.New("Unkown log level: " + sidecarConfig.LogLevel)
 			}
 
 			return nil
