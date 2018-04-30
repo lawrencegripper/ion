@@ -36,6 +36,7 @@ type Configuration struct {
 	TenantID            string            `yaml:"tenantid"`
 	LogSensitiveConfig  bool              `yaml:"logsensitiveconfig"`
 	ModuleConfigPath    string            `yaml:"moduleconfigpath"`
+	PrintConfig         bool              `yaml:"printconfig"`
 	Kubernetes          *KubernetesConfig `yaml:"kubernetes"`
 	Job                 *JobConfig        `yaml:"job"`
 	Sidecar             *SidecarConfig    `yaml:"sidecar"`
