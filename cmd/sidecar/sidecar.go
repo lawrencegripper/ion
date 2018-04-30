@@ -37,7 +37,7 @@ func NewSidecarCommand() *cobra.Command {
 	flags := cmd.PersistentFlags()
 
 	flags.StringP("logfile", "L", "", "File to log output to")
-	flags.StringP("loglevel", "l", "", "Logging level, possible values {debug, info, warn, error}")
+	flags.StringP("loglevel", "l", "warn", "Logging level, possible values {debug, info, warn, error}")
 	flags.BoolP("development", "d", false, "A flag to enable development features")
 	flags.BoolP("printconfig", "P", false, "Set to print config on start")
 
