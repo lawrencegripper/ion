@@ -4,9 +4,7 @@ services:
 - docker
 
 script:
-- chmod +x ci.sh && sudo ./ci.sh
-# Only deploy docker images on master
-- if [ "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" = "master" ]; then chmod +x cd.sh && sudo ./cd.sh; fi
+- make
 
 env:
   global:
