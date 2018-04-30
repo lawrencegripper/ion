@@ -24,6 +24,7 @@ var cfg = types.Configuration{
 	},
 	AzureBatch: &types.AzureBatchConfig{},
 }
+var cfgFile string
 
 // NewDispatcherCommand return cobra.Command to run ion-disptacher commands
 func NewDispatcherCommand() *cobra.Command {
@@ -31,6 +32,13 @@ func NewDispatcherCommand() *cobra.Command {
 		Use:   "dispatcher",
 		Short: "dispatcher: ...",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Read config file
+			viper.SetConfigFile(cfgFile)
+			if err := viper.ReadInConfig(); err != nil {
+				log.WithError(err).Errorln("Can't read config")
+				os.Exit(1)
+			}
+
 			// Fill config with global settings
 			cfg.LogLevel = viper.GetString("loglevel")
 			cfg.ModuleName = viper.GetString("modulename")
@@ -97,6 +105,7 @@ func NewDispatcherCommand() *cobra.Command {
 	}
 
 	// Add 'dispatcher' flags
+	dispatcherCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "../../configs/dispatcher.yaml", "Config file path")
 	dispatcherCmd.PersistentFlags().StringP("loglevel", "l", "warn", "Log level (debug|info|warn|error)")
 	dispatcherCmd.PersistentFlags().String("modulename", "", "Name of the module")
 	dispatcherCmd.PersistentFlags().String("subscribestoevent", "", "Event this modules subscribes to")
@@ -105,7 +114,7 @@ func NewDispatcherCommand() *cobra.Command {
 	dispatcherCmd.PersistentFlags().String("resourcegroup", "", "Azure ResourceGroup to use")
 	dispatcherCmd.PersistentFlags().Bool("logsensitiveconfig", false, "Print out sensitive config when logging")
 	dispatcherCmd.PersistentFlags().String("moduleconfigpath", "", "Path to environment variables file for module")
-	dispatcherCmd.PersistentFlags().Bool("printconfig", false, "Print out config when starting")
+	dispatcherCmd.PersistentFlags().BoolP("printconfig", "P", false, "Print out config when starting")
 	// kubernetes.*
 	dispatcherCmd.PersistentFlags().String("kubernetes.namespace", "default", "The Kubernetes namespace in which jobs will be created")
 	dispatcherCmd.PersistentFlags().String("kubernetes.imagepullsecretname", "", "")
@@ -139,15 +148,6 @@ func NewDispatcherCommand() *cobra.Command {
 
 	// Mark required flags (won't mark required setting, onyl CLI flag presence will be checked)
 	//dispatcherCmd.MarkPersistentFlagRequired("")
-
-	// Read config file
-	var cfgFile string
-	dispatcherCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "../../configs/dispatcher.yaml", "Config file path")
-	viper.SetConfigFile(cfgFile)
-	if err := viper.ReadInConfig(); err != nil {
-		log.WithError(err).Errorln("Can't read config")
-		os.Exit(1)
-	}
 
 	// Bind flags and config file values
 	viper.BindPFlag("loglevel", dispatcherCmd.PersistentFlags().Lookup("loglevel"))
