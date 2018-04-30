@@ -1,0 +1,2 @@
+all:
+	docker build -f build/dispatcher/Dockerfile -t ion-dispatcher .
