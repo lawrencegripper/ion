@@ -25,6 +25,7 @@ type Configuration struct {
 	Development             bool                 `description:"A flag to enable development features"`
 }
 
+// NewConfiguration create an empty config
 func NewConfiguration() Configuration {
 	cfg := Configuration{}
 	cfg.Context = &common.Context{}
