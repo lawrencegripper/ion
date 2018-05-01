@@ -3,7 +3,7 @@ FROM golang:1.10 AS builder
 ARG SERVICE=dispatcher
 COPY . /go/src/github.com/lawrencegripper/ion
 WORKDIR /go/src/github.com/lawrencegripper/ion/cmd/$SERVICE
-RUN go get -insecure -d -v
+RUN go get -d -v
 RUN rm -rf /go/src/github.com/lawrencegripper/pod2docker/vendor
 RUN CGO_ENABLED=0 GOOS=linux go install -a -installsuffix cgo  -v
 
