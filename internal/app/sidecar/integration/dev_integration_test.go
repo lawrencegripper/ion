@@ -10,12 +10,12 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/lawrencegripper/ion/common"
-	"github.com/lawrencegripper/ion/sidecar/app"
-	"github.com/lawrencegripper/ion/sidecar/blob/filesystem"
-	"github.com/lawrencegripper/ion/sidecar/events/mock"
-	"github.com/lawrencegripper/ion/sidecar/meta/inmemory"
-	"github.com/lawrencegripper/ion/sidecar/types"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/app"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/blob/filesystem"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/events/mock"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/meta/inmemory"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/types"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"github.com/sirupsen/logrus"
 )
 

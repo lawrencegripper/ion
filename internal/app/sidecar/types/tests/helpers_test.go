@@ -6,7 +6,7 @@ import (
 	"path"
 	"testing"
 
-	. "github.com/lawrencegripper/ion/sidecar/types"
+	. "github.com/lawrencegripper/ion/internal/app/sidecar/types"
 )
 
 func TestIsValidEvent(t *testing.T) {
