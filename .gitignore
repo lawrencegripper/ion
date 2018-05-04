@@ -1,2 +1,7 @@
+.directory
+build/dispatcher/dispatcher
+build/sidecar/ion-sidecar
+cmd/dispatcher/dispatcher
+cmd/sidecar/sidecar
 tools/publishevent/main.go
 tools/publishevent/publishevent
