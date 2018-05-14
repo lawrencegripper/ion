@@ -20,7 +20,7 @@ func TestIntegrationKubernetesDispatch(t *testing.T) {
 		ModuleName:        "ModuleName",
 		SubscribesToEvent: "ExampleEvent",
 		Kubernetes: &types.KubernetesConfig{
-			Namespace: "integrationtesting-ion",
+			Namespace: "default",
 		},
 		LogLevel: "Debug",
 		Job: &types.JobConfig{
@@ -39,9 +39,7 @@ func TestIntegrationKubernetesDispatch(t *testing.T) {
 		t.FailNow()
 	}
 
-	message := MockMessage{
-		MessageID: helpers.RandomName(12),
-	}
+	message := newNoOpMockMessage(helpers.RandomName(12))
 
 	err = p.Dispatch(message)
 	if err != nil {
