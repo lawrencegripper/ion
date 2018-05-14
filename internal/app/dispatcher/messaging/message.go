@@ -54,15 +54,15 @@ func (m *AmqpMessage) Body() interface{} {
 
 // Accept mark the message as processed successfully (don't re-queue)
 func (m *AmqpMessage) Accept() error {
+	m.OriginalMessage.Modify(true, false, nil)
 	m.OriginalMessage.Accept()
 	return nil
 }
 
 // Reject mark message to be requeued
 func (m *AmqpMessage) Reject() error {
-	// Todo: fix this!
-	log.Error("WARNING: REJECTED message doesn't correctly increment delivery count")
-	m.OriginalMessage.Reject()
+	m.OriginalMessage.Modify(true, false, nil)
+	m.OriginalMessage.Release()
 	return nil
 }
 

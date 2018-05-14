@@ -560,12 +560,11 @@
     ".",
     "internal/testconn"
   ]
-  revision = "fba4c617049c3049d8bc7ba9879daca1a1a2044e"
-  version = "v0.4.1"
+  revision = "75839e292c516e6e4304d0a904534fcc65b8a84d"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bb15c169deb1edfdab4115a3d8752de79e4985b75b149984aa2a2bab5db7efe4"
+  inputs-digest = "5d2ef82e8df542dba093c444f36e5b972417304389aa92a1f4673c93d388eb66"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -5,3 +5,4 @@ cmd/dispatcher/dispatcher
 cmd/sidecar/sidecar
 tools/publishevent/main.go
 tools/publishevent/publishevent
+**/debug.test

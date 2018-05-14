@@ -83,7 +83,8 @@
 
 [[constraint]]
   name = "pack.ag/amqp"
-  version = "0.4.1"
+  #PR with message disposition: https://github.com/vcabbage/amqp/pull/97/commits
+  revision = "75839e292c516e6e4304d0a904534fcc65b8a84d" 
 
 [prune]
   go-tests = true

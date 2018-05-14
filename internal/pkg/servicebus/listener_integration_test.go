@@ -42,12 +42,6 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		t.Errorf("Paniced: %v", prettyPrintStruct(r))
-	// 	}
-	// }()
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
@@ -101,19 +95,10 @@ func TestIntegrationNewListener(t *testing.T) {
 	}
 }
 
-// todo: Fix this integration test
-// Currently calling reject causes the message to be deadlettered in SB and never redelivered.
-// dispite the fact it's delivery count is under the maxDeliveryCount value.
 func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
 	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Paniced: %v", prettyPrintStruct(r))
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
@@ -131,16 +116,17 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 		t.Error(err)
 	}
 
-	for index := 0; index < 5; index++ {
+	for index := 0; index < 6; index++ {
 		message, err := listener.AmqpReceiver.Receive(ctx)
 		if err != nil {
 			t.Error(err)
 		}
 
-		// if message.Header.DeliveryCount != 0 {
-		// 	t.Error("first delivery has wrong count")
-		// }
+		if message.Header.DeliveryCount != uint32(index) {
+			t.Logf("Delivery count: Got %v Expected %v", message.Header.DeliveryCount, index)
+		}
 
+		message.Modify(true, false, nil)
 		message.Release()
 	}
 
@@ -154,17 +140,6 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	} else {
 		t.Error("message delivered a 6th time - after 5 should be deadlettered")
 	}
-
-	// if messageSecondDelivery.Value != message.Value {
-	// 	t.Error("redelivered message value different from original")
-	// }
-
-	// // Todo: Currently unable to handle this here. Release doesn't increment the deliverycount reject deadletters the message
-	// if messageSecondDelivery.Header.DeliveryCount != 1 {
-	// 	t.Errorf("Expected DeliveryCount of 1 Has: %v", messageSecondDelivery.Header.DeliveryCount)
-	// }
-
-	// messageSecondDelivery.Accept()
 }
 
 // createAmqpSender exists for e2e testing.
