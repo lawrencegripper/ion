@@ -41,7 +41,7 @@ func Run(cfg *types.Configuration) {
 	var wg sync.WaitGroup
 
 	wg.Add(2)
-	go func(wg *sync.WaitGroup) {
+	go func() {
 		defer wg.Done()
 		for {
 			message, err := listener.AmqpReceiver.Receive(ctx)
@@ -57,16 +57,21 @@ func Run(cfg *types.Configuration) {
 
 			log.WithField("message", message).Debug("message received")
 
-			err = provider.Dispatch(messaging.NewAmqpMessageWrapper(message))
+			wrapper := messaging.NewAmqpMessageWrapper(message)
+			if wrapper.DeliveryCount() > cfg.Job.RetryCount+1 {
+				log.WithField("message", message).Error("message re-received when above retryCount. AMQP provider wrongly redelivered message.")
+				wrapper.Reject("message re-received when above retryCount")
+			}
+			err = provider.Dispatch(wrapper)
 			if err != nil {
 				log.WithError(err).Error("Couldn't dispatch message to kubernetes provider")
 			}
 
 			log.WithField("message", message).Debug("message dispatched")
 		}
-	}(&wg)
+	}()
 
-	go func(wg *sync.WaitGroup) {
+	go func() {
 		defer wg.Done()
 		for {
 			log.Debug("reconciling...")
@@ -78,7 +83,7 @@ func Run(cfg *types.Configuration) {
 			}
 			time.Sleep(time.Second * 15)
 		}
-	}(&wg)
+	}()
 	wg.Wait()
 
 	//init flaeg

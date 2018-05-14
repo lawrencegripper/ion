@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/Azure/go-autorest/autorest/azure"
 
@@ -320,7 +321,26 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		if t.State != batch.TaskStateCompleted {
-			// Todo: Handle max execution time here
+			expiresInDuration := time.Minute * time.Duration(b.jobConfig.MaxRunningTimeMins)
+			if t.CreationTime.Add(expiresInDuration).After(time.Now().UTC()) {
+				log.WithFields(log.Fields{
+					"message": sourceMessage,
+					"task":    t,
+				}).Warning("task over maxRunningTime - Removing")
+
+				//Remove the task from batch
+				_, err := b.removeTask(&t)
+				if err != nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove EXPIRED task from batch")
+				}
+
+				err = sourceMessage.Reject()
+
+				//Remove the message from the inflight message store
+				delete(b.inprogressJobStore, messageID)
+				continue
+			}
+
 			log.WithFields(log.Fields{
 				"message": sourceMessage,
 				"task":    t,
