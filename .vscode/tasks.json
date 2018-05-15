@@ -9,7 +9,7 @@
             "options": {
                 "cwd": "${workspaceRoot}"
             },
-            "command": "export $(cat ./.vscode/private.env | xargs) && go test -timeout 5m -v ./internal/app/dispatcher/providers",
+            "command": "export $(cat ./.vscode/private.env | xargs) && go test -timeout 15m -v ./internal/app/dispatcher/providers",
             "problemMatcher": [
                 "$go"
             ]

@@ -24,6 +24,7 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 	testCases := []struct {
 		name                  string
 		dockerimage           string
+		maxExecutionTimeMins  int
 		expectedExitCode      int32
 		expectMessageAccepted bool
 		expectMessageRejected bool
@@ -33,12 +34,21 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 			dockerimage:           "lawrencegripper/busyboxecho",
 			expectedExitCode:      0,
 			expectMessageAccepted: true,
+			maxExecutionTimeMins:  5,
+		},
+		{
+			name:                  "exceedMaxExecTime_module",
+			dockerimage:           "kubernetes/pause",
+			expectedExitCode:      -2,
+			expectMessageRejected: true,
+			maxExecutionTimeMins:  1,
 		},
 		{
 			name:                  "failing_module",
 			dockerimage:           "imagethatdoesntexist",
 			expectedExitCode:      125,
-			expectMessageAccepted: false,
+			expectMessageRejected: true,
+			maxExecutionTimeMins:  5,
 		},
 	}
 
@@ -56,8 +66,9 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 				SubscriptionID:    os.Getenv("AZURE_SUBSCRIPTION_ID"),
 				TenantID:          os.Getenv("AZURE_TENANT_ID"),
 				Job: &types.JobConfig{
-					SidecarImage: test.dockerimage,
-					WorkerImage:  test.dockerimage,
+					SidecarImage:       test.dockerimage,
+					WorkerImage:        test.dockerimage,
+					MaxRunningTimeMins: test.maxExecutionTimeMins,
 				},
 				AzureBatch: &types.AzureBatchConfig{
 					BatchAccountLocation: os.Getenv("AZURE_BATCH_ACCOUNT_LOCATION"),
@@ -92,13 +103,17 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			waitCtx, cancel := context.WithTimeout(ctx, time.Minute*4)
+			waitCtx, cancel := context.WithTimeout(ctx, time.Minute*2)
 			defer cancel()
 
+		loop:
 			for {
-				if _, ok := waitCtx.Deadline(); !ok {
-					t.Log("Timedout")
-					break
+				select {
+				case <-waitCtx.Done():
+					t.Log("Timed-out")
+					break loop
+				default:
+					t.Log("Checking Task")
 				}
 
 				log.Info("Checking for completed task")

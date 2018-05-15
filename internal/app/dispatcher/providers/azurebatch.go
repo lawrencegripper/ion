@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/Azure/go-autorest/autorest/azure"
 
@@ -212,6 +211,9 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		DisplayName: to.StringPtr(fmt.Sprintf("%s:%s", b.dispatcherName, message.ID())),
 		ID:          to.StringPtr(message.ID()),
 		CommandLine: to.StringPtr(fmt.Sprintf(`/bin/bash -c "%s"`, podCommand)),
+		Constraints: &batch.TaskConstraints{
+			MaxWallClockTime: to.StringPtr(fmt.Sprintf("PT%dM", b.jobConfig.MaxRunningTimeMins)),
+		},
 		UserIdentity: &batch.UserIdentity{
 			AutoUser: &batch.AutoUserSpecification{
 				ElevationLevel: batch.Admin,
@@ -303,7 +305,7 @@ func (b *AzureBatch) Reconcile() error {
 					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")
 				}
 
-				//ACK the message to remove from queue
+				//ACK the message to requeue failure
 				err = sourceMessage.Reject()
 
 				if err != nil {
@@ -321,26 +323,6 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		if t.State != batch.TaskStateCompleted {
-			expiresInDuration := time.Minute * time.Duration(b.jobConfig.MaxRunningTimeMins)
-			if t.CreationTime.Add(expiresInDuration).After(time.Now().UTC()) {
-				log.WithFields(log.Fields{
-					"message": sourceMessage,
-					"task":    t,
-				}).Warning("task over maxRunningTime - Removing")
-
-				//Remove the task from batch
-				_, err := b.removeTask(&t)
-				if err != nil {
-					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove EXPIRED task from batch")
-				}
-
-				err = sourceMessage.Reject()
-
-				//Remove the message from the inflight message store
-				delete(b.inprogressJobStore, messageID)
-				continue
-			}
-
 			log.WithFields(log.Fields{
 				"message": sourceMessage,
 				"task":    t,
