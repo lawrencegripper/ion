@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lawrencegripper/ion/internal/app/dispatcher/messaging" //TODO couldn't it be moved into internal/pkg ?
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/providers" //TODO couldn't it be moved into internal/pkg ?
+	"github.com/lawrencegripper/ion/internal/pkg/messaging"            //TODO couldn't it be moved into internal/pkg ?
 	"github.com/lawrencegripper/ion/internal/pkg/servicebus"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 
@@ -60,7 +60,7 @@ func Run(cfg *types.Configuration) {
 			wrapper := messaging.NewAmqpMessageWrapper(message)
 			if wrapper.DeliveryCount() > cfg.Job.RetryCount+1 {
 				log.WithField("message", message).Error("message re-received when above retryCount. AMQP provider wrongly redelivered message.")
-				wrapper.Reject("message re-received when above retryCount")
+				wrapper.Reject()
 			}
 			err = provider.Dispatch(wrapper)
 			if err != nil {

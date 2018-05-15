@@ -10,6 +10,7 @@ import (
 	"pack.ag/amqp"
 
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
+	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -71,14 +72,16 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Fail()
 	}
 
-	message, err := listener.AmqpReceiver.Receive(ctx)
+	amqpMessage, err := listener.AmqpReceiver.Receive(ctx)
 	if err != nil {
 		t.Error(err)
 	}
 
+	message := messaging.NewAmqpMessageWrapper(amqpMessage)
+
 	message.Accept()
-	if message.Value != nonce {
-		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Value)
+	if message.Body().(string) != nonce {
+		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Body())
 	}
 
 	depth, err = listener.GetQueueDepth()
@@ -117,17 +120,20 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	}
 
 	for index := 0; index < 6; index++ {
-		message, err := listener.AmqpReceiver.Receive(ctx)
+		amqpMessage, err := listener.AmqpReceiver.Receive(ctx)
+		message := messaging.NewAmqpMessageWrapper(amqpMessage)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if message.Header.DeliveryCount != uint32(index) {
-			t.Logf("Delivery count: Got %v Expected %v", message.Header.DeliveryCount, index)
+		if message.DeliveryCount() != index {
+			t.Logf("Delivery count: Got %v Expected %v", message.DeliveryCount(), index)
 		}
 
-		message.Modify(true, false, nil)
-		message.Release()
+		err = message.Reject()
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	checkUntil := time.Now().Add(time.Second * 3)

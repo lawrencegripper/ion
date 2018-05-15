@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lawrencegripper/ion/internal/app/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 
 	"github.com/Azure/go-autorest/autorest/to"
 

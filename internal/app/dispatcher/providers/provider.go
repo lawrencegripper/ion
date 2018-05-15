@@ -1,6 +1,6 @@
 package providers
 
-import "github.com/lawrencegripper/ion/internal/app/dispatcher/messaging"
+import "github.com/lawrencegripper/ion/internal/pkg/messaging"
 
 // Provider is the interface a compute provider must fullfil to schedule and reconsile jobs
 type Provider interface {
