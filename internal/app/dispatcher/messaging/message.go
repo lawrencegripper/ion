@@ -54,7 +54,6 @@ func (m *AmqpMessage) Body() interface{} {
 
 // Accept mark the message as processed successfully (don't re-queue)
 func (m *AmqpMessage) Accept() error {
-	m.OriginalMessage.Modify(true, false, nil)
 	m.OriginalMessage.Accept()
 	return nil
 }
@@ -62,7 +61,6 @@ func (m *AmqpMessage) Accept() error {
 // Reject mark message to be requeued
 func (m *AmqpMessage) Reject() error {
 	m.OriginalMessage.Modify(true, false, nil)
-	m.OriginalMessage.Release()
 	return nil
 }
 
