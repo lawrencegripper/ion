@@ -3,6 +3,7 @@ package providers
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
@@ -24,8 +25,9 @@ func TestIntegrationKubernetesDispatch(t *testing.T) {
 		},
 		LogLevel: "Debug",
 		Job: &types.JobConfig{
-			SidecarImage: "sidecarimagetest",
-			WorkerImage:  "workerimagetest",
+			SidecarImage:       "sidecarimagetest",
+			WorkerImage:        "workerimagetest",
+			MaxRunningTimeMins: 1,
 		},
 		Sidecar: &types.SidecarConfig{
 			ServerPort:  1377,
@@ -70,4 +72,59 @@ func TestIntegrationKubernetesDispatch(t *testing.T) {
 		t.Error("Expected to only find 1 job")
 	}
 
+}
+
+func TestIntegrationKubernetesDispatch_MaxExecutionTime(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
+
+	config := &types.Configuration{
+		Hostname:          mockDispatcherName,
+		ModuleName:        "ModuleName",
+		SubscribesToEvent: "ExampleEvent",
+		Kubernetes: &types.KubernetesConfig{
+			Namespace: "default",
+		},
+		LogLevel: "Debug",
+		Job: &types.JobConfig{
+			SidecarImage:       "kubernetes/pause",
+			WorkerImage:        "kubernetes/pause",
+			MaxRunningTimeMins: 1,
+		},
+		Sidecar: &types.SidecarConfig{
+			ServerPort:  1377,
+			PrintConfig: true,
+		},
+	}
+
+	p, err := NewKubernetesProvider(config, []string{"-examplearg1=1"})
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	message := newNoOpMockMessage(helpers.RandomName(12))
+	wasRejected := false
+	message.Rejected = func() {
+		wasRejected = true
+	}
+
+	err = p.Dispatch(message)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	time.Sleep(time.Minute * 2)
+
+	err = p.Reconcile()
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	if !wasRejected {
+		t.Error("Message wasn't rejected. Expected job to have timedout and been rejected")
+	}
 }
