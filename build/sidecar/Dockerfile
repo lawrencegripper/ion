@@ -18,4 +18,4 @@ WORKDIR /usr/local/bin
 COPY --from=builder /go/bin/$SERVICE .
 
 # it does accept the variable $SERVICE
-CMD ["sidecar"]
+ENTRYPOINT ["sidecar"]

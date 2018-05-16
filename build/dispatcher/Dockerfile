@@ -19,4 +19,4 @@ COPY --from=builder /go/bin/$SERVICE .
 COPY --from=builder /go/src/github.com/lawrencegripper/ion/configs ../etc
 
 # it does accept the variable $SERVICE
-CMD ["dispatcher", "--config", "/usr/local/etc"]
+ENTRYPOINT ["dispatcher", "--config", "/usr/local/etc"]
