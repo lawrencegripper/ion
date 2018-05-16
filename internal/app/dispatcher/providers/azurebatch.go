@@ -11,7 +11,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
-	"github.com/lawrencegripper/ion/internal/app/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	"github.com/lawrencegripper/pod2docker"
 	log "github.com/sirupsen/logrus"
@@ -211,6 +211,9 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		DisplayName: to.StringPtr(fmt.Sprintf("%s:%s", b.dispatcherName, message.ID())),
 		ID:          to.StringPtr(message.ID()),
 		CommandLine: to.StringPtr(fmt.Sprintf(`/bin/bash -c "%s"`, podCommand)),
+		Constraints: &batch.TaskConstraints{
+			MaxWallClockTime: to.StringPtr(fmt.Sprintf("PT%dM", b.jobConfig.MaxRunningTimeMins)),
+		},
 		UserIdentity: &batch.UserIdentity{
 			AutoUser: &batch.AutoUserSpecification{
 				ElevationLevel: batch.Admin,
@@ -302,7 +305,7 @@ func (b *AzureBatch) Reconcile() error {
 					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")
 				}
 
-				//ACK the message to remove from queue
+				//ACK the message to requeue failure
 				err = sourceMessage.Reject()
 
 				if err != nil {
@@ -320,7 +323,6 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		if t.State != batch.TaskStateCompleted {
-			// Todo: Handle max execution time here
 			log.WithFields(log.Fields{
 				"message": sourceMessage,
 				"task":    t,

@@ -12,11 +12,6 @@ if ! type 'docker' > /dev/null; then
   exit 1
 fi
 
-if ! type 'jq' > /dev/null; then
-  echo 'jq not installed... exiting'
-  exit 1
-fi
-
 {{/* Vars */}}
 {{$podName := .PodName}}
 {{$volumes := .Volumes}}
@@ -30,9 +25,12 @@ function cleanup(){
     {{/* Take a copy of the container log is removed when container is deleted */}}
     echo 'Pod Exited: Copying logs'    
     {{range $index, $container := .Containers}}
-    container_{{$index}}_ID=$(<./container-{{$index}}.cid)
-    container_{{$index}}_Log_Path=$(docker inspect --format='{{"{{.LogPath}}"}}' $container_{{$index}}_ID)
-    cp $container_{{$index}}_Log_Path ./{{$container.Name}}.log
+    if [ -f ./{{$container.Name}}.log ]; then
+        container_{{$index}}_ID=$(<./container-{{$index}}.cid)
+        container_{{$index}}_Log_Path=$(docker inspect --format='{{"{{.LogPath}}"}}' $container_{{$index}}_ID)
+        rm ./{{$container.Name}}.log {{/* Remove the existing symlink */}}
+        cp $container_{{$index}}_Log_Path ./{{$container.Name}}.log
+    fi
     {{end}}
 
     {{/* Remove the containers, network and volumes */}}
@@ -119,11 +117,15 @@ overallExitCode=0
 for line in ` + "`ls container-*`" + `
 do    
     id=$(cat $line) 
-    exitCode=$(docker inspect $id | jq '.[].State.ExitCode')
+    echo 'Getting exitcode'
+    exitCode=$(docker inspect -f {{"{{.State.ExitCode}}"}} $id)
+    
     echo 'ID: ' $id ' ExitCode: ' $exitCode
-    if [ $exitCode -ne 0 ]
+    echo 'Checking exitcode'
+    if (($exitCode != 0))
     then
-        $overallExitCode=$exitCode
+        echo 'Assigning exitcode'
+        overallExitCode=$exitCode
     fi
 done
 
