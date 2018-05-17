@@ -36,9 +36,9 @@ func TestMain(m *testing.M) {
 
 	eventID := "01010101"
 	parentEventID := "10101010"
-	persistentInBlobDir = filepath.FromSlash(fmt.Sprintf("testdata/%s/blob", parentEventID))
-	persistentOutBlobDir = filepath.FromSlash(fmt.Sprintf("testdata/%s/blob", eventID))
-	persistentEventsDir = filepath.FromSlash("testdata/events")
+	persistentInBlobDir = filepath.FromSlash(fmt.Sprintf("%s/%s/blob", testdata, parentEventID))
+	persistentOutBlobDir = filepath.FromSlash(fmt.Sprintf("%s/%s/blob", testdata, eventID))
+	persistentEventsDir = filepath.FromSlash(fmt.Sprintf("%s/events", testdata))
 	eventTypes = append(eventTypes, "test_events")
 
 	// Create mock dataplane...
@@ -87,6 +87,7 @@ func TestMain(m *testing.M) {
 
 	c.Close()
 	_ = os.RemoveAll(testdata)
+	_ = os.Remove(".memdb")
 	os.Exit(exitCode)
 }
 
@@ -144,6 +145,7 @@ func TestCommitBlob(t *testing.T) {
 	}
 	// Clear blob directory
 	_ = os.RemoveAll(persistentOutBlobDir)
+	RefreshTempOutputs()
 }
 
 func TestCommitMeta(t *testing.T) {
@@ -182,6 +184,7 @@ func TestCommitMeta(t *testing.T) {
 		}
 		_ = os.Remove(environment.OutputMetaFilePath)
 	}
+	RefreshTempOutputs()
 }
 
 func TestCommitEvents(t *testing.T) {
@@ -296,4 +299,16 @@ func TestCommitEvents(t *testing.T) {
 
 	}
 	_ = os.RemoveAll(persistentEventsDir)
+	RefreshTempOutputs()
+}
+
+func RefreshTempOutputs() {
+	_ = os.RemoveAll(environment.OutputBlobDirPath)
+	_ = os.RemoveAll(environment.OutputEventsDirPath)
+	_ = os.Remove(environment.OutputMetaFilePath)
+
+	_ = os.Mkdir(environment.OutputBlobDirPath, 0777)
+	_ = os.Mkdir(environment.OutputEventsDirPath, 0777)
+	f, _ := os.Create(environment.OutputMetaFilePath)
+	defer f.Close()
 }
