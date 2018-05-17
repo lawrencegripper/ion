@@ -189,7 +189,7 @@ func TestFailedDispatchRejectsMessage(t *testing.T) {
 	}
 }
 
-func TestDispatchedJobConfiguration(t *testing.T) {
+func TestK8s_DispatchedJobConfiguration(t *testing.T) {
 	inMemMockJobStore := []batchv1.Job{}
 
 	create := func(b *batchv1.Job) (*batchv1.Job, error) {
@@ -223,7 +223,7 @@ func TestDispatchedJobConfiguration(t *testing.T) {
 	CheckPodSetup(t, job, k.jobConfig.SidecarImage, k.jobConfig.WorkerImage)
 
 	//Check env vars
-	workerEnvVar := job.Spec.Template.Spec.Containers[1].Env[1]
+	workerEnvVar := job.Spec.Template.Spec.InitContainers[1].Env[1]
 	if workerEnvVar.Name != "thing" && workerEnvVar.Value != "stuff" {
 		t.Log(workerEnvVar)
 		t.Error("environment variables not correctly set")
@@ -266,11 +266,11 @@ func CheckLabelsAssignedCorrectly(t *testing.T, job batchv1.Job, expectedMessage
 }
 
 func CheckPodSetup(t *testing.T, job batchv1.Job, expectedSidecarImage, expectedWorkerImage string) {
-	sidecar := job.Spec.Template.Spec.Containers[0]
+	sidecar := job.Spec.Template.Spec.InitContainers[0]
 	if sidecar.Image != expectedSidecarImage {
 		t.Errorf("sidecar image wrong Got: %s Expected: %s", sidecar.Image, expectedSidecarImage)
 	}
-	worker := job.Spec.Template.Spec.Containers[1]
+	worker := job.Spec.Template.Spec.InitContainers[1]
 	if worker.Image != expectedWorkerImage {
 		t.Errorf("worker image wrong Got: %s Expected: %s", worker.Image, expectedWorkerImage)
 	}

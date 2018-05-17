@@ -235,6 +235,8 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
+	sidecarPrepareAgs := append(fullSidecarArgs, "--action=prepare")
+	sidecarCommitAgs := append(fullSidecarArgs, "--action=commit")
 	deadlineSeconds := k.jobConfig.MaxRunningTimeMins * 60
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -250,11 +252,11 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 					Labels: labels,
 				},
 				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
+					InitContainers: []apiv1.Container{
 						{
-							Name:            "sidecar",
+							Name:            "prepare",
 							Image:           k.jobConfig.SidecarImage,
-							Args:            fullSidecarArgs,
+							Args:            sidecarPrepareAgs,
 							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
@@ -267,6 +269,20 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							Name:            "worker",
 							Image:           k.jobConfig.WorkerImage,
 							Env:             workerEnvVars,
+							ImagePullPolicy: pullPolicy,
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      "ionvolume",
+									MountPath: "/ion",
+								},
+							},
+						},
+					},
+					Containers: []apiv1.Container{
+						{
+							Name:            "commit",
+							Image:           k.jobConfig.SidecarImage,
+							Args:            sidecarCommitAgs,
 							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{

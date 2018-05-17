@@ -39,7 +39,7 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 		{
 			name:                  "exceedMaxExecTime_module",
 			dockerimage:           "kubernetes/pause",
-			expectedExitCode:      -2,
+			expectedExitCode:      2,
 			expectMessageRejected: true,
 			maxExecutionTimeMins:  1,
 		},
@@ -108,6 +108,12 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 
 		loop:
 			for {
+				//Get task
+				task, err := p.taskClient.Get(p.ctx, p.dispatcherName, message.ID(), "", "", nil, nil, nil, nil, "", "", nil, nil)
+				if err != nil {
+					t.Error(err)
+				}
+
 				select {
 				case <-waitCtx.Done():
 					t.Log("Timed-out")
@@ -117,12 +123,6 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 				}
 
 				log.Info("Checking for completed task")
-
-				//Get task
-				task, err := p.taskClient.Get(p.ctx, p.dispatcherName, message.ID(), "", "", nil, nil, nil, nil, "", "", nil, nil)
-				if err != nil {
-					t.Error(err)
-				}
 
 				if task.ExecutionInfo == nil || task.ExecutionInfo.ExitCode == nil || *task.ID != message.ID() || task.State != "completed" {
 					time.Sleep(time.Second * 5)

@@ -23,9 +23,20 @@ docker login -u {{.Username}} -p {{.Password}} {{.Server}}
 
 function cleanup(){
     {{/* Take a copy of the container log is removed when container is deleted */}}
-    echo 'Pod Exited: Copying logs'    
+    echo 'Pod Exited: Copying logs' 
+    {{range $index, $container := .InitContainers}}
+    if [[ -f ./initcontainer-{{$index}}.cid ]]; then
+        container_{{$index}}_ID=$(<./initcontainer-{{$index}}.cid)
+        container_{{$index}}_Log_Path=$(docker inspect --format='{{"{{.LogPath}}"}}' $container_{{$index}}_ID)
+        cp $container_{{$index}}_Log_Path ./{{$container.Name}}.log
+
+        docker rm -f $container_{{$index}}_ID
+        rm -f ./initcontainer-{{$index}}.cid
+    fi
+    {{end}}
+
     {{range $index, $container := .Containers}}
-    if [ -f ./{{$container.Name}}.log ]; then
+    if [[ -f ./{{$container.Name}}.log && -f ./container-{{$index}}.cid ]]; then
         container_{{$index}}_ID=$(<./container-{{$index}}.cid)
         container_{{$index}}_Log_Path=$(docker inspect --format='{{"{{.LogPath}}"}}' $container_{{$index}}_ID)
         rm ./{{$container.Name}}.log {{/* Remove the existing symlink */}}
@@ -72,6 +83,23 @@ docker volume create --name {{$podName}}_{{.Name}} --opt type=none --opt device=
 docker volume create {{$podName}}_{{.Name}}
 {{end}}
 {{end}}
+
+{{/* Run the init containers in the Pod. Attaching to shared namespace */}}
+{{range $index, $container := .InitContainers}} 
+echo 'Running init container {{$index}}..'
+    {{if isPullAlways .}}
+docker pull {{$container.Image}}
+    {{end}}
+docker run --network container:{{$podName}} --ipc container:{{$podName}} \
+    {{- range $index, $envs := $container.Env}}
+-e "{{$envs.Name}}:{{$envs.Value}}" \
+    {{- end}}
+    {{- range $index, $mount := getValidVolumeMounts $container $volumes}}
+-v {{$podName}}_{{$mount.Name}}:{{$mount.MountPath}} \
+    {{- end}}
+--cidfile=./initcontainer-{{$index}}.cid {{$container.Image}} {{getLaunchCommand $container}}
+{{end}}
+
 
 {{/* Run the containers in the Pod. Attaching to shared namespace */}}
 {{range $index, $container := .Containers}} 
