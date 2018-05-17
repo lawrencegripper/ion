@@ -11,7 +11,7 @@ import (
 
 //Configuration represents the input configuration schema
 type Configuration struct {
-	Action                  string               `description:"The action for the sidecar to perform"`
+	Action                  string               `description:"The action for the sidecar to perform (prepare or commit)"`
 	BaseDir                 string               `description:"This base directory to use to store local files"`
 	Context                 *common.Context      `description:"The module details"`
 	ValidEventTypes         string               `description:"Valid event type names as a comma delimited list"`
