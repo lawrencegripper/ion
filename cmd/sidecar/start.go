@@ -55,7 +55,7 @@ func NewStartCommand() *cobra.Command {
 	flags.StringP("config", "c", "configs/sidecar.yml", "Path to the configuration file")
 	flags.StringP("base-dir", "b", "./", "This base directory to use to store local files")
 	flags.StringP("module-name", "n", "", "Module name")
-	flags.StringP("action", "a", "", "The action for the sidecar to perform")
+	flags.StringP("action", "a", "", "The action for the sidecar to perform (prepare or commit)")
 	flags.String("azureblobprovider.blobaccountname", "", "Azure Blob Storage account name")
 	flags.String("azureblobprovider.blobaccountkey", "", "Azure Blob Storage account key")
 	flags.String("azureblobprovider.containername", "", "Azure Blob Storage container name")
