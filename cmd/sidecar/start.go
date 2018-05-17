@@ -17,7 +17,7 @@ func NewStartCommand() *cobra.Command {
 		Short: "ion-sidecar to embed in the processing",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// check emptyness of required parameters
-			arr := []string{"mode", "module-name", "azure-name", "azure-key", "azure-container", "mongo-name", "mongo-db", "bus-namespace", "bus-topic", "bus-key", "bus-rule-name"}
+			arr := []string{"action", "module-name", "azure-name", "azure-key", "azure-container", "mongo-name", "mongo-db", "bus-namespace", "bus-topic", "bus-key", "bus-rule-name"}
 			for _, v := range arr {
 				if sidecarCmdConfig.GetString(v) == "" {
 					return errors.New("The parameter \"" + v + "\" cannot be empty")
@@ -55,6 +55,7 @@ func NewStartCommand() *cobra.Command {
 	flags.StringP("config", "c", "configs/sidecar.yml", "Path to the configuration file")
 	flags.StringP("base-dir", "b", "./", "This base directory to use to store local files")
 	flags.StringP("module-name", "n", "", "Module name")
+	flags.StringP("action", "a", "", "The action for the sidecar to perform")
 	flags.String("azureblobprovider.blobaccountname", "", "Azure Blob Storage account name")
 	flags.String("azureblobprovider.blobaccountkey", "", "Azure Blob Storage account key")
 	flags.String("azureblobprovider.containername", "", "Azure Blob Storage container name")
@@ -70,6 +71,7 @@ func NewStartCommand() *cobra.Command {
 
 	sidecarCmdConfig.BindPFlag("base-dir", flags.Lookup("base-dir"))
 	sidecarCmdConfig.BindPFlag("module-name", flags.Lookup("module-name"))
+	sidecarCmdConfig.BindPFlag("action", flags.Lookup("action"))
 	sidecarCmdConfig.BindPFlag("azure-container", flags.Lookup("azureblobprovider.containername"))
 	sidecarCmdConfig.BindPFlag("azure-name", flags.Lookup("azureblobprovider.blobaccountname"))
 	sidecarCmdConfig.BindPFlag("azure-key", flags.Lookup("azureblobprovider.blobaccountkey"))
