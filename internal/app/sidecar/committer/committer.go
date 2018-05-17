@@ -232,7 +232,8 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 			case eventTypeKey:
 				// Check whether the event type is valid for this module
 				if helpers.ContainsString(c.validEventTypes, kvp.Value) == false {
-					return fmt.Errorf("this module is unable to publish event's of type '%s'", eventType)
+					logger.Error(c.logger, c.context, fmt.Sprintf("this module is unable to publish event's of type '%s'", eventType))
+					continue
 				}
 				eventType = kvp.Value
 				eventTypeIndex = i

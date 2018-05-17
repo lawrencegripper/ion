@@ -3,24 +3,28 @@ package integration
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lawrencegripper/ion/internal/app/sidecar"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/constants"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/azurestorage"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/mongodb"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/module"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
-
 	"testing"
-
-	"github.com/lawrencegripper/ion/internal/app/sidecar"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/constants"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/inmemory"
-	"github.com/lawrencegripper/ion/internal/pkg/common"
 )
 
-var sharedDB *inmemory.InMemoryDB
+// cSpell:ignore logrus, mongodb
 
-func TestDevIntegration(t *testing.T) {
+var eventTypes = []string{
+	"face_detected",
+}
+
+func TestAzureIntegration(t *testing.T) {
 
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
@@ -37,45 +41,59 @@ func TestDevIntegration(t *testing.T) {
 		CorrelationID: "fish",
 		ParentEventID: "",
 	}
-
-	// Configuration for module 1
-	config := sidecar.Configuration{
-		Action:          constants.Prepare,
-		BaseDir:         baseDir,
-		Context:         context,
-		ValidEventTypes: eventTypesStr,
-		PrintConfig:     false,
-		LogLevel:        "Debug",
-		Development:     true,
-	}
+	inEventsDir := filepath.FromSlash(path.Join(constants.DevBaseDir, "events"))
+	inEventFilePath := filepath.FromSlash(path.Join(inEventsDir, "event0.json"))
 
 	environment := module.GetModuleEnvironment(baseDir)
 
-	err := sidecar.Run(config)
+	mongoDBPort := os.Getenv("MONGODB_PORT")
+	if mongoDBPort == "" {
+		t.Fatal("env var 'MONGODB_PORT' not set!")
+	}
+
+	port, err := strconv.ParseInt(mongoDBPort, 10, strconv.IntSize)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("env var 'MONGODB_PORT' should be an integer!")
 	}
 
+	config := sidecar.Configuration{
+		Action:  constants.Prepare,
+		BaseDir: baseDir,
+		Context: context,
+		AzureBlobProvider: &azurestorage.Config{
+			BlobAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
+			BlobAccountKey:  os.Getenv("AZURE_STORAGE_ACCOUNT_KEY"),
+			ContainerName:   "frank",
+		},
+		MongoDBMetaProvider: &mongodb.Config{
+			Name:       os.Getenv("MONGODB_NAME"),
+			Password:   os.Getenv("MONGODB_PASSWORD"),
+			Collection: os.Getenv("MONGODB_COLLECTION"),
+			Port:       int(port),
+		},
+		ValidEventTypes: eventTypesStr,
+		PrintConfig:     false,
+		LogLevel:        "Debug",
+	}
+
+	// Create Module #1
+	err = sidecar.Run(config)
+	if err != nil {
+		t.Error(err)
+	}
 	defer func() {
-		_ = os.RemoveAll(baseDir)
+		_ = os.RemoveAll(baseDir) // This cleans up the local events directory created by the mock event publisher
 		_ = os.RemoveAll(constants.DevBaseDir)
-		_ = os.Remove(".memdb")
 	}()
-
-	// Check dev.prepared exists in development dir
-	preparedPath := filepath.FromSlash(path.Join(constants.DevBaseDir, eventID, "dev.prepared"))
-	if _, err := os.Stat(preparedPath); os.IsNotExist(err) {
-		t.Errorf("dev.prepared file should exist at path '%s'", preparedPath)
-	}
 
 	// Write an output image blob
 	blob1 := "img1.png"
-	blob1FilePath := filepath.FromSlash(path.Join(environment.OutputBlobDirPath, blob1))
+	blob1FilePath := path.Join(environment.OutputBlobDirPath, blob1)
 	writeOutputBlob(blob1FilePath)
 
 	// Write an output image blob
 	blob2 := "img2.png"
-	blob2FilePath := filepath.FromSlash(path.Join(environment.OutputBlobDirPath, blob2))
+	blob2FilePath := path.Join(environment.OutputBlobDirPath, blob2)
 	writeOutputBlob(blob2FilePath)
 
 	// Grab the length of the output directory
@@ -100,14 +118,8 @@ func TestDevIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Check dev.committed exists in development dir
-	committedPath := filepath.FromSlash(path.Join(constants.DevBaseDir, eventID, "dev.committed"))
-	if _, err := os.Stat(committedPath); os.IsNotExist(err) {
-		t.Fatalf("dev.committed file should exist at path '%s'", committedPath)
-	}
-
 	// Grab event ID from module 1's output event
-	b, err := ioutil.ReadFile(filepath.FromSlash(path.Join(constants.DevBaseDir, "events", "event0.json")))
+	b, err := ioutil.ReadFile(inEventFilePath)
 	if err != nil {
 		t.Fatalf("error reading event from disk '%+v'", err)
 	}
@@ -117,7 +129,7 @@ func TestDevIntegration(t *testing.T) {
 		t.Fatalf("error unmarshalling event '%+v'", err)
 	}
 
-	// Set module 1 as the parent and set the input event ID
+	// Create Module #2
 	config.Context.ParentEventID = config.Context.EventID
 	config.Context.EventID = inEvent.Context.EventID
 	config.Action = constants.Prepare
@@ -134,7 +146,7 @@ func TestDevIntegration(t *testing.T) {
 	inLength := len(inFiles)
 
 	if (inLength != outLength) && outLength > 0 {
-		t.Fatalf("error, input files length should match output length")
+		t.Fatal("error, input files length should match output length")
 	}
 
 	// Check the input metadata is the same as that output from the first module
@@ -159,20 +171,4 @@ func TestDevIntegration(t *testing.T) {
 		}
 		break
 	}
-}
-
-func writeOutputBlob(path string) error {
-	err := ioutil.WriteFile(path, []byte("image1"), 0777)
-	if err != nil {
-		return fmt.Errorf("error writing file '%s', '%+v'", path, err)
-	}
-	return nil
-}
-
-func writeOutputBytes(bytes []byte, path string) error {
-	err := ioutil.WriteFile(path, bytes, 0777)
-	if err != nil {
-		return fmt.Errorf("error writing file '%s', '%+v'", bytes, err)
-	}
-	return nil
 }

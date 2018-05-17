@@ -85,7 +85,6 @@ func Run(config Configuration) error {
 		if err := preparer.Prepare(config.Context, dataPlane); err != nil {
 			panic(fmt.Sprintf("Error during prepration %+v", err))
 		}
-
 	} else if config.Action == constants.Commit {
 		committer := committer.NewCommitter(baseDir, config.Development, logger)
 		defer committer.Close()
@@ -138,7 +137,7 @@ func validateConfig(c *Configuration) error {
 }
 
 func getMetaProvider(config *Configuration) dataplane.MetadataProvider {
-	if config.Development {
+	if config.Development || config.MongoDBMetaProvider == nil {
 		inMemDB, err := inmemory.NewInMemoryDB()
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
@@ -157,7 +156,7 @@ func getMetaProvider(config *Configuration) dataplane.MetadataProvider {
 }
 
 func getBlobProvider(config *Configuration) dataplane.BlobProvider {
-	if config.Development {
+	if config.Development || config.AzureBlobProvider == nil {
 		fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
 			InputDir:  filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.ParentEventID, "blobs")),
 			OutputDir: filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.EventID, "blobs")),
@@ -181,8 +180,8 @@ func getBlobProvider(config *Configuration) dataplane.BlobProvider {
 }
 
 func getEventProvider(config *Configuration) dataplane.EventPublisher {
-	if config.Development {
-		fsEvents := mock.NewEventPublisher(filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.EventID, "events")))
+	if config.Development || config.ServiceBusEventProvider == nil {
+		fsEvents := mock.NewEventPublisher(filepath.FromSlash(path.Join(constants.DevBaseDir, "events")))
 		return fsEvents
 	}
 	if config.ServiceBusEventProvider != nil {
