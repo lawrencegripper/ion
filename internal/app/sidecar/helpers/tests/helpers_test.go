@@ -6,7 +6,7 @@ import (
 	"path"
 	"testing"
 
-	. "github.com/lawrencegripper/ion/internal/app/sidecar/types"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/helpers"
 )
 
 func TestIsValidEvent(t *testing.T) {
@@ -64,7 +64,7 @@ func TestIsValidEvent(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		contains := ContainsString(test.slice, test.target)
+		contains := helpers.ContainsString(test.slice, test.target)
 		if contains != test.contains {
 			t.Errorf("expecting '%t' but got '%t' for event '%s'", test.contains, contains, test.target)
 		}
@@ -102,7 +102,7 @@ func TestJoinBlobPath(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		actual := JoinBlobPath(test.strs[0], test.strs[1], test.strs[2])
+		actual := helpers.JoinBlobPath(test.strs[0], test.strs[1], test.strs[2])
 		if actual != test.expected {
 			t.Errorf("expecting '%s' but got '%s'", test.expected, actual)
 		}
@@ -132,7 +132,7 @@ func TestRemoveFile(t *testing.T) {
 				continue
 			}
 		}
-		err := RemoveFile(test.filename)
+		err := helpers.RemoveFile(test.filename)
 		if test.removed == (err != nil) {
 			t.Errorf("expecting file '%s' to be removed, but go error '%+v'", test.filename, err)
 		}
@@ -164,7 +164,7 @@ func TestClearDir(t *testing.T) {
 				continue
 			}
 		}
-		err := ClearDir(test.dirname)
+		err := helpers.ClearDir(test.dirname)
 		if err != nil {
 			t.Errorf("test failed with error '%+v'", err)
 			continue
