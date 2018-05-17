@@ -2,20 +2,24 @@ package sidecar
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"os"
 	"path"
 	"runtime"
 	"strings"
 
-	"github.com/lawrencegripper/ion/internal/app/sidecar/app"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/blob/azurestorage"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/blob/filesystem"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/events/mock"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/events/servicebus"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/meta/inmemory"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/meta/mongodb"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/types"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/committer"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/constants"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/azurestorage"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/filesystem"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/events/mock"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/events/servicebus"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/inmemory"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/mongodb"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/helpers"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/preparer"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,20 +28,34 @@ import (
 const (
 	defaultPort = 8080
 
-	// blank base dir will result in /ion/ being used
+	// A blank base dir will result in /ion/ being used
 	defaultWindowsBaseDir = ""
 	defaultLinuxBaseDir   = ""
 	defaultDarwinBaseDir  = ""
+
+	// Providers
+	metaProviderMongoDB      string = "mongodb"
+	metaProviderInMemory     string = "inmemory"
+	blobProviderAzureStorage string = "azureblob"
+	blobProviderFileSystem   string = "filesystem"
+	eventProviderServiceBus  string = "servicebus"
 )
 
 // Run the sidecar using config
-func Run(config app.Configuration) error {
+func Run(config Configuration) error {
 	if err := validateConfig(&config); err != nil {
 		return err
 	}
+
 	metaProvider := getMetaProvider(&config)
 	blobProvider := getBlobProvider(&config)
 	eventProvider := getEventProvider(&config)
+
+	dataPlane := &dataplane.DataPlane{
+		BlobProvider:     blobProvider,
+		MetadataProvider: metaProvider,
+		EventPublisher:   eventProvider,
+	}
 
 	logger := log.New()
 	logger.Out = os.Stdout
@@ -51,67 +69,75 @@ func Run(config app.Configuration) error {
 		}
 	}
 
-	switch strings.ToLower(config.LogLevel) {
-	case "debug":
-		logger.Level = log.DebugLevel
-	case "info":
-		logger.Level = log.InfoLevel
-	case "warn":
-		logger.Level = log.WarnLevel
-	case "error":
-		logger.Level = log.ErrorLevel
-	default:
-		logger.Level = log.WarnLevel
-	}
+	logger.Level = mapLogLevel(config.LogLevel)
 
 	validEventTypes := strings.Split(config.ValidEventTypes, ",")
 
 	baseDir := config.BaseDir
 	if baseDir == "" {
-		switch runtime.GOOS {
-		case "windows":
-			baseDir = defaultWindowsBaseDir
-		case "linux":
-			baseDir = defaultLinuxBaseDir
-		case "darwin":
-			baseDir = defaultDarwinBaseDir
-		default:
-			//noop
+		baseDir = getDefaultBaseDir()
+	}
+
+	action := strings.ToLower(config.Action)
+	if config.Action == constants.Prepare {
+		preparer := preparer.NewPreparer(baseDir, config.Development, logger)
+		defer preparer.Close()
+		if err := preparer.Prepare(config.Context, dataPlane); err != nil {
+			panic(fmt.Sprintf("Error during prepration %+v", err))
 		}
+
+	} else if config.Action == constants.Commit {
+		committer := committer.NewCommitter(baseDir, config.Development, logger)
+		defer committer.Close()
+		if err := committer.Commit(config.Context, dataPlane, validEventTypes); err != nil {
+			panic(fmt.Sprintf("Error during commit %+v", err))
+		}
+	} else {
+		panic(fmt.Sprintf("Unsupported action type %+v", action))
 	}
 
-	app := app.App{}
-	app.Setup(
-		config.SharedSecret,
-		baseDir,
-		config.Context,
-		validEventTypes,
-		metaProvider,
-		eventProvider,
-		blobProvider,
-		logger,
-		config.Development,
-	)
-
-	defer app.Close()
-	app.Run(fmt.Sprintf(":%d", config.ServerPort))
 	return nil
 }
 
-func validateConfig(c *app.Configuration) error {
-	if c.SharedSecret == "" || c.Context.EventID == "" || c.Context.CorrelationID == "" {
-		return fmt.Errorf("Missing configuration. Use '--printconfig' to show current config on start")
+func mapLogLevel(logLevel string) log.Level {
+	switch strings.ToLower(logLevel) {
+	case "debug":
+		return log.DebugLevel
+	case "info":
+		return log.InfoLevel
+	case "warn":
+		return log.WarnLevel
+	case "error":
+		return log.ErrorLevel
+	default:
+		return log.WarnLevel
 	}
-	//TODO: When more providers are added,
-	// we need to check the configuration to
-	// ensure only 1 for each type is set.
-	// Alternatively, we allow multiple
-	// provider configs and just return the
-	// first we check against.
+}
+
+func getDefaultBaseDir() string {
+	switch runtime.GOOS {
+	case "windows":
+		return defaultWindowsBaseDir
+	case "linux":
+		return defaultLinuxBaseDir
+	case "darwin":
+		return defaultDarwinBaseDir
+	default:
+		panic("Unsupported OS platform")
+	}
+}
+
+func validateConfig(c *Configuration) error {
+	if (strings.ToLower(c.Action) != constants.Prepare &&
+		strings.ToLower(c.Action) != constants.Commit) ||
+		c.Context.EventID == "" ||
+		c.Context.CorrelationID == "" {
+		return fmt.Errorf("Missing or invalid configuration. Use '--printconfig' to show current config on start")
+	}
 	return nil
 }
 
-func getMetaProvider(config *app.Configuration) types.MetadataProvider {
+func getMetaProvider(config *Configuration) dataplane.MetadataProvider {
 	if config.Development {
 		inMemDB, err := inmemory.NewInMemoryDB()
 		if err != nil {
@@ -123,18 +149,18 @@ func getMetaProvider(config *app.Configuration) types.MetadataProvider {
 		c := config.MongoDBMetaProvider
 		mongoDB, err := mongodb.NewMongoDB(c)
 		if err != nil {
-			panic(fmt.Errorf("Failed to establish metadata store with provider '%s', error: %+v", types.MetaProviderMongoDB, err))
+			panic(fmt.Errorf("Failed to establish metadata store with provider '%s', error: %+v", metaProviderMongoDB, err))
 		}
 		return mongoDB
 	}
 	return nil
 }
 
-func getBlobProvider(config *app.Configuration) types.BlobProvider {
+func getBlobProvider(config *Configuration) dataplane.BlobProvider {
 	if config.Development {
 		fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
-			InputDir:  path.Join(types.DevBaseDir, config.Context.ParentEventID, "blobs"),
-			OutputDir: path.Join(types.DevBaseDir, config.Context.EventID, "blobs"),
+			InputDir:  filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.ParentEventID, "blobs")),
+			OutputDir: filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.EventID, "blobs")),
 		})
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
@@ -144,26 +170,26 @@ func getBlobProvider(config *app.Configuration) types.BlobProvider {
 	if config.AzureBlobProvider != nil {
 		c := config.AzureBlobProvider
 		azureBlob, err := azurestorage.NewBlobStorage(c,
-			types.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
-			types.JoinBlobPath(config.Context.EventID, config.Context.Name))
+			helpers.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
+			helpers.JoinBlobPath(config.Context.EventID, config.Context.Name))
 		if err != nil {
-			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", types.BlobProviderAzureStorage, err))
+			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", blobProviderAzureStorage, err))
 		}
 		return azureBlob
 	}
 	return nil
 }
 
-func getEventProvider(config *app.Configuration) types.EventPublisher {
+func getEventProvider(config *Configuration) dataplane.EventPublisher {
 	if config.Development {
-		fsEvents := mock.NewEventPublisher(path.Join(types.DevBaseDir, "events"))
+		fsEvents := mock.NewEventPublisher(filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.EventID, "events")))
 		return fsEvents
 	}
 	if config.ServiceBusEventProvider != nil {
 		c := config.ServiceBusEventProvider
 		serviceBus, err := servicebus.NewServiceBus(c)
 		if err != nil {
-			panic(fmt.Errorf("Failed to establish event publisher with provider '%s', error: %+v", types.EventProviderServiceBus, err))
+			panic(fmt.Errorf("Failed to establish event publisher with provider '%s', error: %+v", eventProviderServiceBus, err))
 		}
 		return serviceBus
 	}

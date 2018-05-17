@@ -5,20 +5,19 @@ import (
 	"fmt"
 
 	"github.com/lawrencegripper/ion/internal/app/sidecar"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/app"
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
 	"github.com/spf13/cobra"
 )
 
 // NewStartCommand create the start command with its flags
 func NewStartCommand() *cobra.Command {
-	config := app.Configuration{}
+	config := sidecar.Configuration{}
 	var cmd = &cobra.Command{
 		Use:   "start",
 		Short: "ion-sidecar to embed in the processing",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// check emptyness of required parameters
-			arr := []string{"azure-name", "azure-key", "azure-container", "mongo-name", "mongo-db", "bus-namespace", "bus-topic", "bus-key", "bus-rule-name"}
+			arr := []string{"mode", "module-name", "azure-name", "azure-key", "azure-container", "mongo-name", "mongo-db", "bus-namespace", "bus-topic", "bus-key", "bus-rule-name"}
 			for _, v := range arr {
 				if sidecarCmdConfig.GetString(v) == "" {
 					return errors.New("The parameter \"" + v + "\" cannot be empty")
@@ -27,7 +26,7 @@ func NewStartCommand() *cobra.Command {
 
 			sidecarConfig.BaseDir = sidecarCmdConfig.GetString("base-dir")
 			sidecarConfig.Context.Name = sidecarCmdConfig.GetString("module-name")
-			sidecarConfig.ServerPort = sidecarCmdConfig.GetInt("port")
+			sidecarConfig.Action = sidecarCmdConfig.GetString("action")
 
 			sidecarConfig.AzureBlobProvider.BlobAccountName = sidecarCmdConfig.GetString("azure-name")
 			sidecarConfig.AzureBlobProvider.BlobAccountKey = sidecarCmdConfig.GetString("azure-key")

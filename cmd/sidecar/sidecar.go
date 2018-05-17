@@ -3,12 +3,12 @@ package main
 import (
 	"errors"
 
-	"github.com/lawrencegripper/ion/internal/app/sidecar/app"
+	"github.com/lawrencegripper/ion/internal/app/sidecar"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var sidecarConfig = app.NewConfiguration()
+var sidecarConfig = sidecar.NewConfiguration()
 
 var sidecarCmdConfig = viper.New()
 

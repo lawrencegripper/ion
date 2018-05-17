@@ -1,0 +1,230 @@
+package integration
+
+// import (
+// 	"encoding/json"
+// 	"fmt"
+// 	"github.com/lawrencegripper/ion/internal/app/sidecar/blob/azurestorage"
+// 	"github.com/lawrencegripper/ion/internal/app/sidecar/events/mock"
+// 	"github.com/lawrencegripper/ion/internal/app/sidecar/meta/mongodb"
+// 	"github.com/lawrencegripper/ion/internal/app/sidecar/types"
+// 	"github.com/lawrencegripper/ion/internal/pkg/common"
+// 	"github.com/sirupsen/logrus"
+// 	"io/ioutil"
+// 	"os"
+// 	"path"
+// 	"path/filepath"
+// 	"runtime"
+// 	"strconv"
+// 	"testing"
+// )
+
+// // cSpell:ignore logrus, mongodb
+
+// var eventTypes = []string{
+// 	"face_detected",
+// }
+
+// func TestAzureIntegration(t *testing.T) {
+
+// 	if testing.Short() {
+// 		t.Skip("Skipping integration test in short mode...")
+// 	}
+
+// 	// Setting the base directory to empty
+// 	// will result in /ion/... being used.
+// 	baseDir := ""
+// 	if runtime.GOOS == "windows" {
+// 		// Use a relative base directory
+// 		// on Windows to avoid Administrator
+// 		// issues.
+// 		baseDir = "ion"
+// 	}
+// 	outDir := filepath.FromSlash(path.Join(baseDir, "out"))
+// 	outDataDir := filepath.FromSlash(path.Join(outDir, "data"))
+// 	outMetaFilePath := filepath.FromSlash(path.Join(outDir, "meta.json"))
+// 	outEventsDir := filepath.FromSlash(path.Join(outDir, "events"))
+// 	outEventFilePath := filepath.FromSlash(path.Join(outEventsDir, "event1.json"))
+// 	inDir := filepath.FromSlash(path.Join(baseDir, "in"))
+// 	inDataDir := filepath.FromSlash(path.Join(inDir, "data"))
+// 	inMetaFilePath := filepath.FromSlash(path.Join(inDir, "meta.json"))
+// 	inEventsDir := "mockevents"
+// 	inEventFilePath := filepath.FromSlash(path.Join(inEventsDir, "event0.json"))
+
+// 	mongoDBPort := os.Getenv("MONGODB_PORT")
+// 	if mongoDBPort == "" {
+// 		t.Fatal("env var 'MONGODB_PORT' not set!")
+// 	}
+
+// 	port, err := strconv.ParseInt(mongoDBPort, 10, strconv.IntSize)
+// 	if err != nil {
+// 		t.Fatal("env var 'MONGODB_PORT' should be an integer!")
+// 	}
+
+// 	config := &app.Configuration{
+// 		Mode:    app.Prepare,
+// 		BaseDir: baseDir,
+// 		Context: &common.Context{
+// 			Name:          "testmodule",
+// 			EventID:       "1111111",
+// 			CorrelationID: "fish",
+// 			ParentEventID: "",
+// 		},
+// 		AzureBlobProvider: &azurestorage.Config{
+// 			BlobAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
+// 			BlobAccountKey:  os.Getenv("AZURE_STORAGE_ACCOUNT_KEY"),
+// 			ContainerName:   "frank",
+// 		},
+// 		MongoDBMetaProvider: &mongodb.Config{
+// 			Name:       os.Getenv("MONGODB_NAME"),
+// 			Password:   os.Getenv("MONGODB_PASSWORD"),
+// 			Collection: os.Getenv("MONGODB_COLLECTION"),
+// 			Port:       int(port),
+// 		},
+// 		PrintConfig: false,
+// 		LogLevel:    "Debug",
+// 	}
+
+// 	// Create Module #1
+// 	err = runModule(config)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	defer func() {
+// 		_ = os.RemoveAll(inEventsDir) // This cleans up the local events directory created by the mock event publisher
+// 	}()
+
+// 	// Write an output image blob
+// 	blob1 := "img1.png"
+// 	blob1FilePath := path.Join(outDataDir, blob1)
+// 	writeOutputBlob(blob1FilePath)
+
+// 	// Write an output image blob
+// 	blob2 := "img2.png"
+// 	blob2FilePath := path.Join(outDataDir, blob2)
+// 	writeOutputBlob(blob2FilePath)
+
+// 	// Grab the length of the output directory
+// 	outFiles, err := ioutil.ReadDir(outDataDir)
+// 	if err != nil {
+// 		t.Errorf("error reading out dir '%+v'", err)
+// 	}
+// 	outLength := len(outFiles)
+
+// 	// Write an output metadata file
+// 	insight := []byte(`[{"key": "key2","value": "value2"}]`)
+// 	writeOutputBytes(insight, outMetaFilePath)
+
+// 	// Write an output event file
+// 	j := fmt.Sprintf(`[{"key":"eventType","value":"%s"},{"key":"files","value":"%s,%s"},{"key":"abc","value":"123"}]`, eventTypes[0], blob1, blob2)
+// 	outEvent := []byte(j)
+
+// 	writeOutputBytes(outEvent, outEventFilePath)
+
+// 	config.Mode = app.Commit
+// 	err = runModule(config)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	// Grab event ID from module 1's output event
+// 	b, err := ioutil.ReadFile(inEventFilePath)
+// 	if err != nil {
+// 		t.Fatalf("error reading event from disk '%+v'", err)
+// 	}
+// 	var inEvent common.Event
+// 	err = json.Unmarshal(b, &inEvent)
+// 	if err != nil {
+// 		t.Fatalf("error unmarshalling event '%+v'", err)
+// 	}
+
+// 	// Create Module #2
+// 	config.Context.ParentEventID = config.Context.EventID
+// 	config.Context.EventID = inEvent.Context.EventID
+// 	config.Mode = app.Prepare
+// 	err = runModule(config)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	// Check blob input data matches the output from the first module
+// 	inFiles, err := ioutil.ReadDir(inDataDir)
+// 	if err != nil {
+// 		t.Fatalf("error reading in dir '%+v'", err)
+// 	}
+// 	inLength := len(inFiles)
+
+// 	if (inLength != outLength) && outLength > 0 {
+// 		t.Fatal("error, input files length should match output length")
+// 	}
+
+// 	// Check the input metadata is the same as that output from the first module
+// 	inMetaData, err := ioutil.ReadFile(inMetaFilePath)
+// 	if err != nil {
+// 		t.Fatalf("error reading in meta file '%s': '%+v'", inMetaFilePath, err)
+// 	}
+
+// 	var kvps common.KeyValuePairs
+// 	err = json.Unmarshal(inMetaData, &kvps)
+// 	if err != nil {
+// 		t.Fatalf("error decoding file '%s' content: '%+v'", inMetaFilePath, err)
+// 	}
+
+// 	// The first key, value pair should be as expected
+// 	for _, kvp := range kvps {
+// 		if kvp.Key != "abc" {
+// 			t.Fatalf("expected key 'abc' in key value pairs: '%+v'", kvp)
+// 		}
+// 		if kvp.Value != "123" {
+// 			t.Fatalf("expected key 'abc' to have value '123' in key value pairs: '%+v'", kvp)
+// 		}
+// 		break
+// 	}
+// }
+
+// func runModule(config *app.Configuration) error {
+// 	db, err := mongodb.NewMongoDB(config.MongoDBMetaProvider)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to connect to mongodb with error '%+v'", err)
+// 	}
+// 	blob, err := azurestorage.NewBlobStorage(config.AzureBlobProvider,
+// 		types.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
+// 		types.JoinBlobPath(config.Context.EventID, config.Context.Name))
+// 	if err != nil {
+// 		return fmt.Errorf("failed to connect to azure storage with error '%+v'", err)
+// 	}
+// 	sb := mock.NewEventPublisher("mockevents")
+
+// 	logger := logrus.New()
+// 	logger.Out = os.Stdout
+
+// 	a := app.App{}
+// 	a.Run(
+// 		config.Mode,
+// 		config.BaseDir,
+// 		config.Context,
+// 		eventTypes,
+// 		db,
+// 		sb,
+// 		blob,
+// 		logger,
+// 		config.Development,
+// 	)
+
+// 	return nil
+// }
+
+// func writeOutputBlob(path string) error {
+// 	err := ioutil.WriteFile(path, []byte("image1"), 0777)
+// 	if err != nil {
+// 		return fmt.Errorf("error writing file '%s', '%+v'", path, err)
+// 	}
+// 	return nil
+// }
+
+// func writeOutputBytes(bytes []byte, path string) error {
+// 	err := ioutil.WriteFile(path, bytes, 0777)
+// 	if err != nil {
+// 		return fmt.Errorf("error writing file '%s', '%+v'", bytes, err)
+// 	}
+// 	return nil
+// }
