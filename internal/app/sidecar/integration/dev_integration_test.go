@@ -39,15 +39,14 @@ func TestDevIntegration(t *testing.T) {
 	}
 
 	// Configuration for module 1
-	config := sidecar.Configuration{
-		Action:          constants.Prepare,
-		BaseDir:         baseDir,
-		Context:         context,
-		ValidEventTypes: eventTypesStr,
-		PrintConfig:     false,
-		LogLevel:        "Debug",
-		Development:     true,
-	}
+	config := sidecar.NewConfiguration()
+	config.Action = constants.Prepare
+	config.BaseDir = baseDir
+	config.Context = context
+	config.ValidEventTypes = eventTypesStr
+	config.PrintConfig = false
+	config.LogLevel = "Debug"
+	config.Development = true
 
 	environment := module.GetModuleEnvironment(baseDir)
 

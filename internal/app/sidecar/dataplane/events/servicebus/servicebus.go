@@ -19,6 +19,7 @@ import (
 
 //Config to setup a ServiceBus event publisher
 type Config struct {
+	Enabled               bool   `description:"Enable Service Bus event provider"`
 	Namespace             string `description:"ServiceBus namespace"`
 	Topic                 string `description:"ServiceBus topic name"`
 	Key                   string `description:"ServiceBus access key"`

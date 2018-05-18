@@ -15,6 +15,7 @@ import (
 
 //Config to setup a BlobStorage blob provider
 type Config struct {
+	Enabled         bool   `description:"Enable Azure Blob storage provider"`
 	BlobAccountName string `description:"Azure Blob Storage account name"`
 	BlobAccountKey  string `description:"Azure Blob Storage account key"`
 	ContainerName   string `description:"Azure Blob Storage container name"`

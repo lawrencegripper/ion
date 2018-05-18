@@ -16,6 +16,7 @@ import (
 
 //Config used to setup a MongoDB metastore provider
 type Config struct {
+	Enabled    bool   `description:"Enable MongoDB metadata provider"`
 	Name       string `description:"MongoDB database name"`
 	Password   string `description:"MongoDB database password"`
 	Collection string `description:"MongoDB database collection to use"`

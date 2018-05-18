@@ -56,25 +56,26 @@ func TestAzureIntegration(t *testing.T) {
 		t.Fatal("env var 'MONGODB_PORT' should be an integer!")
 	}
 
-	config := sidecar.Configuration{
-		Action:  constants.Prepare,
-		BaseDir: baseDir,
-		Context: context,
-		AzureBlobProvider: &azurestorage.Config{
-			BlobAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
-			BlobAccountKey:  os.Getenv("AZURE_STORAGE_ACCOUNT_KEY"),
-			ContainerName:   "frank",
-		},
-		MongoDBMetaProvider: &mongodb.Config{
-			Name:       os.Getenv("MONGODB_NAME"),
-			Password:   os.Getenv("MONGODB_PASSWORD"),
-			Collection: os.Getenv("MONGODB_COLLECTION"),
-			Port:       int(port),
-		},
-		ValidEventTypes: eventTypesStr,
-		PrintConfig:     false,
-		LogLevel:        "Debug",
+	config := sidecar.NewConfiguration()
+	config.Action = constants.Prepare
+	config.BaseDir = baseDir
+	config.Context = context
+	config.AzureBlobProvider = &azurestorage.Config{
+		Enabled:         true,
+		BlobAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
+		BlobAccountKey:  os.Getenv("AZURE_STORAGE_ACCOUNT_KEY"),
+		ContainerName:   "frank",
 	}
+	config.MongoDBMetaProvider = &mongodb.Config{
+		Enabled:    true,
+		Name:       os.Getenv("MONGODB_NAME"),
+		Password:   os.Getenv("MONGODB_PASSWORD"),
+		Collection: os.Getenv("MONGODB_COLLECTION"),
+		Port:       int(port),
+	}
+	config.ValidEventTypes = eventTypesStr
+	config.PrintConfig = false
+	config.LogLevel = "Debug"
 
 	// Create Module #1
 	sidecar.Run(config)

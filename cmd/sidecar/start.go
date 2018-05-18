@@ -2,15 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/azurestorage"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/events/servicebus"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/mongodb"
 
 	"github.com/lawrencegripper/ion/internal/app/sidecar"
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // NewStartCommand create the start command with its flags
@@ -23,26 +19,23 @@ func NewStartCommand() *cobra.Command {
 			sidecarConfig.Action = sidecarCmdConfig.GetString("action")
 			sidecarConfig.ValidEventTypes = sidecarCmdConfig.GetString("valideventtypes")
 
-			azureBlobProviderExists := checkObjectConfig(sidecarCmdConfig, "azureblobprovider.blobaccountname", "azureblobprovider.blobaccountkey", "azureblobprovider.containername")
-			if azureBlobProviderExists {
-				sidecarConfig.AzureBlobProvider = &azurestorage.Config{}
+			sidecarConfig.AzureBlobProvider.Enabled = sidecarCmdConfig.GetBool("azureblobprovider.enabled")
+			if sidecarConfig.AzureBlobProvider.Enabled {
 				sidecarConfig.AzureBlobProvider.BlobAccountName = sidecarCmdConfig.GetString("azureblobprovider.blobaccountname")
 				sidecarConfig.AzureBlobProvider.BlobAccountKey = sidecarCmdConfig.GetString("azureblobprovider.blobaccountkey")
 				sidecarConfig.AzureBlobProvider.ContainerName = sidecarCmdConfig.GetString("azureblobprovider.containername")
 			}
 
-			mongoDBMetaProviderExists := checkObjectConfig(sidecarCmdConfig, "mongodbmetaprovider.name", "mongodbmetaprovider.password", "mongodbmetaprovider.collection", "mongodbmetaprovider.port")
-			if mongoDBMetaProviderExists {
-				sidecarConfig.MongoDBMetaProvider = &mongodb.Config{}
+			sidecarConfig.MongoDBMetaProvider.Enabled = sidecarCmdConfig.GetBool("mongodbmetaprovider.enabled")
+			if sidecarConfig.MongoDBMetaProvider.Enabled {
 				sidecarConfig.MongoDBMetaProvider.Name = sidecarCmdConfig.GetString("mongodbmetaprovider.name")
 				sidecarConfig.MongoDBMetaProvider.Password = sidecarCmdConfig.GetString("mongodbmetaprovider.password")
 				sidecarConfig.MongoDBMetaProvider.Collection = sidecarCmdConfig.GetString("mongodbmetaprovider.collection")
 				sidecarConfig.MongoDBMetaProvider.Port = sidecarCmdConfig.GetInt("mongodbmetaprovider.port")
 			}
 
-			serviceBusEventProviderExists := checkObjectConfig(sidecarCmdConfig, "servicebuseventprovider.namespace", "servicebuseventprovider.topic", "servicebuseventprovider.key", "servicebuseventprovider.authorizationrulename")
-			if serviceBusEventProviderExists {
-				sidecarConfig.ServiceBusEventProvider = &servicebus.Config{}
+			sidecarConfig.ServiceBusEventProvider.Enabled = sidecarCmdConfig.GetBool("servicebuseventprovider.enabled")
+			if sidecarConfig.ServiceBusEventProvider.Enabled {
 				sidecarConfig.ServiceBusEventProvider.Namespace = sidecarCmdConfig.GetString("servicebuseventprovider.namespace")
 				sidecarConfig.ServiceBusEventProvider.Topic = sidecarCmdConfig.GetString("servicebuseventprovider.topic")
 				sidecarConfig.ServiceBusEventProvider.Key = sidecarCmdConfig.GetString("servicebuseventprovider.key")
@@ -95,6 +88,9 @@ func NewStartCommand() *cobra.Command {
 	flags.String("context.parenteventid", "", "ParentEvent ID")
 	sidecarCmdConfig.BindPFlag("context.parenteventid", flags.Lookup("context.parenteventid"))
 
+	flags.Bool("azureblobprovider.enabled", false, "Enable Azure Blob Storage provider")
+	sidecarCmdConfig.BindPFlag("azureblobprovider.enabled", flags.Lookup("azureblobprovider.enabled"))
+
 	flags.String("azureblobprovider.blobaccountname", "", "Azure Blob Storage account name")
 	sidecarCmdConfig.BindPFlag("azureblobprovider.blobaccountname", flags.Lookup("azureblobprovider.blobaccountname"))
 
@@ -103,6 +99,9 @@ func NewStartCommand() *cobra.Command {
 
 	flags.String("azureblobprovider.containername", "", "Azure Blob Storage container name")
 	sidecarCmdConfig.BindPFlag("azureblobprovider.containername", flags.Lookup("azureblobprovider.containername"))
+
+	flags.Bool("mongodbmetaprovider.enabled", false, "Enable MongoDB Metadata provider")
+	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.enabled", flags.Lookup("mongodbmetaprovider.enabled"))
 
 	flags.String("mongodbmetaprovider.name", "", "MongoDB database name")
 	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.name", flags.Lookup("mongodbmetaprovider.name"))
@@ -115,6 +114,9 @@ func NewStartCommand() *cobra.Command {
 
 	flags.Int("mongodbmetaprovider.port", 27017, "MongoDB server port")
 	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.port", flags.Lookup("mongodbmetaprovider.port"))
+
+	flags.Bool("servicebuseventprovider.enabled", false, "Enable Service Bus Event provider")
+	sidecarCmdConfig.BindPFlag("servicebuseventprovider.enabled", flags.Lookup("servicebuseventprovider.enabled"))
 
 	flags.String("servicebuseventprovider.namespace", "", "ServiceBus namespace")
 	sidecarCmdConfig.BindPFlag("servicebuseventprovider.namespace", flags.Lookup("servicebuseventprovider.namespace"))
@@ -129,30 +131,4 @@ func NewStartCommand() *cobra.Command {
 	sidecarCmdConfig.BindPFlag("servicebuseventprovider.authorizationrulename", flags.Lookup("servicebuseventprovider.authorizationrulename"))
 
 	return cmd
-}
-
-// checkObjectConfig will only work for objects with atleast
-// 1 string value as we can't trust default bools, ints as
-// non entries.
-func checkObjectConfig(cfg *viper.Viper, keys ...string) bool {
-	for _, k := range keys {
-		v := cfg.Get(k)
-		switch v.(type) {
-		case nil:
-			return false
-		case string:
-			vStr := v.(string)
-			if vStr == "" {
-				return false
-			}
-			continue
-		case int:
-			continue
-		case bool:
-			continue
-		default:
-			return false
-		}
-	}
-	return true
 }

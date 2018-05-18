@@ -40,7 +40,7 @@ const (
 )
 
 // Run the sidecar using config
-func Run(config Configuration) {
+func Run(config configuration) {
 	if err := validateConfig(&config); err != nil {
 		panic(err)
 	}
@@ -105,7 +105,7 @@ func getDefaultBaseDir() string {
 	}
 }
 
-func validateConfig(c *Configuration) error {
+func validateConfig(c *configuration) error {
 	if (strings.ToLower(c.Action) != constants.Prepare &&
 		strings.ToLower(c.Action) != constants.Commit) ||
 		c.Context.EventID == "" ||
@@ -115,15 +115,15 @@ func validateConfig(c *Configuration) error {
 	return nil
 }
 
-func getMetaProvider(config *Configuration) dataplane.MetadataProvider {
-	if config.Development || config.MongoDBMetaProvider == nil {
+func getMetaProvider(config *configuration) dataplane.MetadataProvider {
+	if config.Development || config.MongoDBMetaProvider.Enabled == false {
 		inMemDB, err := inmemory.NewInMemoryDB()
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
 		}
 		return inMemDB
 	}
-	if config.MongoDBMetaProvider != nil {
+	if config.MongoDBMetaProvider.Enabled {
 		c := config.MongoDBMetaProvider
 		mongoDB, err := mongodb.NewMongoDB(c)
 		if err != nil {
@@ -134,8 +134,8 @@ func getMetaProvider(config *Configuration) dataplane.MetadataProvider {
 	return nil
 }
 
-func getBlobProvider(config *Configuration) dataplane.BlobProvider {
-	if config.Development || config.AzureBlobProvider == nil {
+func getBlobProvider(config *configuration) dataplane.BlobProvider {
+	if config.Development || config.AzureBlobProvider.Enabled == false {
 		fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
 			InputDir:  filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.ParentEventID, "blobs")),
 			OutputDir: filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.EventID, "blobs")),
@@ -145,7 +145,7 @@ func getBlobProvider(config *Configuration) dataplane.BlobProvider {
 		}
 		return fsBlob
 	}
-	if config.AzureBlobProvider != nil {
+	if config.AzureBlobProvider.Enabled {
 		c := config.AzureBlobProvider
 		azureBlob, err := azurestorage.NewBlobStorage(c,
 			helpers.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
@@ -158,12 +158,12 @@ func getBlobProvider(config *Configuration) dataplane.BlobProvider {
 	return nil
 }
 
-func getEventProvider(config *Configuration) dataplane.EventPublisher {
-	if config.Development || config.ServiceBusEventProvider == nil {
+func getEventProvider(config *configuration) dataplane.EventPublisher {
+	if config.Development || config.ServiceBusEventProvider.Enabled == false {
 		fsEvents := mock.NewEventPublisher(filepath.FromSlash(path.Join(constants.DevBaseDir, "events")))
 		return fsEvents
 	}
-	if config.ServiceBusEventProvider != nil {
+	if config.ServiceBusEventProvider.Enabled {
 		c := config.ServiceBusEventProvider
 		serviceBus, err := servicebus.NewServiceBus(c)
 		if err != nil {

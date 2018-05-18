@@ -9,8 +9,8 @@ import (
 
 // cSpell:ignore mongodb
 
-//Configuration represents the input configuration schema
-type Configuration struct {
+// configuration represents the input configuration schema
+type configuration struct {
 	Action                  string               `description:"The action for the sidecar to perform (prepare or commit)"`
 	BaseDir                 string               `description:"This base directory to use to store local files"`
 	Context                 *common.Context      `description:"The module details"`
@@ -25,11 +25,11 @@ type Configuration struct {
 }
 
 // NewConfiguration create an empty config
-func NewConfiguration() Configuration {
-	cfg := Configuration{}
+func NewConfiguration() configuration {
+	cfg := configuration{}
 	cfg.Context = &common.Context{}
-	cfg.AzureBlobProvider = nil
-	cfg.MongoDBMetaProvider = nil
-	cfg.ServiceBusEventProvider = nil
+	cfg.AzureBlobProvider = &azurestorage.Config{}
+	cfg.MongoDBMetaProvider = &mongodb.Config{}
+	cfg.ServiceBusEventProvider = &servicebus.Config{}
 	return cfg
 }
