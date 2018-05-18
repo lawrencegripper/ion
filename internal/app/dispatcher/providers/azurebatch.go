@@ -149,11 +149,13 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
-	containers := []apiv1.Container{
+	sidecarPrepareAgs := append(fullSidecarArgs, "--action=prepare")
+	sidecarCommitAgs := append(fullSidecarArgs, "--action=commit")
+	initContainers := []apiv1.Container{
 		{
-			Name:            "sidecar",
+			Name:            "prepare",
 			Image:           b.jobConfig.SidecarImage,
-			Args:            fullSidecarArgs,
+			Args:            sidecarPrepareAgs,
 			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
@@ -175,10 +177,25 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 			},
 		},
 	}
+	containers := []apiv1.Container{
+		{
+			Name:            "commit",
+			Image:           b.jobConfig.SidecarImage,
+			Args:            sidecarCommitAgs,
+			ImagePullPolicy: pullPolicy,
+			VolumeMounts: []apiv1.VolumeMount{
+				{
+					Name:      "ionvolume",
+					MountPath: "/ion",
+				},
+			},
+		},
+	}
 
 	podComponent := pod2docker.PodComponents{
-		Containers: containers,
-		PodName:    message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
+		InitContainers: initContainers,
+		Containers:     containers,
+		PodName:        message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
 		Volumes: []apiv1.Volume{
 			{
 				Name: "ionvolume",
@@ -299,7 +316,7 @@ func (b *AzureBatch) Reconcile() error {
 					"task":    t,
 				}).Info("Task completed with failed exit code")
 
-				//Remove the task from batch
+				// Remove the task from batch
 				_, err := b.removeTask(&t)
 				if err != nil {
 					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")

@@ -16,20 +16,19 @@ import (
 func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) []string {
 	return []string{
 		"--context.name=" + c.ModuleName,
-		"--azureblobprovider=true",
+		"--azureblobprovider.enabled=true",
 		"--azureblobprovider.blobaccountname=" + c.Sidecar.AzureBlobProvider.BlobAccountName,
 		"--azureblobprovider.blobaccountkey=" + c.Sidecar.AzureBlobProvider.BlobAccountKey,
-		"--mongodbmetaprovider=true",
+		"--mongodbmetaprovider.enabled=true",
 		"--mongodbmetaprovider.collection=" + c.Sidecar.MongoDBMetaProvider.Collection,
 		"--mongodbmetaprovider.name=" + c.Sidecar.MongoDBMetaProvider.Name,
 		"--mongodbmetaprovider.password=" + c.Sidecar.MongoDBMetaProvider.Password,
 		"--mongodbmetaprovider.port=" + strconv.Itoa(c.Sidecar.MongoDBMetaProvider.Port),
-		"--servicebuseventprovider=true",
-		"--servicebuseventprovider.Namespace=" + c.ServiceBusNamespace,
-		"--servicebuseventprovider.Topic=" + c.SubscribesToEvent,
+		"--servicebuseventprovider.enabled=true",
+		"--servicebuseventprovider.namespace=" + c.ServiceBusNamespace,
+		"--servicebuseventprovider.topic=" + c.SubscribesToEvent,
 		"--servicebuseventprovider.key=" + *sbKeys.PrimaryKey,
 		"--servicebuseventprovider.authorizationrulename=" + *sbKeys.KeyName,
-		"--serverport=" + strconv.Itoa(c.Sidecar.ServerPort),
 		"--loglevel=" + c.LogLevel,
 		"--printconfig=" + strconv.FormatBool(c.Sidecar.PrintConfig),
 		"--valideventtypes=" + c.EventsPublished,
@@ -48,7 +47,6 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 	log.WithField("correlationid", context.CorrelationID).Debug("generating sidecar args for message")
 	return []string{
 		"--azureblobprovider.containername=" + context.CorrelationID,
-		"--sharedsecret=" + m.ID(), //Todo: Investigate generating a more random secret
 		"--context.eventid=" + context.EventID,
 		"--context.correlationid=" + context.CorrelationID,
 		"--context.parenteventid=" + context.ParentEventID,

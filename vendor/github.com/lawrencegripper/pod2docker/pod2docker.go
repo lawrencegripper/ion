@@ -18,6 +18,7 @@ type ImageRegistryCredential struct {
 // PodComponents provides details to run a pod
 type PodComponents struct {
 	PullCredentials []ImageRegistryCredential
+	InitContainers  []v1.Container
 	Containers      []v1.Container
 	Volumes         []v1.Volume
 	PodName         string

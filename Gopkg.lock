@@ -215,8 +215,8 @@
 [[projects]]
   name = "github.com/lawrencegripper/pod2docker"
   packages = ["."]
-  revision = "20bddb9349e5dccc15f8391ce112ed8cf2b97768"
-  version = "v0.4.2"
+  revision = "a6fd026742b6f0fa4e5afda1c843555bcb000ace"
+  version = "v0.5"
 
 [[projects]]
   name = "github.com/magiconair/properties"
@@ -566,6 +566,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6788b04df22fa69c5ac35ff04196b87d0c80586eea6bf093e886677a6775bf60"
+  inputs-digest = "5cd63245fd8f99606ecfe8577219a7b838b1855a23e7941de5043ff451c33bfe"
   solver-name = "gps-cdcl"
   solver-version = 1
