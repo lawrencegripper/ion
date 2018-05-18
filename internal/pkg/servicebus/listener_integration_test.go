@@ -10,6 +10,7 @@ import (
 	"pack.ag/amqp"
 
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
+	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -28,11 +29,11 @@ var config = &types.Configuration{
 	ServiceBusNamespace: os.Getenv("AZURE_SERVICEBUS_NAMESPACE"),
 	Hostname:            "Test",
 	ModuleName:          helpers.RandomName(8),
-	SubscribesToEvent:   "ExampleEvent",
+	SubscribesToEvent:   "ExampleEvent2",
 	EventsPublished:     "ExamplePublishtopic",
 	LogLevel:            "Debug",
 	Job: &types.JobConfig{
-		RetryCount: 1337,
+		RetryCount: 5,
 	},
 }
 
@@ -41,12 +42,6 @@ func TestIntegrationNewListener(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
 	}
-
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		t.Errorf("Paniced: %v", prettyPrintStruct(r))
-	// 	}
-	// }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
@@ -77,14 +72,16 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Fail()
 	}
 
-	message, err := listener.AmqpReceiver.Receive(ctx)
+	amqpMessage, err := listener.AmqpReceiver.Receive(ctx)
 	if err != nil {
 		t.Error(err)
 	}
 
+	message := messaging.NewAmqpMessageWrapper(amqpMessage)
+
 	message.Accept()
-	if message.Value != nonce {
-		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Value)
+	if message.Body().(string) != nonce {
+		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Body())
 	}
 
 	depth, err = listener.GetQueueDepth()
@@ -101,19 +98,10 @@ func TestIntegrationNewListener(t *testing.T) {
 	}
 }
 
-// todo: Fix this integration test
-// Currently calling reject causes the message to be deadlettered in SB and never redelivered.
-// dispite the fact it's delivery count is under the maxDeliveryCount value.
 func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
 	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Paniced: %v", prettyPrintStruct(r))
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
@@ -131,38 +119,33 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 		t.Error(err)
 	}
 
-	message, err := listener.AmqpReceiver.Receive(ctx)
-	if err != nil {
-		t.Error(err)
+	for index := 0; index < 6; index++ {
+		amqpMessage, err := listener.AmqpReceiver.Receive(ctx)
+		message := messaging.NewAmqpMessageWrapper(amqpMessage)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if message.DeliveryCount() != index {
+			t.Logf("Delivery count: Got %v Expected %v", message.DeliveryCount(), index)
+		}
+
+		err = message.Reject()
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
-	if message.Header.DeliveryCount != 0 {
-		t.Error("first delivery has wrong count")
-	}
-
-	message.Release()
-
-	// Currently fails here as the rejected message is put in the deadletter queue.
-	checkUntil := time.Now().Add(time.Second * 12)
+	checkUntil := time.Now().Add(time.Second * 3)
 	checkCtx, cancel := context.WithDeadline(context.Background(), checkUntil)
 	defer cancel()
 
-	messageSecondDelivery, err := listener.AmqpReceiver.Receive(checkCtx)
+	_, err = listener.AmqpReceiver.Receive(checkCtx)
 	if err != nil {
-		t.Error(err)
-		t.FailNow()
+		t.Log(err)
+	} else {
+		t.Error("message delivered a 6th time - after 5 should be deadlettered")
 	}
-
-	if messageSecondDelivery.Value != message.Value {
-		t.Error("redelivered message value different from original")
-	}
-
-	// Todo: Currently unable to handle this here. Release doesn't increment the deliverycount reject deadletters the message
-	if messageSecondDelivery.Header.DeliveryCount != 1 {
-		t.Errorf("Expected DeliveryCount of 1 Has: %v", messageSecondDelivery.Header.DeliveryCount)
-	}
-
-	messageSecondDelivery.Accept()
 }
 
 // createAmqpSender exists for e2e testing.

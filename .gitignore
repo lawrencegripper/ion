@@ -7,3 +7,4 @@ tools/publishevent/main.go
 tools/publishevent/publishevent
 .memdb
 .dev
+**/debug.test

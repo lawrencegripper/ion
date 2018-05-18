@@ -6,6 +6,9 @@ dependencies:
 test:
 	go test -v -short ./...
 
+integration:
+	go test ./...
+
 dispatcher:
 	make -f build/dispatcher/Makefile.Docker
 	

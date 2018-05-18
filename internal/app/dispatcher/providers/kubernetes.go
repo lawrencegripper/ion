@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lawrencegripper/ion/internal/app/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 
 	"github.com/Azure/go-autorest/autorest/to"
 
@@ -145,8 +145,6 @@ func (k *Kubernetes) Reconcile() error {
 			continue
 		}
 
-		// Todo: Handle jobs which have overrun their Max execution time
-		// Todo: Should we remove failed/completed jobs?
 		for _, condition := range j.Status.Conditions {
 			// Job failed - reject the message so it goes back on the queue to be retried
 			if condition.Type == batchv1.JobFailed {
@@ -237,24 +235,28 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
+	sidecarPrepareAgs := append(fullSidecarArgs, "--action=prepare")
+	sidecarCommitAgs := append(fullSidecarArgs, "--action=commit")
+	deadlineSeconds := k.jobConfig.MaxRunningTimeMins * 60
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   getJobName(message),
 			Labels: labels,
 		},
 		Spec: batchv1.JobSpec{
-			Completions:  to.Int32Ptr(1),
-			BackoffLimit: to.Int32Ptr(1),
+			Completions:           to.Int32Ptr(1),
+			BackoffLimit:          to.Int32Ptr(1),
+			ActiveDeadlineSeconds: to.Int64Ptr(int64(deadlineSeconds)), // Use k8s to enforce the job maxRunningTime param
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
 				},
 				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
+					InitContainers: []apiv1.Container{
 						{
-							Name:            "sidecar",
+							Name:            "prepare",
 							Image:           k.jobConfig.SidecarImage,
-							Args:            fullSidecarArgs,
+							Args:            sidecarPrepareAgs,
 							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
@@ -267,6 +269,20 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 							Name:            "worker",
 							Image:           k.jobConfig.WorkerImage,
 							Env:             workerEnvVars,
+							ImagePullPolicy: pullPolicy,
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      "ionvolume",
+									MountPath: "/ion",
+								},
+							},
+						},
+					},
+					Containers: []apiv1.Container{
+						{
+							Name:            "commit",
+							Image:           k.jobConfig.SidecarImage,
+							Args:            sidecarCommitAgs,
 							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{

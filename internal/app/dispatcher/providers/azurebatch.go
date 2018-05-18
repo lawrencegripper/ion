@@ -11,7 +11,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
-	"github.com/lawrencegripper/ion/internal/app/dispatcher/messaging"
+	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	"github.com/lawrencegripper/pod2docker"
 	log "github.com/sirupsen/logrus"
@@ -149,11 +149,13 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
-	containers := []apiv1.Container{
+	sidecarPrepareAgs := append(fullSidecarArgs, "--action=prepare")
+	sidecarCommitAgs := append(fullSidecarArgs, "--action=commit")
+	initContainers := []apiv1.Container{
 		{
-			Name:            "sidecar",
+			Name:            "prepare",
 			Image:           b.jobConfig.SidecarImage,
-			Args:            fullSidecarArgs,
+			Args:            sidecarPrepareAgs,
 			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
@@ -175,10 +177,25 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 			},
 		},
 	}
+	containers := []apiv1.Container{
+		{
+			Name:            "commit",
+			Image:           b.jobConfig.SidecarImage,
+			Args:            sidecarCommitAgs,
+			ImagePullPolicy: pullPolicy,
+			VolumeMounts: []apiv1.VolumeMount{
+				{
+					Name:      "ionvolume",
+					MountPath: "/ion",
+				},
+			},
+		},
+	}
 
 	podComponent := pod2docker.PodComponents{
-		Containers: containers,
-		PodName:    message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
+		InitContainers: initContainers,
+		Containers:     containers,
+		PodName:        message.ID() + "-v" + strconv.Itoa(message.DeliveryCount()),
 		Volumes: []apiv1.Volume{
 			{
 				Name: "ionvolume",
@@ -211,6 +228,9 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		DisplayName: to.StringPtr(fmt.Sprintf("%s:%s", b.dispatcherName, message.ID())),
 		ID:          to.StringPtr(message.ID()),
 		CommandLine: to.StringPtr(fmt.Sprintf(`/bin/bash -c "%s"`, podCommand)),
+		Constraints: &batch.TaskConstraints{
+			MaxWallClockTime: to.StringPtr(fmt.Sprintf("PT%dM", b.jobConfig.MaxRunningTimeMins)),
+		},
 		UserIdentity: &batch.UserIdentity{
 			AutoUser: &batch.AutoUserSpecification{
 				ElevationLevel: batch.Admin,
@@ -296,13 +316,13 @@ func (b *AzureBatch) Reconcile() error {
 					"task":    t,
 				}).Info("Task completed with failed exit code")
 
-				//Remove the task from batch
+				// Remove the task from batch
 				_, err := b.removeTask(&t)
 				if err != nil {
 					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")
 				}
 
-				//ACK the message to remove from queue
+				//ACK the message to requeue failure
 				err = sourceMessage.Reject()
 
 				if err != nil {
@@ -320,7 +340,6 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		if t.State != batch.TaskStateCompleted {
-			// Todo: Handle max execution time here
 			log.WithFields(log.Fields{
 				"message": sourceMessage,
 				"task":    t,
