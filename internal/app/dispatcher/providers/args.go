@@ -36,10 +36,10 @@ func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) 
 	}
 }
 
-func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
+func getMessageSidecarArgs(m messaging.Message) ([]string, common.Context, error) {
 	eventData, err := m.EventData()
 	if err != nil {
-		return []string{}, err
+		return []string{}, common.Context{}, err
 	}
 	context := eventData.Context
 	if context == nil {
@@ -52,7 +52,7 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 		"--context.eventid=" + context.EventID,
 		"--context.correlationid=" + context.CorrelationID,
 		"--context.parenteventid=" + context.ParentEventID,
-	}, nil
+	}, *context, nil
 }
 
 func getModuleEnvironmentVars(configLocation string) (map[string]string, error) {

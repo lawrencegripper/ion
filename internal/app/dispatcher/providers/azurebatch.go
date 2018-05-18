@@ -124,7 +124,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		return fmt.Errorf("invalid properties. Provider cannot be nil")
 	}
 
-	perJobArgs, err := getMessageSidecarArgs(message)
+	perJobArgs, _, err := getMessageSidecarArgs(message)
 	if err != nil {
 		return fmt.Errorf("failed generating sidecar args from message: %v", err)
 	}

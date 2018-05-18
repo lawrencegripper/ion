@@ -68,6 +68,11 @@ func Run(cfg *types.Configuration) {
 			}
 
 			log.WithField("message", message).Debug("message dispatched")
+			queueDepth, err := listener.GetQueueDepth()
+			if err != nil {
+				log.WithError(err).Error("failed getting queue depth from listener")
+			}
+			log.WithField("queueCount", queueDepth).Info("listenerStats")
 		}
 	}()
 
@@ -81,7 +86,10 @@ func Run(cfg *types.Configuration) {
 				// Todo: Should this panic here? Should we tolerate a few failures (k8s upgade causing masters not to be vailable for example?)
 				log.WithError(err).Panic("Failed to reconcile ....")
 			}
+			log.WithField("inProgress", provider.InProgressCount).Info("providerStats")
+
 			time.Sleep(time.Second * 15)
+
 		}
 	}()
 	wg.Wait()

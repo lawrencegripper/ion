@@ -4,10 +4,12 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 
+	logrus_appinsights "github.com/jjcollinge/logrus-appinsights"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -100,6 +102,28 @@ func NewDispatcherCommand() *cobra.Command {
 			}
 			cfg.Hostname = hostName
 
+			if key := viper.GetString("logging.appinsights"); key != "" {
+				hook, err := logrus_appinsights.New("dispather_"+hostName, logrus_appinsights.Config{
+					InstrumentationKey: key,
+					MaxBatchSize:       10,              // optional
+					MaxBatchInterval:   time.Second * 5, // optional
+				})
+				if err != nil || hook == nil {
+					panic(err)
+				}
+
+				// TODO: Probably want to ignore stuff like INFO, maybe only take ERROR and PANIC
+				// set custom levels
+				// hook.SetLevels([]log.Level{
+				// 	log.PanicLevel,
+				// 	log.ErrorLevel,
+				// })
+
+				// ignore fields
+				hook.AddIgnore("private")
+				log.AddHook(hook)
+			}
+
 			return nil
 		},
 	}
@@ -146,6 +170,9 @@ func NewDispatcherCommand() *cobra.Command {
 	dispatcherCmd.PersistentFlags().String("azurebatch.imagerepositoryusername", "", "")
 	dispatcherCmd.PersistentFlags().String("azurebatch.imagerepositorypassword", "", "")
 
+	//logging: Appinsights
+	dispatcherCmd.PersistentFlags().String("logging.appinsights", "", "")
+
 	// Mark required flags (won't mark required setting, onyl CLI flag presence will be checked)
 	//dispatcherCmd.MarkPersistentFlagRequired("")
 
@@ -189,6 +216,9 @@ func NewDispatcherCommand() *cobra.Command {
 	viper.BindPFlag("azurebatch.imagerepositoryserver", dispatcherCmd.PersistentFlags().Lookup("azurebatch.imagerepositoryserver"))
 	viper.BindPFlag("azurebatch.imagerepositoryusername", dispatcherCmd.PersistentFlags().Lookup("azurebatch.imagerepositoryusername"))
 	viper.BindPFlag("azurebatch.imagerepositorypassword", dispatcherCmd.PersistentFlags().Lookup("azurebatch.imagerepositorypassword"))
+
+	//logging: Appinsights
+	viper.BindPFlag("logging.appinsights", dispatcherCmd.PersistentFlags().Lookup("logging.appinsights"))
 
 	// Add sub-commands
 	dispatcherCmd.AddCommand(NewCmdStart())
