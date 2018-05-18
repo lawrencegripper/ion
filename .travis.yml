@@ -15,7 +15,7 @@ before_install:
 
 script:
 - make
-- if [ "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" = "master" ]; then chmod +x ./build/pushimages.sh && sudo ./build/pushimages.sh; fi
+- if [ "$TRAVIS_PULL_REQUEST" = "false" -a "$TRAVIS_BRANCH" = "master" ]; then chmod +x ./build/pushimages.sh && sudo ./build/pushimages.sh; fi
 
 env:
   global:
