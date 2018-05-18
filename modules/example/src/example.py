@@ -6,57 +6,16 @@ import sys
 import os
 from lib import sidecar
 
-# NOTE:
-# ---
-# Please ensure the sidecar is running before you
-# attempt to run this module. You must provide the
-# environment variables listed below.
-#
-# CMD:
-# ---
-# SHARED_SECRET=secret SIDECAR_PORT=8080 python3 example.py
-#
-# ENV:
-# ---
-# * SHARED_SECRET [REQUIRED]
-# * SIDECAR_PORT [REQUIRED]
-# * SIDECAR_BASE_DIR [OPTIONAL]
+# Environment variables:
+# - SIDECAR_BASE_DIR [OPTIONAL]
 
-shared_secret = ""
-port = ""
 base_dir = "/ion/"
-if "SHARED_SECRET" in os.environ:
-    shared_secret = os.environ["SHARED_SECRET"]
-else:
-    print("SHARED_SECRET environment variable not set!")
-    sys.exit(1)
-
-if "SIDECAR_PORT" in os.environ:
-    port = os.environ["SIDECAR_PORT"]
-else:
-    print("SIDECAR_PORT environment variable not set!")
-    sys.exit(1)
-
 if "SIDECAR_BASE_DIR" in os.environ:
     base_dir = os.environ["SIDECAR_BASE_DIR"]
 else:
     print("SIDECAR_BASE_DIR not set, defaulting to /ion/")
 
-# This line is only needed for development
-# where module may be ran multiple times 
-# in the same directories. This is usually 
-# handled by the sidecar.
-sidecar.refresh(base_dir)
-
 print("module starting")
-
-# Initialize the module environment.
-# This must be ran before any processing
-# on tracked files (files that are synced
-# with Ion's data plane). This can only
-# be run once.
-sidecar.ready(port, shared_secret)
-print("module ready")
 
 # This module has no input files as it
 # is the first in it's graph. However,
@@ -66,8 +25,13 @@ print("module ready")
 # `{base_dir}/in/meta.json`
 
 # Do some processing, this could be anything
-print("doing some work")
-time.sleep(10)
+print("fake doing some work...")
+spinner = sidecar.spinning_cursor()
+for _ in range(50):
+    sys.stdout.write(next(spinner))
+    sys.stdout.flush()
+    time.sleep(0.1)
+    sys.stdout.write('\b')
 
 # Write some output files
 for i in range(0, 5):
@@ -116,13 +80,5 @@ insight = [{
 sidecar.write_insight(base_dir, insight)
 print("wrote new insight")
 
-# Everything up to this point should be considered
-# idempotent. If the code fails halfway through
-# the module will be rescheduled and rerun.
-# This call will commit our state to Ion's data plane.
-# This can only be called once.
-# Any state created after this call will be lost
-# after the process terminates.
-print("module commiting state")
-sidecar.done(port, shared_secret)
-print("module done")
+# Now we're finished
+print("module finished")
