@@ -17,7 +17,7 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/inmemory"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/module"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const testdata = "testdata"
@@ -79,9 +79,8 @@ func TestMain(m *testing.M) {
 	environment.Build()
 
 	// Create committer
-	logger := logrus.New()
-	logger.Out = os.Stdout
-	c = committer.NewCommitter(testdata, false, logger)
+	log.SetOutput(os.Stdout)
+	c = committer.NewCommitter(testdata, false)
 
 	exitCode := m.Run()
 

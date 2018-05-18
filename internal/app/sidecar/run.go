@@ -26,8 +26,6 @@ import (
 // cSpell:ignore flaeg, logrus, mongodb
 
 const (
-	defaultPort = 8080
-
 	// A blank base dir will result in /ion/ being used
 	defaultWindowsBaseDir = ""
 	defaultLinuxBaseDir   = ""
@@ -42,9 +40,9 @@ const (
 )
 
 // Run the sidecar using config
-func Run(config Configuration) error {
+func Run(config Configuration) {
 	if err := validateConfig(&config); err != nil {
-		return err
+		panic(err)
 	}
 
 	metaProvider := getMetaProvider(&config)
@@ -57,59 +55,40 @@ func Run(config Configuration) error {
 		EventPublisher:   eventProvider,
 	}
 
-	logger := log.New()
-	logger.Out = os.Stdout
+	// TODO Refactor out below into doRun(dataPlane *dataplane.Dataplane, config Configuration)
 
+	log.SetOutput(os.Stdout)
 	if config.LogFile != "" {
-		file, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY, 0666)
+		logFile, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY, 0666)
 		if err == nil {
-			logger.Out = file
+			log.SetOutput(logFile)
 		} else {
-			logger.Info("Failed to log to file, using default stderr")
+			log.Warnf("Failed to open log file %s, using default stderr", config.LogFile)
 		}
 	}
-
-	logger.Level = mapLogLevel(config.LogLevel)
 
 	validEventTypes := strings.Split(config.ValidEventTypes, ",")
 
 	baseDir := config.BaseDir
-	if baseDir == "" {
+	if baseDir == "" || baseDir == "./" || baseDir == ".\\" {
 		baseDir = getDefaultBaseDir()
 	}
 
 	action := strings.ToLower(config.Action)
 	if config.Action == constants.Prepare {
-		preparer := preparer.NewPreparer(baseDir, config.Development, logger)
+		preparer := preparer.NewPreparer(baseDir, config.Development)
 		defer preparer.Close()
 		if err := preparer.Prepare(config.Context, dataPlane); err != nil {
 			panic(fmt.Sprintf("Error during prepration %+v", err))
 		}
 	} else if config.Action == constants.Commit {
-		committer := committer.NewCommitter(baseDir, config.Development, logger)
+		committer := committer.NewCommitter(baseDir, config.Development)
 		defer committer.Close()
 		if err := committer.Commit(config.Context, dataPlane, validEventTypes); err != nil {
 			panic(fmt.Sprintf("Error during commit %+v", err))
 		}
 	} else {
 		panic(fmt.Sprintf("Unsupported action type %+v", action))
-	}
-
-	return nil
-}
-
-func mapLogLevel(logLevel string) log.Level {
-	switch strings.ToLower(logLevel) {
-	case "debug":
-		return log.DebugLevel
-	case "info":
-		return log.InfoLevel
-	case "warn":
-		return log.WarnLevel
-	case "error":
-		return log.ErrorLevel
-	default:
-		return log.WarnLevel
 	}
 }
 

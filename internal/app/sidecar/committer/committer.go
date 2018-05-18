@@ -15,7 +15,6 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/sidecar/logger"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/module"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
-	"github.com/sirupsen/logrus"
 )
 
 // cSpell:ignore logrus, GUID, nolint
@@ -37,10 +36,10 @@ type Committer struct {
 
 	baseDir         string
 	developmentFlag bool
-	logger          *logrus.Logger
 }
 
-func NewCommitter(baseDir string, developmentFlag bool, logger *logrus.Logger) *Committer {
+// NewCommitter creates a new committer instance
+func NewCommitter(baseDir string, developmentFlag bool) *Committer {
 	if baseDir == "" {
 		baseDir = "/ion/"
 	}
@@ -48,7 +47,6 @@ func NewCommitter(baseDir string, developmentFlag bool, logger *logrus.Logger) *
 	committer := &Committer{
 		baseDir:         baseDir,
 		developmentFlag: developmentFlag,
-		logger:          logger,
 	}
 
 	return committer
@@ -85,7 +83,7 @@ func (c *Committer) Commit(
 
 // Close cleans up any external resources
 func (c *Committer) Close() {
-	c.logger.Info("Cleaning up sidecar")
+	logger.Info(c.context, "Cleaning up sidecar")
 
 	_ = c.environment.Clear()
 	defer c.dataPlane.Close()
@@ -93,7 +91,7 @@ func (c *Committer) Close() {
 
 // Commit is called when the module is finished and wishes to commit their state to an external provider
 func (c *Committer) doCommit() error {
-	logger.Info(c.logger, c.context, "Committing module's environment to the data plane")
+	logger.Info(c.context, "Committing module's environment to the data plane")
 
 	// Commit blob data to an external blob store
 	blobURIs, err := c.commitBlob(c.environment.OutputBlobDirPath)
@@ -120,14 +118,14 @@ func (c *Committer) doCommit() error {
 		_ = helpers.WriteDevFile("committed", c.context.EventID, empty)
 	}
 
-	logger.Info(c.logger, c.context, "Successfully committed module's environment to the data plane")
+	logger.Info(c.context, "Successfully committed module's environment to the data plane")
 	return nil
 }
 
 //CommitBlob commits the blob directory to an external blob provider
 func (c *Committer) commitBlob(blobsPath string) (map[string]string, error) {
 	if _, err := os.Stat(blobsPath); os.IsNotExist(err) {
-		logger.Debug(c.logger, c.context, fmt.Sprintf("blob output directory '%s' does not exists '%+v'", blobsPath, err))
+		logger.Debug(c.context, fmt.Sprintf("blob output directory '%s' does not exists '%+v'", blobsPath, err))
 		return nil, nil
 	}
 
@@ -145,14 +143,14 @@ func (c *Committer) commitBlob(blobsPath string) (map[string]string, error) {
 		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
 
-	logger.Info(c.logger, c.context, "Committed blob data")
+	logger.Info(c.context, "Committed blob data")
 	return blobURIs, nil
 }
 
 //CommitMeta commits the metadata document to an external provider
 func (c *Committer) commitMeta(metadataPath string) error {
 	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
-		logger.Debug(c.logger, c.context, fmt.Sprintf("metadata file '%s' does not exists '%+v'", metadataPath, err))
+		logger.Info(c.context, fmt.Sprintf("metadata file '%s' does not exists '%+v'", metadataPath, err))
 		return nil
 	}
 
@@ -182,14 +180,14 @@ func (c *Committer) commitMeta(metadataPath string) error {
 		_ = helpers.WriteDevFile("meta.json", c.context.EventID, insight)
 	}
 
-	logger.Info(c.logger, c.context, "Committed meta data")
+	logger.Info(c.context, "Committed meta data")
 	return nil
 }
 
 //CommitEvents commits the events directory to an external provider
 func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) error {
 	if _, err := os.Stat(eventsPath); os.IsNotExist(err) {
-		logger.Debug(c.logger, c.context, fmt.Sprintf("events output directory '%s' does not exists '%+v'", eventsPath, err))
+		logger.Info(c.context, fmt.Sprintf("events output directory '%s' does not exists '%+v'", eventsPath, err))
 		return nil
 	}
 
@@ -232,7 +230,7 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 			case eventTypeKey:
 				// Check whether the event type is valid for this module
 				if helpers.ContainsString(c.validEventTypes, kvp.Value) == false {
-					logger.Error(c.logger, c.context, fmt.Sprintf("this module is unable to publish event's of type '%s'", eventType))
+					logger.Info(c.context, fmt.Sprintf("this module is unable to publish event's of type '%s'", eventType))
 					continue
 				}
 				eventType = kvp.Value
@@ -267,7 +265,7 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		// blob uri for each of the files to the event context.
 		var fileSlice []string
 		if len(includedFilesCSV) == 0 {
-			logger.Debug(c.logger, c.context, "Event contains no file references")
+			logger.Info(c.context, "Event contains no file references")
 		} else {
 			if err := keyValuePairs.Remove(filesIndex - itemsRemoved); err != nil {
 				return fmt.Errorf("error removing event type from metadata: '%+v'", err)
@@ -332,6 +330,6 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		}
 	}
 
-	logger.Info(c.logger, c.context, "Committed events")
+	logger.Info(c.context, "Committed events")
 	return nil
 }

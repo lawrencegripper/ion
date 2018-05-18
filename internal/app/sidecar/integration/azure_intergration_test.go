@@ -77,10 +77,7 @@ func TestAzureIntegration(t *testing.T) {
 	}
 
 	// Create Module #1
-	err = sidecar.Run(config)
-	if err != nil {
-		t.Error(err)
-	}
+	sidecar.Run(config)
 	defer func() {
 		_ = os.RemoveAll(baseDir) // This cleans up the local events directory created by the mock event publisher
 		_ = os.RemoveAll(constants.DevBaseDir)
@@ -113,10 +110,7 @@ func TestAzureIntegration(t *testing.T) {
 	writeOutputBytes(outEvent, filepath.FromSlash(path.Join(environment.OutputEventsDirPath, "event1.json")))
 
 	config.Action = constants.Commit
-	err = sidecar.Run(config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sidecar.Run(config)
 
 	// Grab event ID from module 1's output event
 	b, err := ioutil.ReadFile(inEventFilePath)
@@ -133,10 +127,7 @@ func TestAzureIntegration(t *testing.T) {
 	config.Context.ParentEventID = config.Context.EventID
 	config.Context.EventID = inEvent.Context.EventID
 	config.Action = constants.Prepare
-	err = sidecar.Run(config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sidecar.Run(config)
 
 	// Check blob input data matches the output from the first module
 	inFiles, err := ioutil.ReadDir(environment.InputBlobDirPath)

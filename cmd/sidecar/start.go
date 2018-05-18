@@ -1,46 +1,42 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/lawrencegripper/ion/internal/app/sidecar"
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 // NewStartCommand create the start command with its flags
 func NewStartCommand() *cobra.Command {
-	config := sidecar.Configuration{}
 	var cmd = &cobra.Command{
 		Use:   "start",
 		Short: "ion-sidecar to embed in the processing",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// check emptyness of required parameters
-			arr := []string{"action", "module-name", "azure-name", "azure-key", "azure-container", "mongo-name", "mongo-db", "bus-namespace", "bus-topic", "bus-key", "bus-rule-name"}
-			for _, v := range arr {
-				if sidecarCmdConfig.GetString(v) == "" {
-					return errors.New("The parameter \"" + v + "\" cannot be empty")
-				}
-			}
-
 			sidecarConfig.BaseDir = sidecarCmdConfig.GetString("base-dir")
-			sidecarConfig.Context.Name = sidecarCmdConfig.GetString("module-name")
 			sidecarConfig.Action = sidecarCmdConfig.GetString("action")
+			sidecarConfig.ValidEventTypes = sidecarCmdConfig.GetString("valideventtypes")
 
-			sidecarConfig.AzureBlobProvider.BlobAccountName = sidecarCmdConfig.GetString("azure-name")
-			sidecarConfig.AzureBlobProvider.BlobAccountKey = sidecarCmdConfig.GetString("azure-key")
-			sidecarConfig.AzureBlobProvider.ContainerName = sidecarCmdConfig.GetString("azure-container")
+			sidecarConfig.AzureBlobProvider.BlobAccountName = sidecarCmdConfig.GetString("azureblobprovider.blobaccountname")
+			sidecarConfig.AzureBlobProvider.BlobAccountKey = sidecarCmdConfig.GetString("azureblobprovider.blobaccountkey")
+			sidecarConfig.AzureBlobProvider.ContainerName = sidecarCmdConfig.GetString("azureblobprovider.containername")
 
-			sidecarConfig.MongoDBMetaProvider.Name = sidecarCmdConfig.GetString("mongo-name")
-			sidecarConfig.MongoDBMetaProvider.Password = sidecarCmdConfig.GetString("mongo-password")
-			sidecarConfig.MongoDBMetaProvider.Collection = sidecarCmdConfig.GetString("mongo-db")
-			sidecarConfig.MongoDBMetaProvider.Port = sidecarCmdConfig.GetInt("mongo-port")
+			sidecarConfig.MongoDBMetaProvider.Name = sidecarCmdConfig.GetString("mongodbmetaprovider.name")
+			sidecarConfig.MongoDBMetaProvider.Password = sidecarCmdConfig.GetString("mongodbmetaprovider.password")
+			sidecarConfig.MongoDBMetaProvider.Collection = sidecarCmdConfig.GetString("mongodbmetaprovider.collection")
+			sidecarConfig.MongoDBMetaProvider.Port = sidecarCmdConfig.GetInt("mongodbmetaprovider.port")
 
-			sidecarConfig.ServiceBusEventProvider.Namespace = sidecarCmdConfig.GetString("bus-namespace")
-			sidecarConfig.ServiceBusEventProvider.Topic = sidecarCmdConfig.GetString("bus-topic")
-			sidecarConfig.ServiceBusEventProvider.Key = sidecarCmdConfig.GetString("bus-key")
-			sidecarConfig.ServiceBusEventProvider.AuthorizationRuleName = sidecarCmdConfig.GetString("bus-rule-name")
+			sidecarConfig.ServiceBusEventProvider.Namespace = sidecarCmdConfig.GetString("servicebuseventprovider.namespace")
+			sidecarConfig.ServiceBusEventProvider.Topic = sidecarCmdConfig.GetString("servicebuseventprovider.topic")
+			sidecarConfig.ServiceBusEventProvider.Key = sidecarCmdConfig.GetString("servicebuseventprovider.key")
+			sidecarConfig.ServiceBusEventProvider.AuthorizationRuleName = sidecarCmdConfig.GetString("servicebuseventprovider.authorizationrulename")
+
+			sidecarConfig.Context.Name = sidecarCmdConfig.GetString("context.name")
+			sidecarConfig.Context.EventID = sidecarCmdConfig.GetString("context.eventid")
+			sidecarConfig.Context.CorrelationID = sidecarCmdConfig.GetString("context.correlationid")
+			sidecarConfig.Context.ParentEventID = sidecarCmdConfig.GetString("context.parenteventid")
 
 			if sidecarConfig.PrintConfig {
 				fmt.Println(tools.PrettyPrintStruct(sidecarConfig))
@@ -48,42 +44,73 @@ func NewStartCommand() *cobra.Command {
 
 			return nil
 		},
-		Run: func(cmd *cobra.Command, args []string) { sidecar.Run(config) },
+		Run: func(cmd *cobra.Command, args []string) {
+			log.Infoln("Starting sidecar")
+
+			sidecar.Run(sidecarConfig)
+		},
 	}
 
 	flags := cmd.PersistentFlags()
-	flags.StringP("config", "c", "configs/sidecar.yml", "Path to the configuration file")
 	flags.StringP("base-dir", "b", "./", "This base directory to use to store local files")
-	flags.StringP("module-name", "n", "", "Module name")
-	flags.StringP("action", "a", "", "The action for the sidecar to perform (prepare or commit)")
-	flags.String("azureblobprovider.blobaccountname", "", "Azure Blob Storage account name")
-	flags.String("azureblobprovider.blobaccountkey", "", "Azure Blob Storage account key")
-	flags.String("azureblobprovider.containername", "", "Azure Blob Storage container name")
-	flags.String("mongodbmetaprovider.name", "", "MongoDB database name")
-	flags.String("mongodbmetaprovider.password", "", "MongoDB database password")
-	flags.String("mongodbmetaprovider.collection", "", "MongoDB database collection to use")
-	flags.Int("mongodbmetaprovider.port", 27017, "MongoDB server port")
-	flags.String("servicebuseventprovider.namespace", "", "ServiceBus namespace")
-	flags.String("servicebuseventprovider.topic", "", "ServiceBus topic name")
-	flags.String("servicebuseventprovider.key", "", "ServiceBus access key")
-	flags.String("servicebuseventprovider.authorizationrulename", "", "ServiceBus authorization rule name")
-	flags.IntP("port", "p", 8080, "Port to listen")
-
+	cmd.MarkFlagRequired("base-dir")
 	sidecarCmdConfig.BindPFlag("base-dir", flags.Lookup("base-dir"))
-	sidecarCmdConfig.BindPFlag("module-name", flags.Lookup("module-name"))
+
+	flags.StringP("action", "a", "", "The action for the sidecar to perform (prepare or commit)")
+	cmd.MarkFlagRequired("action")
 	sidecarCmdConfig.BindPFlag("action", flags.Lookup("action"))
-	sidecarCmdConfig.BindPFlag("azure-container", flags.Lookup("azureblobprovider.containername"))
-	sidecarCmdConfig.BindPFlag("azure-name", flags.Lookup("azureblobprovider.blobaccountname"))
-	sidecarCmdConfig.BindPFlag("azure-key", flags.Lookup("azureblobprovider.blobaccountkey"))
-	sidecarCmdConfig.BindPFlag("mongo-name", flags.Lookup("mongodbmetaprovider.name"))
-	sidecarCmdConfig.BindPFlag("mongo-password", flags.Lookup("mongodbmetaprovider.password"))
-	sidecarCmdConfig.BindPFlag("mongo-db", flags.Lookup("mongodbmetaprovider.collection"))
-	sidecarCmdConfig.BindPFlag("mongo-port", flags.Lookup("mongodbmetaprovider.port"))
-	sidecarCmdConfig.BindPFlag("bus-namespace", flags.Lookup("servicebuseventprovider.namespace"))
-	sidecarCmdConfig.BindPFlag("bus-topic", flags.Lookup("servicebuseventprovider.topic"))
-	sidecarCmdConfig.BindPFlag("bus-key", flags.Lookup("servicebuseventprovider.key"))
-	sidecarCmdConfig.BindPFlag("bus-rule-name", flags.Lookup("servicebuseventprovider.authorizationrulename"))
-	sidecarCmdConfig.BindPFlag("port", flags.Lookup("port"))
+
+	flags.String("valideventtypes", "", "Events which the module may raise on completion")
+	cmd.MarkFlagRequired("valideventtypes")
+	sidecarCmdConfig.BindPFlag("valideventtypes", flags.Lookup("valideventtypes"))
+
+	flags.String("context.name", "", "Module name")
+	cmd.MarkFlagRequired("context.name")
+	sidecarCmdConfig.BindPFlag("context.name", flags.Lookup("context.name"))
+
+	flags.String("context.eventid", "", "Event ID")
+	cmd.MarkFlagRequired("context.eventid")
+	sidecarCmdConfig.BindPFlag("context.eventid", flags.Lookup("context.eventid"))
+
+	flags.String("context.correlationid", "", "Correlation ID")
+	cmd.MarkFlagRequired("context.correlationid")
+	sidecarCmdConfig.BindPFlag("context.correlationid", flags.Lookup("context.correlationid"))
+
+	flags.String("context.parenteventid", "", "ParentEvent ID")
+	sidecarCmdConfig.BindPFlag("context.parenteventid", flags.Lookup("context.parenteventid"))
+
+	flags.String("azureblobprovider.blobaccountname", "", "Azure Blob Storage account name")
+	sidecarCmdConfig.BindPFlag("azureblobprovider.blobaccountname", flags.Lookup("azureblobprovider.blobaccountname"))
+
+	flags.String("azureblobprovider.blobaccountkey", "", "Azure Blob Storage account key")
+	sidecarCmdConfig.BindPFlag("azureblobprovider.blobaccountkey", flags.Lookup("azureblobprovider.blobaccountkey"))
+
+	flags.String("azureblobprovider.containername", "", "Azure Blob Storage container name")
+	sidecarCmdConfig.BindPFlag("azureblobprovider.containername", flags.Lookup("azureblobprovider.containername"))
+
+	flags.String("mongodbmetaprovider.name", "", "MongoDB database name")
+	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.name", flags.Lookup("mongodbmetaprovider.name"))
+
+	flags.String("mongodbmetaprovider.password", "", "MongoDB database password")
+	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.password", flags.Lookup("mongodbmetaprovider.password"))
+
+	flags.String("mongodbmetaprovider.collection", "", "MongoDB database collection to use")
+	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.collection", flags.Lookup("mongodbmetaprovider.collection"))
+
+	flags.Int("mongodbmetaprovider.port", 27017, "MongoDB server port")
+	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.port", flags.Lookup("mongodbmetaprovider.port"))
+
+	flags.String("servicebuseventprovider.namespace", "", "ServiceBus namespace")
+	sidecarCmdConfig.BindPFlag("servicebuseventprovider.namespace", flags.Lookup("servicebuseventprovider.namespace"))
+
+	flags.String("servicebuseventprovider.topic", "", "ServiceBus topic name")
+	sidecarCmdConfig.BindPFlag("servicebuseventprovider.topic", flags.Lookup("servicebuseventprovider.topic"))
+
+	flags.String("servicebuseventprovider.key", "", "ServiceBus access key")
+	sidecarCmdConfig.BindPFlag("servicebuseventprovider.key", flags.Lookup("servicebuseventprovider.key"))
+
+	flags.String("servicebuseventprovider.authorizationrulename", "", "ServiceBus authorization rule name")
+	sidecarCmdConfig.BindPFlag("servicebuseventprovider.authorizationrulename", flags.Lookup("servicebuseventprovider.authorizationrulename"))
 
 	return cmd
 }

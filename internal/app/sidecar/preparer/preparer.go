@@ -14,7 +14,6 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/sidecar/logger"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/module"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
-	log "github.com/sirupsen/logrus"
 )
 
 // cSpell:ignore logrus, GUID, nolint
@@ -28,11 +27,10 @@ type Preparer struct {
 
 	baseDir         string
 	developmentFlag bool
-	logger          *log.Logger
 }
 
 // NewPreparer constructs a new preprarer
-func NewPreparer(baseDir string, developmentFlag bool, logger *log.Logger) *Preparer {
+func NewPreparer(baseDir string, developmentFlag bool) *Preparer {
 	if baseDir == "" {
 		baseDir = "/ion/"
 	}
@@ -40,7 +38,6 @@ func NewPreparer(baseDir string, developmentFlag bool, logger *log.Logger) *Prep
 	preparer := &Preparer{
 		baseDir:         baseDir,
 		developmentFlag: developmentFlag,
-		logger:          logger,
 	}
 
 	return preparer
@@ -72,7 +69,7 @@ func (p *Preparer) Prepare(
 
 // Close cleans up the preparer
 func (p *Preparer) Close() {
-	logger.Info(p.logger, p.context, "Closing Preparer")
+	logger.Info(p.context, "Closing Preparer")
 
 	defer p.dataPlane.Close()
 }
@@ -81,7 +78,7 @@ func (p *Preparer) Close() {
 // This includes; creating the required directory structure and
 // populating it with any input data.
 func (p *Preparer) doPrepare() error {
-	logger.Info(p.logger, p.context, "Preparing module environment")
+	logger.Info(p.context, "Preparing module environment")
 
 	if err := p.prepareEnv(); err != nil {
 		return err
@@ -97,7 +94,7 @@ func (p *Preparer) doPrepare() error {
 		_ = helpers.WriteDevFile("prepared", p.context.EventID, empty)
 	}
 
-	logger.Info(p.logger, p.context, "Successfully prepared module environment")
+	logger.Info(p.context, "Successfully prepared module environment")
 	return nil
 }
 

@@ -51,10 +51,7 @@ func TestDevIntegration(t *testing.T) {
 
 	environment := module.GetModuleEnvironment(baseDir)
 
-	err := sidecar.Run(config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sidecar.Run(config)
 
 	defer func() {
 		_ = os.RemoveAll(baseDir)
@@ -95,10 +92,7 @@ func TestDevIntegration(t *testing.T) {
 	writeOutputBytes(outEvent, filepath.FromSlash(path.Join(environment.OutputEventsDirPath, "event1.json")))
 
 	config.Action = constants.Commit
-	err = sidecar.Run(config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sidecar.Run(config)
 
 	// Check dev.committed exists in development dir
 	committedPath := filepath.FromSlash(path.Join(constants.DevBaseDir, eventID, "dev.committed"))
@@ -121,10 +115,7 @@ func TestDevIntegration(t *testing.T) {
 	config.Context.ParentEventID = config.Context.EventID
 	config.Context.EventID = inEvent.Context.EventID
 	config.Action = constants.Prepare
-	err = sidecar.Run(config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sidecar.Run(config)
 
 	// Check blob input data matches the output from the first module
 	inFiles, err := ioutil.ReadDir(environment.InputBlobDirPath)
