@@ -28,8 +28,8 @@ type Configuration struct {
 func NewConfiguration() Configuration {
 	cfg := Configuration{}
 	cfg.Context = &common.Context{}
-	cfg.AzureBlobProvider = &azurestorage.Config{}
-	cfg.MongoDBMetaProvider = &mongodb.Config{}
-	cfg.ServiceBusEventProvider = &servicebus.Config{}
+	cfg.AzureBlobProvider = nil
+	cfg.MongoDBMetaProvider = nil
+	cfg.ServiceBusEventProvider = nil
 	return cfg
 }

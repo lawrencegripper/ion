@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/azurestorage"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/events/servicebus"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/mongodb"
 
 	"github.com/lawrencegripper/ion/internal/app/sidecar"
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // NewStartCommand create the start command with its flags
@@ -19,19 +23,31 @@ func NewStartCommand() *cobra.Command {
 			sidecarConfig.Action = sidecarCmdConfig.GetString("action")
 			sidecarConfig.ValidEventTypes = sidecarCmdConfig.GetString("valideventtypes")
 
-			sidecarConfig.AzureBlobProvider.BlobAccountName = sidecarCmdConfig.GetString("azureblobprovider.blobaccountname")
-			sidecarConfig.AzureBlobProvider.BlobAccountKey = sidecarCmdConfig.GetString("azureblobprovider.blobaccountkey")
-			sidecarConfig.AzureBlobProvider.ContainerName = sidecarCmdConfig.GetString("azureblobprovider.containername")
+			azureBlobProviderExists := checkObjectConfig(sidecarCmdConfig, "azureblobprovider.blobaccountname", "azureblobprovider.blobaccountkey", "azureblobprovider.containername")
+			if azureBlobProviderExists {
+				sidecarConfig.AzureBlobProvider = &azurestorage.Config{}
+				sidecarConfig.AzureBlobProvider.BlobAccountName = sidecarCmdConfig.GetString("azureblobprovider.blobaccountname")
+				sidecarConfig.AzureBlobProvider.BlobAccountKey = sidecarCmdConfig.GetString("azureblobprovider.blobaccountkey")
+				sidecarConfig.AzureBlobProvider.ContainerName = sidecarCmdConfig.GetString("azureblobprovider.containername")
+			}
 
-			sidecarConfig.MongoDBMetaProvider.Name = sidecarCmdConfig.GetString("mongodbmetaprovider.name")
-			sidecarConfig.MongoDBMetaProvider.Password = sidecarCmdConfig.GetString("mongodbmetaprovider.password")
-			sidecarConfig.MongoDBMetaProvider.Collection = sidecarCmdConfig.GetString("mongodbmetaprovider.collection")
-			sidecarConfig.MongoDBMetaProvider.Port = sidecarCmdConfig.GetInt("mongodbmetaprovider.port")
+			mongoDBMetaProviderExists := checkObjectConfig(sidecarCmdConfig, "mongodbmetaprovider.name", "mongodbmetaprovider.password", "mongodbmetaprovider.collection", "mongodbmetaprovider.port")
+			if mongoDBMetaProviderExists {
+				sidecarConfig.MongoDBMetaProvider = &mongodb.Config{}
+				sidecarConfig.MongoDBMetaProvider.Name = sidecarCmdConfig.GetString("mongodbmetaprovider.name")
+				sidecarConfig.MongoDBMetaProvider.Password = sidecarCmdConfig.GetString("mongodbmetaprovider.password")
+				sidecarConfig.MongoDBMetaProvider.Collection = sidecarCmdConfig.GetString("mongodbmetaprovider.collection")
+				sidecarConfig.MongoDBMetaProvider.Port = sidecarCmdConfig.GetInt("mongodbmetaprovider.port")
+			}
 
-			sidecarConfig.ServiceBusEventProvider.Namespace = sidecarCmdConfig.GetString("servicebuseventprovider.namespace")
-			sidecarConfig.ServiceBusEventProvider.Topic = sidecarCmdConfig.GetString("servicebuseventprovider.topic")
-			sidecarConfig.ServiceBusEventProvider.Key = sidecarCmdConfig.GetString("servicebuseventprovider.key")
-			sidecarConfig.ServiceBusEventProvider.AuthorizationRuleName = sidecarCmdConfig.GetString("servicebuseventprovider.authorizationrulename")
+			serviceBusEventProviderExists := checkObjectConfig(sidecarCmdConfig, "servicebuseventprovider.namespace", "servicebuseventprovider.topic", "servicebuseventprovider.key", "servicebuseventprovider.authorizationrulename")
+			if serviceBusEventProviderExists {
+				sidecarConfig.ServiceBusEventProvider = &servicebus.Config{}
+				sidecarConfig.ServiceBusEventProvider.Namespace = sidecarCmdConfig.GetString("servicebuseventprovider.namespace")
+				sidecarConfig.ServiceBusEventProvider.Topic = sidecarCmdConfig.GetString("servicebuseventprovider.topic")
+				sidecarConfig.ServiceBusEventProvider.Key = sidecarCmdConfig.GetString("servicebuseventprovider.key")
+				sidecarConfig.ServiceBusEventProvider.AuthorizationRuleName = sidecarCmdConfig.GetString("servicebuseventprovider.authorizationrulename")
+			}
 
 			sidecarConfig.Context.Name = sidecarCmdConfig.GetString("context.name")
 			sidecarConfig.Context.EventID = sidecarCmdConfig.GetString("context.eventid")
@@ -113,4 +129,30 @@ func NewStartCommand() *cobra.Command {
 	sidecarCmdConfig.BindPFlag("servicebuseventprovider.authorizationrulename", flags.Lookup("servicebuseventprovider.authorizationrulename"))
 
 	return cmd
+}
+
+// checkObjectConfig will only work for objects with atleast
+// 1 string value as we can't trust default bools, ints as
+// non entries.
+func checkObjectConfig(cfg *viper.Viper, keys ...string) bool {
+	for _, k := range keys {
+		v := cfg.Get(k)
+		switch v.(type) {
+		case nil:
+			return false
+		case string:
+			vStr := v.(string)
+			if vStr == "" {
+				return false
+			}
+			continue
+		case int:
+			continue
+		case bool:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }

@@ -4,4 +4,4 @@
 --context.eventid=1 `
 --context.name=test `
 --context.parenteventid=0 `
---valideventtypes=face_detected
+--valideventtypes=face_detected 
