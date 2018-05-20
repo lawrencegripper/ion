@@ -35,10 +35,10 @@ type JobConfig struct {
 
 // SidecarConfig configures the information about the jobs which will be run
 type SidecarConfig struct {
-	ServerPort          int              `yaml:"serverport"`
-	AzureBlobProvider   *AzureBlobConfig `yaml:"azureblobprovider"`
-	MongoDBMetaProvider *MongoDBConfig   `yaml:"mongodbmetaprovider"`
-	PrintConfig         bool             `yaml:"printconfig"`
+	ServerPort                     int              `yaml:"serverport"`
+	AzureBlobStorageProvider       *AzureBlobConfig `yaml:"azureblobprovider"`
+	MongoDBDocumentStorageProvider *MongoDBConfig   `yaml:"mongodbdocprovider"`
+	PrintConfig                    bool             `yaml:"printconfig"`
 }
 
 // MongoDBConfig is configuration required to setup a MongoDB metadata store

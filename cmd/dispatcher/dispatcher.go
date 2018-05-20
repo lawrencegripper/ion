@@ -19,8 +19,8 @@ var cfg = types.Configuration{
 	Kubernetes: &types.KubernetesConfig{},
 	Job:        &types.JobConfig{},
 	Sidecar: &types.SidecarConfig{
-		AzureBlobProvider:   &types.AzureBlobConfig{},
-		MongoDBMetaProvider: &types.MongoDBConfig{},
+		AzureBlobStorageProvider:       &types.AzureBlobConfig{},
+		MongoDBDocumentStorageProvider: &types.MongoDBConfig{},
 	},
 	AzureBatch: &types.AzureBatchConfig{},
 }
@@ -62,14 +62,14 @@ func NewDispatcherCommand() *cobra.Command {
 			cfg.Sidecar.ServerPort = viper.GetInt("sidecar.serverport")
 			cfg.Sidecar.PrintConfig = viper.GetBool("sidecar.printconfig")
 			// sidecar.azureblobprovider.*
-			cfg.Sidecar.AzureBlobProvider.BlobAccountName = viper.GetString("sidecar.azureblobprovider.blobaccountname")
-			cfg.Sidecar.AzureBlobProvider.BlobAccountKey = viper.GetString("sidecar.azureblobprovider.blobaccountkey")
-			cfg.Sidecar.AzureBlobProvider.UseProxy = viper.GetBool("sidecar.azureblobprovider.useproxy")
+			cfg.Sidecar.AzureBlobStorageProvider.BlobAccountName = viper.GetString("sidecar.azureblobprovider.blobaccountname")
+			cfg.Sidecar.AzureBlobStorageProvider.BlobAccountKey = viper.GetString("sidecar.azureblobprovider.blobaccountkey")
+			cfg.Sidecar.AzureBlobStorageProvider.UseProxy = viper.GetBool("sidecar.azureblobprovider.useproxy")
 			// sidecar.mongodbdocprovider.*
-			cfg.Sidecar.MongoDBMetaProvider.Name = viper.GetString("sidecar.mongodbdocprovider.name")
-			cfg.Sidecar.MongoDBMetaProvider.Password = viper.GetString("sidecar.mongodbdocprovider.password")
-			cfg.Sidecar.MongoDBMetaProvider.Collection = viper.GetString("sidecar.mongodbdocprovider.collection")
-			cfg.Sidecar.MongoDBMetaProvider.Port = viper.GetInt("sidecar.mongodbdocprovider.port")
+			cfg.Sidecar.MongoDBDocumentStorageProvider.Name = viper.GetString("sidecar.mongodbdocprovider.name")
+			cfg.Sidecar.MongoDBDocumentStorageProvider.Password = viper.GetString("sidecar.mongodbdocprovider.password")
+			cfg.Sidecar.MongoDBDocumentStorageProvider.Collection = viper.GetString("sidecar.mongodbdocprovider.collection")
+			cfg.Sidecar.MongoDBDocumentStorageProvider.Port = viper.GetInt("sidecar.mongodbdocprovider.port")
 			// azurebatch.*
 			cfg.AzureBatch.ResourceGroup = viper.GetString("azurebatch.resourcegroup")
 			cfg.AzureBatch.PoolID = viper.GetString("azurebatch.poolid")

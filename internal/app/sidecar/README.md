@@ -33,7 +33,7 @@ The Sidecar binary can be ran as follows:
 --azureblobprovider.blobaccountkey=<blobaccountkey> `
 --azureblobprovider.blobaccountname=<blobaccountname> `
 --azureblobprovider.containername=<containername> `
---mongodbmetaprovider=true `
+--mongodbdocprovider=true `
 --mongodbdocprovider.collection=<collection> `
 --mongodbdocprovider.name=<name> `
 --mongodbdocprovider.password=<password> `
@@ -62,7 +62,7 @@ The Sidecar binary can be ran as follows:
 --azureblobprovider.blobaccountkey=<blobaccountkey> \
 --azureblobprovider.blobaccountname=<blobaccountname> \
 --azureblobprovider.containername=<containername> \
---mongodbmetaprovider=true \
+--mongodbdocprovider=true \
 --mongodbdocprovider.collection=<collection> \
 --mongodbdocprovider.name=<name> \
 --mongodbdocprovider.password=<password> \

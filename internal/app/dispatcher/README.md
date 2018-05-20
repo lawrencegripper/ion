@@ -20,7 +20,7 @@ Once you have the Dispatcher binary, you can simply run it using one of the foll
 --loglevel=debug `
 --modulename=<modulename> `
 --kubernetesnamespace=default `
---sidecar.mongodbmetaprovider=true `
+--sidecar.mongodbdocprovider=true `
 --sidecar.mongodbdocprovider.collection=<collection> `
 --sidecar.mongodbdocprovider.name=<name> `
 --sidecar.mongodbdocprovider.password=<password> `
@@ -47,7 +47,7 @@ Once you have the Dispatcher binary, you can simply run it using one of the foll
 --loglevel=debug \
 --modulename=<modulename> \
 --kubernetesnamespace=default \
---sidecar.mongodbmetaprovider=true \
+--sidecar.mongodbdocprovider=true \
 --sidecar.mongodbdocprovider.collection=<collection> \
 --sidecar.mongodbdocprovider.name=<name> \
 --sidecar.mongodbdocprovider.password=<password> \
