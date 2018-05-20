@@ -1,4 +1,4 @@
-all: dependencies test dispatcher sidecar
+all: dependencies test dispatcher handler
 
 dependencies:
 	dep ensure -v --vendor-only
@@ -12,6 +12,6 @@ integration:
 dispatcher:
 	make -f build/dispatcher/Makefile.Docker
 	
-sidecar:
-	make -f build/sidecar/Makefile.Docker
+handler:
+	make -f build/handler/Makefile.Docker
 	

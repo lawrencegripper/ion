@@ -1,0 +1,2 @@
+all:
+	docker build -f build/handler/Dockerfile -t ion-handler .

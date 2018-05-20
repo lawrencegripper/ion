@@ -20,7 +20,7 @@ type Configuration struct {
 	PrintConfig         bool              `yaml:"printconfig"`
 	Kubernetes          *KubernetesConfig `yaml:"kubernetes"`
 	Job                 *JobConfig        `yaml:"job"`
-	Sidecar             *SidecarConfig    `yaml:"sidecar"`
+	Handler             *HandlerConfig    `yaml:"handler"`
 	AzureBatch          *AzureBatchConfig `yaml:"azurebatch"`
 }
 
@@ -29,12 +29,12 @@ type JobConfig struct {
 	MaxRunningTimeMins int    `yaml:"maxrunningtimemins"`
 	RetryCount         int    `yaml:"retrycount"`
 	WorkerImage        string `yaml:"workerimage"`
-	SidecarImage       string `yaml:"sidecarimage"`
+	HandlerImage       string `yaml:"handlerimage"`
 	PullAlways         bool   `yaml:"pullalways"`
 }
 
-// SidecarConfig configures the information about the jobs which will be run
-type SidecarConfig struct {
+// HandlerConfig configures the information about the jobs which will be run
+type HandlerConfig struct {
 	ServerPort                     int              `yaml:"serverport"`
 	AzureBlobStorageProvider       *AzureBlobConfig `yaml:"azureblobprovider"`
 	MongoDBDocumentStorageProvider *MongoDBConfig   `yaml:"mongodbdocprovider"`

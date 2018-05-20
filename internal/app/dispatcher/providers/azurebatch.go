@@ -25,7 +25,7 @@ var _ Provider = &AzureBatch{}
 type AzureBatch struct {
 	inprogressJobStore map[string]messaging.Message
 	dispatcherName     string
-	sidecarArgs        []string
+	handlerArgs        []string
 	workerEnvVars      map[string]interface{}
 	ctx                context.Context
 	cancelOps          context.CancelFunc
@@ -44,7 +44,7 @@ type AzureBatch struct {
 }
 
 // NewAzureBatchProvider creates a provider for azure batch.
-func NewAzureBatchProvider(config *types.Configuration, sharedSidecarArgs []string) (*AzureBatch, error) {
+func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []string) (*AzureBatch, error) {
 	if config == nil || config.AzureBatch == nil || config.Job == nil {
 		return nil, fmt.Errorf("Cannot create a provider - invalid configuration, require config, AzureBatch and Job")
 	}
@@ -124,11 +124,11 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		return fmt.Errorf("invalid properties. Provider cannot be nil")
 	}
 
-	perJobArgs, err := getMessageSidecarArgs(message)
+	perJobArgs, err := getMessageHandlerArgs(message)
 	if err != nil {
-		return fmt.Errorf("failed generating sidecar args from message: %v", err)
+		return fmt.Errorf("failed generating handler args from message: %v", err)
 	}
-	fullSidecarArgs := append(b.sidecarArgs, perJobArgs...)
+	fullHandlerArgs := append(b.handlerArgs, perJobArgs...)
 
 	workerEnvVars := []apiv1.EnvVar{
 		{
@@ -149,13 +149,13 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
-	sidecarPrepareAgs := append(fullSidecarArgs, "--action=prepare")
-	sidecarCommitAgs := append(fullSidecarArgs, "--action=commit")
+	handlerPrepareAgs := append(fullHandlerArgs, "--action=prepare")
+	handlerCommitAgs := append(fullHandlerArgs, "--action=commit")
 	initContainers := []apiv1.Container{
 		{
 			Name:            "prepare",
-			Image:           b.jobConfig.SidecarImage,
-			Args:            sidecarPrepareAgs,
+			Image:           b.jobConfig.HandlerImage,
+			Args:            handlerPrepareAgs,
 			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
@@ -180,8 +180,8 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 	containers := []apiv1.Container{
 		{
 			Name:            "commit",
-			Image:           b.jobConfig.SidecarImage,
-			Args:            sidecarCommitAgs,
+			Image:           b.jobConfig.HandlerImage,
+			Args:            handlerCommitAgs,
 			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{

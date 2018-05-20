@@ -1,8 +1,8 @@
 .directory
 build/dispatcher/dispatcher
-build/sidecar/ion-sidecar
+build/handler/ion-handler
 cmd/dispatcher/dispatcher
-cmd/sidecar/sidecar
+cmd/handler/handler
 tools/publishevent/main.go
 tools/publishevent/publishevent
 .memdb

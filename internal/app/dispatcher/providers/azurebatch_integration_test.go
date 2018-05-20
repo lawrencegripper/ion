@@ -66,7 +66,7 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 				SubscriptionID:    os.Getenv("AZURE_SUBSCRIPTION_ID"),
 				TenantID:          os.Getenv("AZURE_TENANT_ID"),
 				Job: &types.JobConfig{
-					SidecarImage:       test.dockerimage,
+					HandlerImage:       test.dockerimage,
 					WorkerImage:        test.dockerimage,
 					MaxRunningTimeMins: test.maxExecutionTimeMins,
 				},

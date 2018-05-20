@@ -4,16 +4,16 @@ import shutil
 import datetime
 import sys
 import os
-from lib import sidecar
+from lib import handler
 
 # Environment variables:
-# - SIDECAR_BASE_DIR [OPTIONAL]
+# - HANDLER_BASE_DIR [OPTIONAL]
 
 base_dir = "/ion/"
-if "SIDECAR_BASE_DIR" in os.environ:
-    base_dir = os.environ["SIDECAR_BASE_DIR"]
+if "HANDLER_BASE_DIR" in os.environ:
+    base_dir = os.environ["HANDLER_BASE_DIR"]
 else:
-    print("SIDECAR_BASE_DIR not set, defaulting to /ion/")
+    print("HANDLER_BASE_DIR not set, defaulting to /ion/")
 
 print("module starting")
 
@@ -26,7 +26,7 @@ print("module starting")
 
 # Do some processing, this could be anything
 print("fake doing some work...")
-spinner = sidecar.spinning_cursor()
+spinner = handler.spinning_cursor()
 for _ in range(50):
     sys.stdout.write(next(spinner))
     sys.stdout.flush()
@@ -40,7 +40,7 @@ for i in range(0, 5):
     # data plane, their external URIs will be
     # stored as meta data for later retrival.
     out_file = "image" + str(i) + ".png"
-    sidecar.write_file(base_dir, out_file, "face!")
+    handler.write_file(base_dir, out_file, "face!")
     print("wrote file {}".format(out_file))
 
     # For each file we wrote,
@@ -55,7 +55,7 @@ for i in range(0, 5):
         "value": out_file
     }]
     event_name = "event{}.json".format(i)
-    sidecar.write_event(base_dir, event_name, event)
+    handler.write_event(base_dir, event_name, event)
     print("wrote event {}".format(event_name))
 
 # During our processing, we may
@@ -77,7 +77,7 @@ insight = [{
     "key": "image_md5",
     "value": "1a79a4d60de6718e8e5b326e338ae533"
 }]
-sidecar.write_insight(base_dir, insight)
+handler.write_insight(base_dir, insight)
 print("wrote new insight")
 
 # Now we're finished

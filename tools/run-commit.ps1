@@ -1,4 +1,4 @@
-.\sidecar.exe start `
+.\handler.exe start `
 --action=commit `
 --context.correlationid=1 `
 --context.eventid=1 `

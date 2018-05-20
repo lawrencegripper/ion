@@ -43,11 +43,11 @@ module:
   maxRunningTimeMins: 10
   subscribesToEvent: ""
   retryCount: 5
-  sidecar:
+  handler:
     host: localhost:8080
     printConfig: false
     image:
-      name: dotjson/ion-sidecar
+      name: dotjson/ion-handler
       tag: latest
       pullPolicy: Always
 # This is the configuration to be passed to the module.

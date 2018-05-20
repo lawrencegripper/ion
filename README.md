@@ -23,7 +23,7 @@ The Ion platform is comprised of 4 main components:
 1. [Dispatchers](#dispatchers)
 2. [Jobs](#jobs)
 3. [Modules](#modules)
-4. [Sidecar](#sidecar)
+4. [Handler](#handler)
 
 ### Dispatchers
 Dispatchers can be configured to subscribe to certain event topics on an external messaging service. Multiple Dispatchers can subscribe for the same events to allow scalability. When a Dispatcher dequeues a message, it extracts requirements about the job, applies business logic rules and then dispatches a new job to be scheduled onto an appropriate execution environment.
@@ -38,15 +38,15 @@ The Dispatcher uses `providers` to schedule jobs onto execution environments. If
 For more details on dispatchers: please refer to the [Dispatcher docs](dispatcher/README.md)
 
 ### Jobs
-A job is the unit of deployment for a Dispatcher, it contains at least 2 sub components; a module and a sidecar. The job should be provided with all the parameters it needs to successfully fulfil its work during dispatch.
+A job is the unit of deployment for a Dispatcher, it contains at least 2 sub components; a module and a handler. The job should be provided with all the parameters it needs to successfully fulfil its work during dispatch.
 
 ### Modules
 A module is analogous to a discrete task. It is the program that the user wishes to execute in response to a particular event. This is likely the only component a user of the platform needs to be concerned with. The module can be written in any language but should be containerized along with all its dependencies.
 
 For more details on modules: please refer to the [Module docs](modules/README.md)
 
-### Sidecar
-Each module is co-scheduled with a sidecar. The sidecar provides a hook into the platform that the module can leverage. This includes getting data from previous modules, storing new data and publishing new events. As the sidecar is co-scheduled in a shared namespace, your module will be able to access the sidecar over `localhost`. The sidecar relies on 3 external components; a document store for metadata, a blob storage provider and a messaging system.
+### Handler
+Each module is co-scheduled with a handler. The handler provides a hook into the platform that the module can leverage. This includes getting data from previous modules, storing new data and publishing new events. As the handler is co-scheduled in a shared namespace, your module will be able to access the handler over `localhost`. The handler relies on 3 external components; a document store for metadata, a blob storage provider and a messaging system.
 Currently supported metadata stores include:
 * [MongoDB](https://www.mongodb.com/)
 * [Azure CosmosDB](https://docs.microsoft.com/en-us/azure/cosmos-db/introduction)
@@ -59,9 +59,9 @@ Currently supported blob storage providers include:
 Currently supported messaging systems include:
 * [Azure Service Bus](https://azure.microsoft.com/en-us/services/service-bus/)
 
-The components the Sidecar uses are configurable, if you wish to add support for a currently unsupported technology please review the existing components, implement the interface ensuring similar behaviour and submit a PR.
+The components the Handler uses are configurable, if you wish to add support for a currently unsupported technology please review the existing components, implement the interface ensuring similar behaviour and submit a PR.
 
-For more details on sidecar: please refer to the [Sidecar docs](sidecar/README.md)
+For more details on handler: please refer to the [Handler docs](handler/README.md)
 
 ## Developing
 
@@ -69,4 +69,4 @@ Ensure you have go setup correctly then run `go get github.com/lawrencegripper/i
 
 To check changes using the same process as the CI build run `./ci.sh` at the root directory and check the output for any errors.
 
-This will check the `/dispatcher` and `/sidecar` directories. If you add an additional folder/service add your new path and add a new line into `./ci.sh` to invoke it with the correct `FOLDER` build arg.
+This will check the `/dispatcher` and `/handler` directories. If you add an additional folder/service add your new path and add a new line into `./ci.sh` to invoke it with the correct `FOLDER` build arg.
