@@ -22,7 +22,7 @@ Ion's data plane provides 3 main capabilities:
 * Event publishing
 These 3 capabilities are fulfilled by providers. The data plane relies on these providers to interface with whatever service is backing their interface. For instance there is an [Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/) provider that is responsible for storing and retrieving data from the Azure Blob Storage service. This means that you service can only operate at the service level defined by your data plane providers. If you choose to use a single instance of MongoDB as your document storage provider and that instance is deleted, then you will lose your data.
 
-![](../../../docs/ion3.PNG)
+![](../../../docs/ion3.png)
 
 ## Getting the Handler
 Now that you've Ionized your module, you probably want to check that it integrates with Ion's Handler properly. In order to do this, grab the latest release of the Handler binary from the [releases page](https://github.com/lawrencegripper/ion/releases).
