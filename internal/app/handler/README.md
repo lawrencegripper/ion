@@ -1,15 +1,28 @@
 # Handler
-The handler is co-scheduled with a module. The handler shares the execution environment with the module and is responsible for 2 things:
+The handler can be run in 2 discrete modes:
+* Prepare
+* Commit
 
-1. Fetching any input files and data from Ion's data plane.
-2. Committing output files to Ion's data plane.
+## Prepare
+When the handler is run in `prepare` mode, it will create the required directory structure for the module to use and populate it with any data passed in from a previous module.
 
-The handler runs as a separate container but leverages a shared volume with the module's container. When instructed to do so, the Handler will synchronize the data in this volume with Ion's data plane.
+## Commit
+When then handler is run in `commit` mode, it will take any data written out by the module during execution and persist it into Ion's data plane.
+
+## Run Order
+Ion will execute Jobs in a specific order:
+1. The handler in prepare mode
+2. The module
+3. The handler in commit mode
 
 ## Data Plane
-The handler uses a provider for storing blob data and another provider for storing meta data. These backing stores are then responsible for handling the data persistence. These providers are know in the abstract as Ion's data plane.
+Ion's data plane provides 3 main capabilities:
+* Blob storage
+* Document storage
+* Event publishing
+These 3 capabilities are fulfilled by providers. The data plane relies on these providers to interface with whatever service is backing their interface. For instance there is an [Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/) provider that is responsible for storing and retrieving data from the Azure Blob Storage service. This means that you service can only operate at the service level defined by your data plane providers. If you choose to use a single instance of MongoDB as your document storage provider and that instance is deleted, then you will lose your data.
 
-![](../docs/ion-module.png)
+![](../../../docs/ion3.PNG)
 
 ## Getting the Handler
 Now that you've Ionized your module, you probably want to check that it integrates with Ion's Handler properly. In order to do this, grab the latest release of the Handler binary from the [releases page](https://github.com/lawrencegripper/ion/releases).
@@ -79,7 +92,7 @@ The Handler binary can be ran as follows:
 ### Development Mode
 Development mode allows you to run the handler without the Dispatcher. This will leverage the filesystem and in-memory providers to handle blobs, metadata and events.
 
-Development mode will also dump data of interest out to a `dev` folder to help you debug issues.
+Development mode will also dump data of interest out to a `.dev` folder to help you debug issues.
 
 > **Coming Soon:** Offline Mode - use a local Dispatcher to simulate Ion without any external services.
 
@@ -87,21 +100,20 @@ Development mode will also dump data of interest out to a `dev` folder to help y
 A module should work with files on the local file system as any other process would.
 However, _persistent_ data is expected to be written/read using a particular directory structure:
 
-## `in/data`
-Any input files that your module needs will be available in the input blob directory `in/data` after you have called [ready](#ready).
+## `/ion/in/data`
+Any input files that your module needs will be available in the input blob directory `/ion/in/data`.
 
-## `in/eventmeta.json`
-Any input values that your module needs will be available in the file `in/eventmeta.json`.
+## `/ion/in/eventmeta.json`
+Any input values that your module needs will be available in the file `/ion/in/eventmeta.json`.
 This file will need to be deserialized from JSON into an instance of `common.KeyValuePairs`.
 
-## `out/data`
-Any output files you wish to store should be written to `out/data`. These will be persisted after you call [done](#done).
+## `/ion/out/data`
+Any output files you wish to store should be written to `/ion/out/data`.
 
-## `out/insights.json`
-Any insights you wish to export should be written to the JSON file `out/insights.json`. This is intended for data you want to store for later analysis and does not get passed to subsequent modules.
+## `/ion/out/insights.json`
+Any insights you wish to export should be written to the JSON file `/ion/out/insights.json`. This is intended for data you want to store for later analysis and does not get passed to subsequent modules.
 
 ### `Insight Schema`
-
 Key value pairs can only currently be stored as strings and should be serialized from the type `common.KeyValuePairs`
 ```json
 [
@@ -117,11 +129,10 @@ Key value pairs can only currently be stored as strings and should be serialized
 ]
 ```
 
-## `out/events`
-Any events you wish to publish should be stored as JSON files in `out/events`. Any _optional_ key/value data will be made available to subsequent modules in their `in/meta.json` file. _Required_ key/value data will be extracted.
+## `/ion/out/events`
+Any events you wish to publish should be stored as JSON files in `/ion/out/events`. Any _optional_ key/value data will be made available to subsequent modules in their `/ion/in/eventmeta.json` file. _Required_ key/value data will be extracted.
 
 ### `Events Schema`
-
 Key value pairs can only currently be stored as strings.
 ```json
 [
