@@ -9,7 +9,7 @@ import (
 
 	"github.com/lawrencegripper/ion/internal/app/sidecar/constants"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/helpers"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/logger"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/module"
@@ -51,7 +51,7 @@ func (p *Preparer) Prepare(
 	if err := helpers.ErrorIfNil(dataPlane, context); err != nil {
 		return err
 	}
-	if err := helpers.ErrorIfNil(dataPlane.BlobProvider, dataPlane.MetadataProvider, dataPlane.EventPublisher); err != nil {
+	if err := helpers.ErrorIfNil(dataPlane.BlobStorageProvider, dataPlane.DocumentStorageProvider, dataPlane.EventPublisher); err != nil {
 		return err
 	}
 	if err := helpers.ErrorIfEmpty(context.EventID); err != nil {
@@ -118,7 +118,7 @@ func (p *Preparer) prepareEnv() error {
 
 func (p *Preparer) prepareData() error {
 
-	context, err := p.getContext()
+	eventMeta, err := p.getEventMeta()
 	if err != nil {
 		return fmt.Errorf("Error fetching module's context %+v", err)
 	}
@@ -126,14 +126,14 @@ func (p *Preparer) prepareData() error {
 	// Only get files for events with an existing context.
 	// Assume those that don't have a context are the
 	// first event in the graph or orphaned.
-	if context != nil {
-		err = p.dataPlane.GetBlobs(p.environment.InputBlobDirPath, context.Files)
+	if eventMeta != nil {
+		err = p.dataPlane.GetBlobs(p.environment.InputBlobDirPath, eventMeta.Files)
 		if err != nil {
 			return err
 		}
 
-		if len(context.Data) > 0 {
-			b, err := json.Marshal(context.Data)
+		if len(eventMeta.Data) > 0 {
+			b, err := json.Marshal(eventMeta.Data)
 			if err != nil {
 				return err
 			}
@@ -146,8 +146,8 @@ func (p *Preparer) prepareData() error {
 	return nil
 }
 
-func (p *Preparer) getContext() (*metadata.EventContext, error) {
-	context, _ := p.dataPlane.GetEventContextByID(p.context.EventID)
+func (p *Preparer) getEventMeta() (*documentstorage.EventMeta, error) {
+	context, _ := p.dataPlane.GetEventMetaByID(p.context.EventID)
 	//TODO: Fail on error conditions other than not found
 	return context, nil
 }

@@ -1,20 +1,20 @@
 package dataplane
 
 import (
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 )
 
-//MetadataProvider is a document storage DB for storing document data
-type MetadataProvider interface {
-	GetEventContextByID(id string) (*metadata.EventContext, error)
-	CreateEventContext(metadata *metadata.EventContext) error
-	CreateInsight(insight *metadata.Insight) error
+//DocumentStorageProvider is a document storage DB for storing document data
+type DocumentStorageProvider interface {
+	GetEventMetaByID(id string) (*documentstorage.EventMeta, error)
+	CreateEventMeta(metadata *documentstorage.EventMeta) error
+	CreateInsight(insight *documentstorage.Insight) error
 	Close()
 }
 
-//BlobProvider is responsible for getting information about blobs stored externally
-type BlobProvider interface {
+//BlobStorageProvider is responsible for getting information about blobs stored externally
+type BlobStorageProvider interface {
 	GetBlobs(outputDir string, filePaths []string) error
 	PutBlobs(filePaths []string) (map[string]string, error)
 	Close()
@@ -29,14 +29,14 @@ type EventPublisher interface {
 // DataPlane is the module's API to
 // external providers
 type DataPlane struct {
-	BlobProvider
-	MetadataProvider
+	BlobStorageProvider
+	DocumentStorageProvider
 	EventPublisher
 }
 
 // Close cleans up the data plane providers
 func (d *DataPlane) Close() {
-	defer d.BlobProvider.Close()
-	defer d.MetadataProvider.Close()
+	defer d.BlobStorageProvider.Close()
+	defer d.DocumentStorageProvider.Close()
 	defer d.EventPublisher.Close()
 }

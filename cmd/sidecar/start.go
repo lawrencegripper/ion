@@ -19,19 +19,19 @@ func NewStartCommand() *cobra.Command {
 			sidecarConfig.Action = sidecarCmdConfig.GetString("action")
 			sidecarConfig.ValidEventTypes = sidecarCmdConfig.GetString("valideventtypes")
 
-			sidecarConfig.AzureBlobProvider.Enabled = sidecarCmdConfig.GetBool("azureblobprovider.enabled")
-			if sidecarConfig.AzureBlobProvider.Enabled {
-				sidecarConfig.AzureBlobProvider.BlobAccountName = sidecarCmdConfig.GetString("azureblobprovider.blobaccountname")
-				sidecarConfig.AzureBlobProvider.BlobAccountKey = sidecarCmdConfig.GetString("azureblobprovider.blobaccountkey")
-				sidecarConfig.AzureBlobProvider.ContainerName = sidecarCmdConfig.GetString("azureblobprovider.containername")
+			sidecarConfig.AzureBlobStorageProvider.Enabled = sidecarCmdConfig.GetBool("azureblobprovider.enabled")
+			if sidecarConfig.AzureBlobStorageProvider.Enabled {
+				sidecarConfig.AzureBlobStorageProvider.BlobAccountName = sidecarCmdConfig.GetString("azureblobprovider.blobaccountname")
+				sidecarConfig.AzureBlobStorageProvider.BlobAccountKey = sidecarCmdConfig.GetString("azureblobprovider.blobaccountkey")
+				sidecarConfig.AzureBlobStorageProvider.ContainerName = sidecarCmdConfig.GetString("azureblobprovider.containername")
 			}
 
-			sidecarConfig.MongoDBMetaProvider.Enabled = sidecarCmdConfig.GetBool("mongodbmetaprovider.enabled")
-			if sidecarConfig.MongoDBMetaProvider.Enabled {
-				sidecarConfig.MongoDBMetaProvider.Name = sidecarCmdConfig.GetString("mongodbmetaprovider.name")
-				sidecarConfig.MongoDBMetaProvider.Password = sidecarCmdConfig.GetString("mongodbmetaprovider.password")
-				sidecarConfig.MongoDBMetaProvider.Collection = sidecarCmdConfig.GetString("mongodbmetaprovider.collection")
-				sidecarConfig.MongoDBMetaProvider.Port = sidecarCmdConfig.GetInt("mongodbmetaprovider.port")
+			sidecarConfig.MongoDBDocumentStorageProvider.Enabled = sidecarCmdConfig.GetBool("mongodbdocprovider.enabled")
+			if sidecarConfig.MongoDBDocumentStorageProvider.Enabled {
+				sidecarConfig.MongoDBDocumentStorageProvider.Name = sidecarCmdConfig.GetString("mongodbdocprovider.name")
+				sidecarConfig.MongoDBDocumentStorageProvider.Password = sidecarCmdConfig.GetString("mongodbdocprovider.password")
+				sidecarConfig.MongoDBDocumentStorageProvider.Collection = sidecarCmdConfig.GetString("mongodbdocprovider.collection")
+				sidecarConfig.MongoDBDocumentStorageProvider.Port = sidecarCmdConfig.GetInt("mongodbdocprovider.port")
 			}
 
 			sidecarConfig.ServiceBusEventProvider.Enabled = sidecarCmdConfig.GetBool("servicebuseventprovider.enabled")
@@ -100,20 +100,20 @@ func NewStartCommand() *cobra.Command {
 	flags.String("azureblobprovider.containername", "", "Azure Blob Storage container name")
 	sidecarCmdConfig.BindPFlag("azureblobprovider.containername", flags.Lookup("azureblobprovider.containername"))
 
-	flags.Bool("mongodbmetaprovider.enabled", false, "Enable MongoDB Metadata provider")
-	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.enabled", flags.Lookup("mongodbmetaprovider.enabled"))
+	flags.Bool("mongodbdocprovider.enabled", false, "Enable MongoDB Metadata provider")
+	sidecarCmdConfig.BindPFlag("mongodbdocprovider.enabled", flags.Lookup("mongodbdocprovider.enabled"))
 
-	flags.String("mongodbmetaprovider.name", "", "MongoDB database name")
-	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.name", flags.Lookup("mongodbmetaprovider.name"))
+	flags.String("mongodbdocprovider.name", "", "MongoDB database name")
+	sidecarCmdConfig.BindPFlag("mongodbdocprovider.name", flags.Lookup("mongodbdocprovider.name"))
 
-	flags.String("mongodbmetaprovider.password", "", "MongoDB database password")
-	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.password", flags.Lookup("mongodbmetaprovider.password"))
+	flags.String("mongodbdocprovider.password", "", "MongoDB database password")
+	sidecarCmdConfig.BindPFlag("mongodbdocprovider.password", flags.Lookup("mongodbdocprovider.password"))
 
-	flags.String("mongodbmetaprovider.collection", "", "MongoDB database collection to use")
-	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.collection", flags.Lookup("mongodbmetaprovider.collection"))
+	flags.String("mongodbdocprovider.collection", "", "MongoDB database collection to use")
+	sidecarCmdConfig.BindPFlag("mongodbdocprovider.collection", flags.Lookup("mongodbdocprovider.collection"))
 
-	flags.Int("mongodbmetaprovider.port", 27017, "MongoDB server port")
-	sidecarCmdConfig.BindPFlag("mongodbmetaprovider.port", flags.Lookup("mongodbmetaprovider.port"))
+	flags.Int("mongodbdocprovider.port", 27017, "MongoDB server port")
+	sidecarCmdConfig.BindPFlag("mongodbdocprovider.port", flags.Lookup("mongodbdocprovider.port"))
 
 	flags.Bool("servicebuseventprovider.enabled", false, "Enable Service Bus Event provider")
 	sidecarCmdConfig.BindPFlag("servicebuseventprovider.enabled", flags.Lookup("servicebuseventprovider.enabled"))

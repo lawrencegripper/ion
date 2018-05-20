@@ -13,14 +13,14 @@ const (
 	// InputBlobDir is the input blob data directory
 	InputBlobDir = "in/data"
 
-	// InputMetaFile is the input meta data file
-	InputMetaFile = "in/meta.json"
+	// InputEventMetaFile is the input event meta data file
+	InputEventMetaFile = "in/eventmeta.json"
 
 	// OutputBlobDir is the output blob data directory
 	OutputBlobDir = "out/data"
 
-	// OutputMetaFile is the output meta data file
-	OutputMetaFile = "out/meta.json"
+	// OutputInsightsFile is the output insights data file
+	OutputInsightsFile = "out/insights.json"
 
 	// OutputEventsDir is the output event data
 	OutputEventsDir = "out/events"

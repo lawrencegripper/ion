@@ -14,7 +14,7 @@ import (
 
 	"github.com/lawrencegripper/ion/internal/app/sidecar"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/constants"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/inmemory"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage/inmemory"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 )
 

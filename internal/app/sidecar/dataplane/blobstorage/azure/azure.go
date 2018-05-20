@@ -1,4 +1,4 @@
-package azurestorage
+package azure
 
 import (
 	"fmt"

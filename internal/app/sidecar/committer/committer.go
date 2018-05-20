@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/helpers"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/logger"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/module"
@@ -61,7 +61,7 @@ func (c *Committer) Commit(
 	if err := helpers.ErrorIfNil(dataPlane, context); err != nil {
 		return err
 	}
-	if err := helpers.ErrorIfNil(dataPlane.BlobProvider, dataPlane.MetadataProvider, dataPlane.EventPublisher); err != nil {
+	if err := helpers.ErrorIfNil(dataPlane.BlobStorageProvider, dataPlane.DocumentStorageProvider, dataPlane.EventPublisher); err != nil {
 		return err
 	}
 	if err := helpers.ErrorIfEmpty(context.EventID); err != nil {
@@ -100,7 +100,7 @@ func (c *Committer) doCommit() error {
 	}
 
 	// Commit metadata to an external document store
-	err = c.commitMeta(c.environment.OutputMetaFilePath)
+	err = c.commitInsights(c.environment.OutputMetaFilePath)
 	if err != nil {
 		return fmt.Errorf("Error committing meta data: %+v", err)
 	}
@@ -148,39 +148,39 @@ func (c *Committer) commitBlob(blobsPath string) (map[string]string, error) {
 }
 
 //CommitMeta commits the metadata document to an external provider
-func (c *Committer) commitMeta(metadataPath string) error {
-	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
-		logger.Info(c.context, fmt.Sprintf("metadata file '%s' does not exists '%+v'", metadataPath, err))
+func (c *Committer) commitInsights(insightsPath string) error {
+	if _, err := os.Stat(insightsPath); os.IsNotExist(err) {
+		logger.Info(c.context, fmt.Sprintf("insights file '%s' does not exists '%+v'", insightsPath, err))
 		return nil
 	}
 
-	bytes, err := ioutil.ReadFile(metadataPath)
+	bytes, err := ioutil.ReadFile(insightsPath)
 	if err != nil {
-		return fmt.Errorf("failed to read metadata document '%s' with error '%+v'", metadataPath, err)
+		return fmt.Errorf("failed to read insights document '%s' with error '%+v'", insightsPath, err)
 	}
 	if len(bytes) == 0 {
-		return nil // Handle no metadata
+		return nil // Handle no insights
 	}
 	var m common.KeyValuePairs
 	err = json.Unmarshal(bytes, &m)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal metadata '%s' with error: '%+v'", metadataPath, err)
+		return fmt.Errorf("failed to unmarshal insights '%s' with error: '%+v'", insightsPath, err)
 	}
-	insight := metadata.Insight{
+	insight := documentstorage.Insight{
 		Context:     c.context,
 		ExecutionID: c.executionID,
 		Data:        m,
 	}
 	err = c.dataPlane.CreateInsight(&insight)
 	if err != nil {
-		return fmt.Errorf("failed to add metadata document '%+v' with error: '%+v'", m, err)
+		return fmt.Errorf("failed to add insights document '%+v' with error: '%+v'", m, err)
 	}
 
 	if c.developmentFlag {
-		_ = helpers.WriteDevFile("meta.json", c.context.EventID, insight)
+		_ = helpers.WriteDevFile("insights.json", c.context.EventID, insight)
 	}
 
-	logger.Info(c.context, "Committed meta data")
+	logger.Info(c.context, "Committed insights data")
 	return nil
 }
 
@@ -304,28 +304,28 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 			Type:           eventType,
 		}
 
-		// Create an event context that
+		// Create event metadata that
 		// can store additional metadata
 		// without bloating th event such
 		// as a list of files to process.
 		// This will be looked up by
 		// the processing modules using the
 		// event id.
-		eventContext := metadata.EventContext{
+		eventMeta := documentstorage.EventMeta{
 			Context: context,
 			Files:   fileSlice,
 			Data:    keyValuePairs,
 		}
-		err = c.dataPlane.CreateEventContext(&eventContext)
+		err = c.dataPlane.CreateEventMeta(&eventMeta)
 		if err != nil {
-			return fmt.Errorf("failed to add context '%+v' with error '%+v'", eventContext, err)
+			return fmt.Errorf("failed to add context '%+v' with error '%+v'", eventMeta, err)
 		}
 		err = c.dataPlane.Publish(event)
 		if err != nil {
 			return fmt.Errorf("failed to publish event '%+v' with error '%+v'", event, err)
 		}
 		if c.developmentFlag {
-			_ = helpers.WriteDevFile("context_"+fileName, c.context.EventID, eventContext)
+			_ = helpers.WriteDevFile("context_"+fileName, c.context.EventID, eventMeta)
 			_ = helpers.WriteDevFile("event_"+fileName, c.context.EventID, event)
 		}
 	}

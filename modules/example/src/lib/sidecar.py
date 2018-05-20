@@ -15,7 +15,7 @@ def write_event(base_dir, filename, event):
         json.dump(event, out)
 
 def write_insight(base_dir, insight):
-    path = "{}/out/meta.json".format(base_dir)
+    path = "{}/out/insights.json".format(base_dir)
     with open(path, 'w') as out:
         json.dump(insight, out)
 

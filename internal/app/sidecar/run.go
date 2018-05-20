@@ -12,12 +12,12 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/sidecar/committer"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/constants"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/azurestorage"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/filesystem"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blobstorage/azure"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blobstorage/filesystem"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage/inmemory"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage/mongodb"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/events/mock"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/events/servicebus"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/inmemory"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/mongodb"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/helpers"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/preparer"
 	log "github.com/sirupsen/logrus"
@@ -50,9 +50,9 @@ func Run(config configuration) {
 	eventProvider := getEventProvider(&config)
 
 	dataPlane := &dataplane.DataPlane{
-		BlobProvider:     blobProvider,
-		MetadataProvider: metaProvider,
-		EventPublisher:   eventProvider,
+		BlobStorageProvider:     blobProvider,
+		DocumentStorageProvider: metaProvider,
+		EventPublisher:          eventProvider,
 	}
 
 	// TODO Refactor out below into doRun(dataPlane *dataplane.Dataplane, config Configuration)
@@ -115,16 +115,16 @@ func validateConfig(c *configuration) error {
 	return nil
 }
 
-func getMetaProvider(config *configuration) dataplane.MetadataProvider {
-	if config.Development || config.MongoDBMetaProvider.Enabled == false {
+func getMetaProvider(config *configuration) dataplane.DocumentStorageProvider {
+	if config.Development || config.MongoDBDocumentStorageProvider.Enabled == false {
 		inMemDB, err := inmemory.NewInMemoryDB()
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
 		}
 		return inMemDB
 	}
-	if config.MongoDBMetaProvider.Enabled {
-		c := config.MongoDBMetaProvider
+	if config.MongoDBDocumentStorageProvider.Enabled {
+		c := config.MongoDBDocumentStorageProvider
 		mongoDB, err := mongodb.NewMongoDB(c)
 		if err != nil {
 			panic(fmt.Errorf("Failed to establish metadata store with provider '%s', error: %+v", metaProviderMongoDB, err))
@@ -134,8 +134,8 @@ func getMetaProvider(config *configuration) dataplane.MetadataProvider {
 	return nil
 }
 
-func getBlobProvider(config *configuration) dataplane.BlobProvider {
-	if config.Development || config.AzureBlobProvider.Enabled == false {
+func getBlobProvider(config *configuration) dataplane.BlobStorageProvider {
+	if config.Development || config.AzureBlobStorageProvider.Enabled == false {
 		fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
 			InputDir:  filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.ParentEventID, "blobs")),
 			OutputDir: filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.EventID, "blobs")),
@@ -145,9 +145,9 @@ func getBlobProvider(config *configuration) dataplane.BlobProvider {
 		}
 		return fsBlob
 	}
-	if config.AzureBlobProvider.Enabled {
-		c := config.AzureBlobProvider
-		azureBlob, err := azurestorage.NewBlobStorage(c,
+	if config.AzureBlobStorageProvider.Enabled {
+		c := config.AzureBlobStorageProvider
+		azureBlob, err := azure.NewBlobStorage(c,
 			helpers.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
 			helpers.JoinBlobPath(config.Context.EventID, config.Context.Name))
 		if err != nil {

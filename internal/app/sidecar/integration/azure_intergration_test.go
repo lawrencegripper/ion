@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/lawrencegripper/ion/internal/app/sidecar"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/constants"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/azurestorage"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/mongodb"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blobstorage/azure"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage/mongodb"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/module"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"io/ioutil"
@@ -60,13 +60,13 @@ func TestAzureIntegration(t *testing.T) {
 	config.Action = constants.Prepare
 	config.BaseDir = baseDir
 	config.Context = context
-	config.AzureBlobProvider = &azurestorage.Config{
+	config.AzureBlobStorageProvider = &azure.Config{
 		Enabled:         true,
 		BlobAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
 		BlobAccountKey:  os.Getenv("AZURE_STORAGE_ACCOUNT_KEY"),
 		ContainerName:   "frank",
 	}
-	config.MongoDBMetaProvider = &mongodb.Config{
+	config.MongoDBDocumentStorageProvider = &mongodb.Config{
 		Enabled:    true,
 		Name:       os.Getenv("MONGODB_NAME"),
 		Password:   os.Getenv("MONGODB_PASSWORD"),

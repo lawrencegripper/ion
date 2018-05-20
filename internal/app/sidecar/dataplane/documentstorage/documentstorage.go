@@ -1,4 +1,4 @@
-package metadata
+package documentstorage
 
 import (
 	"github.com/lawrencegripper/ion/internal/pkg/common"
@@ -11,8 +11,8 @@ type Insight struct {
 	Data        common.KeyValuePairs `bson:"data" json:"data"`
 }
 
-//EventContext is a single entry in a document
-type EventContext struct {
+//EventMeta is a single entry in a document
+type EventMeta struct {
 	*common.Context
 	ParentEventID string               `bson:"parentEventId" json:"parentEventId"`
 	Files         []string             `bson:"files" json:"files"`

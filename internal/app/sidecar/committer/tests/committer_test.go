@@ -12,9 +12,9 @@ import (
 
 	"github.com/lawrencegripper/ion/internal/app/sidecar/committer"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blob/filesystem"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/blobstorage/filesystem"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage/inmemory"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/events/mock"
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata/inmemory"
 	"github.com/lawrencegripper/ion/internal/app/sidecar/module"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 	log "github.com/sirupsen/logrus"
@@ -62,9 +62,9 @@ func TestMain(m *testing.M) {
 	events := mock.NewEventPublisher(persistentEventsDir)
 
 	dataPlane = &dataplane.DataPlane{
-		BlobProvider:     blob,
-		MetadataProvider: meta,
-		EventPublisher:   events,
+		BlobStorageProvider:     blob,
+		DocumentStorageProvider: meta,
+		EventPublisher:          events,
 	}
 
 	// Create mock context
@@ -147,7 +147,7 @@ func TestCommitBlob(t *testing.T) {
 	RefreshTempOutputs()
 }
 
-func TestCommitMeta(t *testing.T) {
+func TestCommitInsights(t *testing.T) {
 	testCases := []struct {
 		kvps common.KeyValuePairs
 	}{
@@ -174,7 +174,7 @@ func TestCommitMeta(t *testing.T) {
 			t.Errorf("error commiting insights: '%+v'", err)
 			continue
 		}
-		meta := dataPlane.MetadataProvider.(*inmemory.InMemoryDB)
+		meta := dataPlane.DocumentStorageProvider.(*inmemory.InMemoryDB)
 		for _, insight := range meta.Insights {
 			if !reflect.DeepEqual(insight.Data, test.kvps) {
 				t.Errorf("expected '%+v' but got '%+v'", test.kvps, insight.Data)

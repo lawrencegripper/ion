@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage"
 	mongo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -59,19 +59,19 @@ func NewMongoDB(config *Config) (*MongoDB, error) {
 	return MongoDB, nil
 }
 
-//GetEventContextByID returns a single document matching a given document ID
-func (db *MongoDB) GetEventContextByID(id string) (*metadata.EventContext, error) {
-	eventContext := metadata.EventContext{}
-	err := db.Collection.Find(bson.M{"id": id}).One(&eventContext)
+//GetEventMetaByID returns a single document matching a given document ID
+func (db *MongoDB) GetEventMetaByID(id string) (*documentstorage.EventMeta, error) {
+	eventMeta := documentstorage.EventMeta{}
+	err := db.Collection.Find(bson.M{"id": id}).One(&eventMeta)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", id, err)
 	}
-	return &eventContext, nil
+	return &eventMeta, nil
 }
 
-//CreateEventContext creates a new event context document
-func (db *MongoDB) CreateEventContext(eventContext *metadata.EventContext) error {
-	b, err := json.Marshal(*eventContext)
+//CreateEventMeta creates a new event context document
+func (db *MongoDB) CreateEventMeta(eventMeta *documentstorage.EventMeta) error {
+	b, err := json.Marshal(*eventMeta)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
 	}
@@ -80,8 +80,8 @@ func (db *MongoDB) CreateEventContext(eventContext *metadata.EventContext) error
 	if err != nil {
 		return fmt.Errorf("error de-serializing to BSON: %+v", err)
 	}
-	selector := bson.M{"id": eventContext.EventID}
-	update := bson.M{"$set": eventContext}
+	selector := bson.M{"id": eventMeta.EventID}
+	update := bson.M{"$set": eventMeta}
 	_, err = db.Collection.Upsert(selector, update)
 	if err != nil {
 		return fmt.Errorf("error creates document: %+v", err)
@@ -90,7 +90,7 @@ func (db *MongoDB) CreateEventContext(eventContext *metadata.EventContext) error
 }
 
 //CreateInsight creates an insights document
-func (db *MongoDB) CreateInsight(insight *metadata.Insight) error {
+func (db *MongoDB) CreateInsight(insight *documentstorage.Insight) error {
 	b, err := json.Marshal(*insight)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)

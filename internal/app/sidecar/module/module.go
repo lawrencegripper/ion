@@ -25,10 +25,10 @@ type ModuleEnvironment struct {
 func GetModuleEnvironment(baseDir string) *ModuleEnvironment {
 	return &ModuleEnvironment{
 		InputBlobDirPath:  helpers.GetPath(baseDir, constants.InputBlobDir),
-		InputMetaFilePath: helpers.GetPath(baseDir, constants.InputMetaFile),
+		InputMetaFilePath: helpers.GetPath(baseDir, constants.InputEventMetaFile),
 
 		OutputBlobDirPath:   helpers.GetPath(baseDir, constants.OutputBlobDir),
-		OutputMetaFilePath:  helpers.GetPath(baseDir, constants.OutputMetaFile),
+		OutputMetaFilePath:  helpers.GetPath(baseDir, constants.OutputInsightsFile),
 		OutputEventsDirPath: helpers.GetPath(baseDir, constants.OutputEventsDir),
 	}
 }

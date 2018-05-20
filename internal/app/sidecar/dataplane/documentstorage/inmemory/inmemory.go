@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/metadata"
+	"github.com/lawrencegripper/ion/internal/app/sidecar/dataplane/documentstorage"
 )
 
 const onDiskName = ".memdb"
@@ -14,8 +14,8 @@ const onDiskName = ".memdb"
 //nolint:golint
 //InMemoryDB is an in memory DB
 type InMemoryDB struct {
-	Insights map[string]metadata.Insight      `json:"insights"`
-	Contexts map[string]metadata.EventContext `json:"contexts"`
+	Insights map[string]documentstorage.Insight   `json:"insights"`
+	Contexts map[string]documentstorage.EventMeta `json:"contexts"`
 }
 
 //NewInMemoryDB creates a new InMemoryDB object
@@ -23,8 +23,8 @@ func NewInMemoryDB() (*InMemoryDB, error) {
 
 	if _, err := os.Stat(onDiskName); os.IsNotExist(err) {
 		// Create new
-		insights := make(map[string]metadata.Insight)
-		contexts := make(map[string]metadata.EventContext)
+		insights := make(map[string]documentstorage.Insight)
+		contexts := make(map[string]documentstorage.EventMeta)
 		return &InMemoryDB{
 			Insights: insights,
 			Contexts: contexts,
@@ -43,8 +43,8 @@ func NewInMemoryDB() (*InMemoryDB, error) {
 	return &db, nil
 }
 
-//GetEventContextByID returns a single document matching a given document ID
-func (db *InMemoryDB) GetEventContextByID(id string) (*metadata.EventContext, error) {
+//GetEventMetaByID returns a single document matching a given document ID
+func (db *InMemoryDB) GetEventMetaByID(id string) (*documentstorage.EventMeta, error) {
 	context, exist := db.Contexts[id]
 	if !exist {
 		return nil, fmt.Errorf("no record found for id '%s'", id)
@@ -52,14 +52,14 @@ func (db *InMemoryDB) GetEventContextByID(id string) (*metadata.EventContext, er
 	return &context, nil
 }
 
-//CreateEventContext creates a new event context document
-func (db *InMemoryDB) CreateEventContext(eventContext *metadata.EventContext) error {
-	db.Contexts[eventContext.EventID] = *eventContext
+//CreateEventMeta creates a new event context document
+func (db *InMemoryDB) CreateEventMeta(eventMeta *documentstorage.EventMeta) error {
+	db.Contexts[eventMeta.EventID] = *eventMeta
 	return nil
 }
 
 //CreateInsight creates an insights document
-func (db *InMemoryDB) CreateInsight(insight *metadata.Insight) error {
+func (db *InMemoryDB) CreateInsight(insight *documentstorage.Insight) error {
 	db.Insights[insight.ExecutionID] = *insight
 	return nil
 }
