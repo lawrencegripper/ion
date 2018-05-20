@@ -1,4 +1,6 @@
-![](docs/ion-logo.png)
+<p align="center">
+<img src="docs/ion-logo.png" alt="Træfik" title="Træfik" />
+</p>
 
 [![Build Status](https://travis-ci.org/lawrencegripper/ion.svg?branch=master)](https://travis-ci.org/lawrencegripper/ion)
 
