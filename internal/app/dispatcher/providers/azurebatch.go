@@ -166,7 +166,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		},
 	}
 
-	if b.batchConfig.RequiresGPU {
+	if b.batchConfig != nil && b.batchConfig.RequiresGPU {
 		moduleContainer.Resources.Limits = apiv1.ResourceList{}
 		moduleContainer.Resources.Limits["nvidia.com/gpu"] = *v1resource.NewQuantity(1, v1resource.DecimalSI)
 	}
