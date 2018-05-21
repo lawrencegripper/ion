@@ -16,6 +16,7 @@ import (
 	"github.com/lawrencegripper/pod2docker"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
+	v1resource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 //Check providers match interface at compile time
@@ -149,8 +150,27 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
+	//Todo: Refactor this bit as got a bit messy now.
 	handlerPrepareAgs := append(fullHandlerArgs, "--action=prepare")
 	handlerCommitAgs := append(fullHandlerArgs, "--action=commit")
+	moduleContainer := apiv1.Container{
+		Name:            "worker",
+		Image:           b.jobConfig.WorkerImage,
+		Env:             workerEnvVars,
+		ImagePullPolicy: pullPolicy,
+		VolumeMounts: []apiv1.VolumeMount{
+			{
+				Name:      "ionvolume",
+				MountPath: "/ion",
+			},
+		},
+	}
+
+	if b.batchConfig.RequiresGPU {
+		moduleContainer.Resources.Limits = apiv1.ResourceList{}
+		moduleContainer.Resources.Limits["nvidia.com/gpu"] = *v1resource.NewQuantity(1, v1resource.DecimalSI)
+	}
+
 	initContainers := []apiv1.Container{
 		{
 			Name:            "prepare",
@@ -164,18 +184,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 				},
 			},
 		},
-		{
-			Name:            "worker",
-			Image:           b.jobConfig.WorkerImage,
-			Env:             workerEnvVars,
-			ImagePullPolicy: pullPolicy,
-			VolumeMounts: []apiv1.VolumeMount{
-				{
-					Name:      "ionvolume",
-					MountPath: "/ion",
-				},
-			},
-		},
+		moduleContainer,
 	}
 	containers := []apiv1.Container{
 		{

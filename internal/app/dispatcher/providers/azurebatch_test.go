@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Azure/go-autorest/autorest"
@@ -68,6 +69,57 @@ func TestAzureBatchDispatchAddsJob(t *testing.T) {
 
 	if inMemMockTaskStore[0].CommandLine == nil {
 		t.Error("Command not passed to azure batch!")
+	}
+}
+
+func TestAzureBatchDispatchAddsJobWithGPU(t *testing.T) {
+	//This is a very basic test.
+	//Without mandating all dev/build machines have a gpu this is the best I can do
+	inMemMockTaskStore := []batch.CloudTask{}
+
+	create := func(taskDetails batch.TaskAddParameter) (autorest.Response, error) {
+		inMemMockTaskStore = append(inMemMockTaskStore, batch.CloudTask{
+			CommandLine: taskDetails.CommandLine,
+		})
+		return autorest.Response{}, nil
+	}
+
+	list := func() (*[]batch.CloudTask, error) {
+		return &inMemMockTaskStore, nil
+	}
+
+	b, _ := NewMockAzureBatchProvider(create, list)
+
+	b.batchConfig = &types.AzureBatchConfig{}
+	b.batchConfig.RequiresGPU = true
+
+	messageToSend := MockMessage{
+		MessageID: mockMessageID,
+	}
+
+	err := b.Dispatch(messageToSend)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	jobsLen := len(inMemMockTaskStore)
+	if jobsLen != 1 {
+		t.Errorf("Job count incorrected Expected: 1 Got: %v", jobsLen)
+		return
+	}
+
+	if inMemMockTaskStore[0].CommandLine == nil {
+		t.Error("Command not passed to azure batch!")
+	}
+
+	resultTask := inMemMockTaskStore[0]
+	if resultTask.CommandLine == nil {
+		t.Error("commandline nil")
+	}
+	if !strings.Contains(*resultTask.CommandLine, "--runtime nvidia") {
+		t.Error("Command missing nvidia runtime")
+		t.Log(*resultTask.CommandLine)
 	}
 }
 

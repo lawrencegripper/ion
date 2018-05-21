@@ -71,6 +71,7 @@ func NewDispatcherCommand() *cobra.Command {
 			cfg.Handler.MongoDBDocumentStorageProvider.Collection = viper.GetString("handler.mongodbdocprovider.collection")
 			cfg.Handler.MongoDBDocumentStorageProvider.Port = viper.GetInt("handler.mongodbdocprovider.port")
 			// azurebatch.*
+			cfg.AzureBatch.RequiresGPU = viper.GetBool("azurebatch.requiresgpu")
 			cfg.AzureBatch.ResourceGroup = viper.GetString("azurebatch.resourcegroup")
 			cfg.AzureBatch.PoolID = viper.GetString("azurebatch.poolid")
 			cfg.AzureBatch.JobID = viper.GetString("azurebatch.jobid")
@@ -137,6 +138,7 @@ func NewDispatcherCommand() *cobra.Command {
 	dispatcherCmd.PersistentFlags().String("handler.mongodbdocprovider.collection", "", "MongoDB database collection to use")
 	dispatcherCmd.PersistentFlags().Int("handler.mongodbdocprovider.port", 27017, "MongoDB server port")
 	// azurebatch.*
+	dispatcherCmd.PersistentFlags().Bool("azurebatch.requiresgpu", false, "Module requries gpu")
 	dispatcherCmd.PersistentFlags().String("azurebatch.resourcegroup", "", "")
 	dispatcherCmd.PersistentFlags().String("azurebatch.poolid", "", "")
 	dispatcherCmd.PersistentFlags().String("azurebatch.jobid", "", "")
@@ -181,6 +183,7 @@ func NewDispatcherCommand() *cobra.Command {
 	viper.BindPFlag("handler.mongodbdocprovider.collection", dispatcherCmd.PersistentFlags().Lookup("handler.mongodbdocprovider.collection"))
 	viper.BindPFlag("handler.mongodbdocprovider.port", dispatcherCmd.PersistentFlags().Lookup("handler.mongodbdocprovider.port"))
 	// azurebatch.*
+	viper.BindPFlag("azurebatch.requiresgpu", dispatcherCmd.PersistentFlags().Lookup("azurebatch.requiresgpu"))
 	viper.BindPFlag("azurebatch.resourcegroup", dispatcherCmd.PersistentFlags().Lookup("azurebatch.resourcegroup"))
 	viper.BindPFlag("azurebatch.poolid", dispatcherCmd.PersistentFlags().Lookup("azurebatch.poolid"))
 	viper.BindPFlag("azurebatch.jobid", dispatcherCmd.PersistentFlags().Lookup("azurebatch.jobid"))
