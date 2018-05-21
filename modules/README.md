@@ -1,5 +1,5 @@
 # Module
-A module is a processing unit or task. It can be written in any language as long as it has all its dependencies packaged into a container. A module is executed by the Dispatcher as the result of an event trigger. A module can also trigger other modules by emitting new events. The module can choose to pass data to the subsequent modules such as files or metadata. This data will be handled by Ion's data plane. Please refer to the [sidecar docs](../sidecar/README.md) for more information.
+A module is a processing unit or task. It can be written in any language as long as it has all its dependencies packaged into a container. A module is executed by the Dispatcher as the result of an event trigger. A module can also trigger other modules by emitting new events. The module can choose to pass data to the subsequent modules such as files or metadata. This data will be handled by Ion's data plane. Please refer to the [handler docs](../handler/README.md) for more information.
 
 ![](../docs/ion-toplevel-2.png)
 
@@ -15,26 +15,26 @@ In order to ionize your module, you'll need to integrate with Ion on 3 levels:
 
 ### Envrionment variables
 Each module will be supplied with the following environment variables:
-* `SHARED_SECRET` - Used to authenticate requests to Ion's sidecar
-* `SIDECAR_PORT` - The local port your module can communicate with Ion's sidecar on
-* `SIDECAR_BASE_DIR` - **[Development Only]** Used to set the base directory for the module to write state to. If not provided, will default to `/ion/`.
+* `SHARED_SECRET` - Used to authenticate requests to Ion's handler
+* `HANDLER_PORT` - The local port your module can communicate with Ion's handler on
+* `HANDLER_BASE_DIR` - **[Development Only]** Used to set the base directory for the module to write state to. If not provided, will default to `/ion/`.
 
 ### FileSystem
-Ion expects a module to read/write data that is intended to be passed between modules or persisted using a specific directory structure. For details on how to leverage this directory structure, please refer to the [sidecar docs](../sidecar/README.md).
+Ion expects a module to read/write data that is intended to be passed between modules or persisted using a specific directory structure. For details on how to leverage this directory structure, please refer to the [handler docs](../handler/README.md).
 
 ### API
-Ion will handle the transition of data between your modules for you if you instruct it to do so. This requires you to make a few simple calls to the sidecar's API. For more information on how to do this, please refer to the [sidecar docs](../sidecar/README.md).
+Ion will handle the transition of data between your modules for you if you instruct it to do so. This requires you to make a few simple calls to the handler's API. For more information on how to do this, please refer to the [handler docs](../handler/README.md).
 
-## Developing with the Sidecar
-In order to run your module against the sidecar, you'll need to follow the instructions on the [sidecar docs](../sidecar/README.md) to get the side car up and running.
+## Developing with the Handler
+In order to run your module against the handler, you'll need to follow the instructions on the [handler docs](../handler/README.md) to get the side car up and running.
 
-Please review the `--development` configuration on the [sidecar docs](../sidecar/README.md).
+Please review the `--development` configuration on the [handler docs](../handler/README.md).
 
-Once you have the sidecar running, you can simply execute your module locally with the correct environment variables set and it should communicate with the sidecar. If you're using `development` mode you will not need to provide the sidecar with any external provider configuration and data will be stored in a `dev` directory.
+Once you have the handler running, you can simply execute your module locally with the correct environment variables set and it should communicate with the handler. If you're using `development` mode you will not need to provide the handler with any external provider configuration and data will be stored in a `dev` directory.
 
 ### Chaining Modules Locally
 
-> NOTE: When offline mode is supported as documented on the [sidecar docs](../sidecar/README.md), you will be able to use the local dispatcher to orchestrate this flow.
+> NOTE: When offline mode is supported as documented on the [handler docs](../handler/README.md), you will be able to use the local dispatcher to orchestrate this flow.
 
 If you wish to develop multiple modules locally and have them chained together, you will need to write an orchestration script. The script will configure and run the first module (likely setting the `baseDir` config to a relative path i.e. `module1`).
 

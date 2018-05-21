@@ -25,11 +25,11 @@ func TestIntegrationKubernetesDispatch(t *testing.T) {
 		},
 		LogLevel: "Debug",
 		Job: &types.JobConfig{
-			SidecarImage:       "sidecarimagetest",
+			HandlerImage:       "handlerimagetest",
 			WorkerImage:        "workerimagetest",
 			MaxRunningTimeMins: 1,
 		},
-		Sidecar: &types.SidecarConfig{
+		Handler: &types.HandlerConfig{
 			ServerPort:  1377,
 			PrintConfig: true,
 		},
@@ -60,9 +60,9 @@ func TestIntegrationKubernetesDispatch(t *testing.T) {
 	for _, j := range jobs.Items {
 		if j.Name == getJobName(message) {
 			CheckLabelsAssignedCorrectly(t, j, message.MessageID)
-			sidecarContainerArgs := j.Spec.Template.Spec.Containers[0].Args
-			if len(sidecarContainerArgs) > 3 {
-				t.Logf("Some args set ... validate: %s", strings.Join(sidecarContainerArgs, " "))
+			handlerContainerArgs := j.Spec.Template.Spec.Containers[0].Args
+			if len(handlerContainerArgs) > 3 {
+				t.Logf("Some args set ... validate: %s", strings.Join(handlerContainerArgs, " "))
 			}
 			jobsFoundCount++
 		}
@@ -88,11 +88,11 @@ func TestIntegrationKubernetesDispatch_MaxExecutionTime(t *testing.T) {
 		},
 		LogLevel: "Debug",
 		Job: &types.JobConfig{
-			SidecarImage:       "kubernetes/pause",
+			HandlerImage:       "kubernetes/pause",
 			WorkerImage:        "kubernetes/pause",
 			MaxRunningTimeMins: 1,
 		},
-		Sidecar: &types.SidecarConfig{
+		Handler: &types.HandlerConfig{
 			ServerPort:  1377,
 			PrintConfig: true,
 		},

@@ -12,30 +12,30 @@ import (
 	"strconv"
 )
 
-// GetSharedSidecarArgs gets the shared arguments used by the sidecar container
-func GetSharedSidecarArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) []string {
+// GetSharedHandlerArgs gets the shared arguments used by the handler container
+func GetSharedHandlerArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) []string {
 	return []string{
 		"--context.name=" + c.ModuleName,
 		"--azureblobprovider.enabled=true",
-		"--azureblobprovider.blobaccountname=" + c.Sidecar.AzureBlobProvider.BlobAccountName,
-		"--azureblobprovider.blobaccountkey=" + c.Sidecar.AzureBlobProvider.BlobAccountKey,
-		"--mongodbmetaprovider.enabled=true",
-		"--mongodbmetaprovider.collection=" + c.Sidecar.MongoDBMetaProvider.Collection,
-		"--mongodbmetaprovider.name=" + c.Sidecar.MongoDBMetaProvider.Name,
-		"--mongodbmetaprovider.password=" + c.Sidecar.MongoDBMetaProvider.Password,
-		"--mongodbmetaprovider.port=" + strconv.Itoa(c.Sidecar.MongoDBMetaProvider.Port),
+		"--azureblobprovider.blobaccountname=" + c.Handler.AzureBlobStorageProvider.BlobAccountName,
+		"--azureblobprovider.blobaccountkey=" + c.Handler.AzureBlobStorageProvider.BlobAccountKey,
+		"--mongodbdocprovider.enabled=true",
+		"--mongodbdocprovider.collection=" + c.Handler.MongoDBDocumentStorageProvider.Collection,
+		"--mongodbdocprovider.name=" + c.Handler.MongoDBDocumentStorageProvider.Name,
+		"--mongodbdocprovider.password=" + c.Handler.MongoDBDocumentStorageProvider.Password,
+		"--mongodbdocprovider.port=" + strconv.Itoa(c.Handler.MongoDBDocumentStorageProvider.Port),
 		"--servicebuseventprovider.enabled=true",
 		"--servicebuseventprovider.namespace=" + c.ServiceBusNamespace,
 		"--servicebuseventprovider.topic=" + c.SubscribesToEvent,
 		"--servicebuseventprovider.key=" + *sbKeys.PrimaryKey,
 		"--servicebuseventprovider.authorizationrulename=" + *sbKeys.KeyName,
 		"--loglevel=" + c.LogLevel,
-		"--printconfig=" + strconv.FormatBool(c.Sidecar.PrintConfig),
+		"--printconfig=" + strconv.FormatBool(c.Handler.PrintConfig),
 		"--valideventtypes=" + c.EventsPublished,
 	}
 }
 
-func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
+func getMessageHandlerArgs(m messaging.Message) ([]string, error) {
 	eventData, err := m.EventData()
 	if err != nil {
 		return []string{}, err
@@ -44,7 +44,7 @@ func getMessageSidecarArgs(m messaging.Message) ([]string, error) {
 	if context == nil {
 		context = &common.Context{} // Use type defaults if no context
 	}
-	log.WithField("correlationid", context.CorrelationID).Debug("generating sidecar args for message")
+	log.WithField("correlationid", context.CorrelationID).Debug("generating handler args for message")
 	return []string{
 		"--azureblobprovider.containername=" + context.CorrelationID,
 		"--context.eventid=" + context.EventID,

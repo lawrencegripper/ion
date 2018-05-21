@@ -31,10 +31,10 @@ func NewCmdStart() *cobra.Command {
 			if cfg.Job == nil {
 				return errors.New("Job config can't be nil")
 			}
-			if cfg.Sidecar == nil {
-				return errors.New("Sidecar config can't be nil")
+			if cfg.Handler == nil {
+				return errors.New("Handler config can't be nil")
 			}
-			//TODO: validate sidecar config
+			//TODO: validate handler config
 
 			return nil
 		},

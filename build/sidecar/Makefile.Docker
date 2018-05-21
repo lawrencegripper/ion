@@ -1,2 +1,0 @@
-all:
-	docker build -f build/sidecar/Dockerfile -t ion-sidecar .

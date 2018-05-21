@@ -21,7 +21,7 @@ func NewMockAzureBatchProvider(createTask func(taskDetails batch.TaskAddParamete
 	b := AzureBatch{}
 
 	b.jobConfig = &types.JobConfig{
-		SidecarImage: "sidecar-image",
+		HandlerImage: "handler-image",
 		WorkerImage:  "worker-image",
 	}
 	b.dispatcherName = mockDispatcherName

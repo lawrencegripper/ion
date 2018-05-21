@@ -18,7 +18,7 @@ func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error)
 
 	k.Namespace = "module-ns"
 	k.jobConfig = &types.JobConfig{
-		SidecarImage: "sidecar-image",
+		HandlerImage: "handler-image",
 		WorkerImage:  "worker-image",
 	}
 	k.dispatcherName = mockDispatcherName
@@ -220,7 +220,7 @@ func TestK8s_DispatchedJobConfiguration(t *testing.T) {
 	job := inMemMockJobStore[0]
 
 	CheckLabelsAssignedCorrectly(t, job, messageToSend.MessageID)
-	CheckPodSetup(t, job, k.jobConfig.SidecarImage, k.jobConfig.WorkerImage)
+	CheckPodSetup(t, job, k.jobConfig.HandlerImage, k.jobConfig.WorkerImage)
 
 	//Check env vars
 	workerEnvVar := job.Spec.Template.Spec.InitContainers[1].Env[1]
@@ -265,10 +265,10 @@ func CheckLabelsAssignedCorrectly(t *testing.T, job batchv1.Job, expectedMessage
 	}
 }
 
-func CheckPodSetup(t *testing.T, job batchv1.Job, expectedSidecarImage, expectedWorkerImage string) {
-	sidecar := job.Spec.Template.Spec.InitContainers[0]
-	if sidecar.Image != expectedSidecarImage {
-		t.Errorf("sidecar image wrong Got: %s Expected: %s", sidecar.Image, expectedSidecarImage)
+func CheckPodSetup(t *testing.T, job batchv1.Job, expectedHandlerImage, expectedWorkerImage string) {
+	handler := job.Spec.Template.Spec.InitContainers[0]
+	if handler.Image != expectedHandlerImage {
+		t.Errorf("handler image wrong Got: %s Expected: %s", handler.Image, expectedHandlerImage)
 	}
 	worker := job.Spec.Template.Spec.InitContainers[1]
 	if worker.Image != expectedWorkerImage {
@@ -278,8 +278,8 @@ func CheckPodSetup(t *testing.T, job batchv1.Job, expectedSidecarImage, expected
 		t.Error("Expected 1 volume in worker")
 	}
 
-	if len(sidecar.VolumeMounts) != 1 {
-		t.Error("Expected 1 volume in sidecar")
+	if len(handler.VolumeMounts) != 1 {
+		t.Error("Expected 1 volume in handler")
 	}
 	volume := job.Spec.Template.Spec.Volumes[0]
 	if volume.Name != "ionvolume" {

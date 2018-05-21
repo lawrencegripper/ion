@@ -18,20 +18,20 @@ func Run(cfg *types.Configuration) {
 	ctx := context.Background()
 
 	listener := servicebus.NewListener(ctx, cfg)
-	sidecarArgs := providers.GetSharedSidecarArgs(cfg, listener.AccessKeys)
+	handlerArgs := providers.GetSharedHandlerArgs(cfg, listener.AccessKeys)
 
 	var provider providers.Provider
 
 	if cfg.AzureBatch != nil {
 		log.Info("Using Azure batch provider...")
-		batchProvider, err := providers.NewAzureBatchProvider(cfg, sidecarArgs)
+		batchProvider, err := providers.NewAzureBatchProvider(cfg, handlerArgs)
 		if err != nil {
 			log.WithError(err).Panic("Couldn't create azure batch provider")
 		}
 		provider = batchProvider
 	} else {
 		log.Info("Defaulting to using Kubernetes provider...")
-		k8sProvider, err := providers.NewKubernetesProvider(cfg, sidecarArgs)
+		k8sProvider, err := providers.NewKubernetesProvider(cfg, handlerArgs)
 		if err != nil {
 			log.WithError(err).Panic("Couldn't create kubernetes provider")
 		}
