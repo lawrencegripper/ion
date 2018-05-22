@@ -20,8 +20,8 @@ import (
 
 const serviceBusRootKeyName = "RootManageSharedAccessKey"
 
-// Listener provides a connection to service bus and methods for creating required subscriptions and topics
-type Listener struct {
+// AmqpConnection provides a connection to service bus and methods for creating required subscriptions and topics
+type AmqpConnection struct {
 	subsClient           *servicebus.SubscriptionsClient
 	Endpoint             string
 	SubscriptionName     string
@@ -29,13 +29,14 @@ type Listener struct {
 	TopicName            string
 	AccessKeys           servicebus.AccessKeys
 	AMQPConnectionString string
-	AmqpSession          *amqp.Session
-	AmqpReceiver         *amqp.Receiver
+	Session              *amqp.Session
+	Receiver             *amqp.Receiver
+	Sender               *amqp.Sender
 	getSubscription      func() (servicebus.SBSubscription, error)
 }
 
 // GetQueueDepth returns the current length of the sb queue
-func (l *Listener) GetQueueDepth() (*int64, error) {
+func (l *AmqpConnection) GetQueueDepth() (*int64, error) {
 	sub, err := l.getSubscription()
 	if err != nil {
 		return nil, err
@@ -47,15 +48,15 @@ func (l *Listener) GetQueueDepth() (*int64, error) {
 // Todo: Reconsider approach to error handling in this code.
 // Move to returning err and panicing in the caller if listener creation fails.
 
-// NewListener initilises a servicebus lister from configuration
-func NewListener(ctx context.Context, config *types.Configuration) *Listener {
+// NewAmqpConnection initilises a servicebus lister from configuration
+func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpConnection {
 	if config == nil {
 		log.Panic("Nil config not allowed")
 	}
 
 	//Todo: close connection to amqp when context is cancelled/done
 
-	listener := Listener{}
+	listener := AmqpConnection{}
 	auth := helpers.GetAzureADAuthorizer(config, azure.PublicCloud.ResourceManagerEndpoint)
 	subsClient := servicebus.NewSubscriptionsClient(config.SubscriptionID)
 	subsClient.Authorizer = auth
@@ -148,20 +149,21 @@ func NewListener(ctx context.Context, config *types.Configuration) *Listener {
 	listener.SubscriptionName = *sub.Name
 	listener.SubscriptionAmqpPath = getSubscriptionAmqpPath(config.SubscribesToEvent, config.ModuleName)
 
-	listener.AmqpSession = createAmqpSession(&listener)
-	listener.AmqpReceiver = createAmqpListener(&listener)
+	listener.Session = createAmqpSession(&listener)
+	listener.Receiver = createAmqpListener(&listener)
+	listener.Sender = createAmqpSender(&listener)
 
 	return &listener
 }
 
-func createAmqpListener(listener *Listener) *amqp.Receiver {
+func createAmqpListener(listener *AmqpConnection) *amqp.Receiver {
 	// Todo: how do we validate that the session is healthy?
-	if listener.AmqpSession == nil {
+	if listener.Session == nil {
 		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a session already configured")
 	}
 
 	// Create a receiver
-	receiver, err := listener.AmqpSession.NewReceiver(
+	receiver, err := listener.Session.NewReceiver(
 		amqp.LinkSourceAddress(listener.SubscriptionAmqpPath),
 		// amqp.LinkCredit(10), // Todo: Add config value to define how many inflight tasks the dispatcher can handle
 	)
@@ -170,6 +172,22 @@ func createAmqpListener(listener *Listener) *amqp.Receiver {
 	}
 
 	return receiver
+}
+
+// createAmqpSender exists for e2e testing.
+func createAmqpSender(listener *AmqpConnection) *amqp.Sender {
+	if listener.Session == nil {
+		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a session already configured")
+	}
+
+	sender, err := listener.Session.NewSender(
+		amqp.LinkTargetAddress("/" + listener.TopicName),
+	)
+	if err != nil {
+		log.Fatal("Creating receiver:", err)
+	}
+
+	return sender
 }
 
 func createTopic(ctx context.Context, topicsClient servicebus.TopicsClient, config *types.Configuration, topicName string) servicebus.SBTopic {
@@ -187,7 +205,7 @@ func createTopic(ctx context.Context, topicsClient servicebus.TopicsClient, conf
 	return topic
 }
 
-func createAmqpSession(listener *Listener) *amqp.Session {
+func createAmqpSession(listener *AmqpConnection) *amqp.Session {
 	// Create client
 	client, err := amqp.Dial(listener.AMQPConnectionString)
 	if err != nil {

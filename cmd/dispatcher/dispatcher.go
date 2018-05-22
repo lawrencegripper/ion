@@ -35,9 +35,9 @@ func NewDispatcherCommand() *cobra.Command {
 			// Read config file
 			viper.SetConfigFile(cfgFile)
 			if err := viper.ReadInConfig(); err != nil {
-				log.WithError(err).Errorln("Can't read config")
-				os.Exit(1)
+				log.WithError(err).Warningln("Can't read config")
 			}
+			viper.AutomaticEnv()
 
 			// Fill config with global settings
 			cfg.LogLevel = viper.GetString("loglevel")

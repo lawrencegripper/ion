@@ -20,14 +20,22 @@ func createOrGetPool(p *AzureBatch, auth autorest.Authorizer) {
 	poolClient := batch.NewPoolClientWithBaseURI(getBatchBaseURL(p.batchConfig))
 	poolClient.Authorizer = auth
 	poolClient.RetryAttempts = 0
-	//	poolClient.RequestInspector = fixContentTypeInspector()
 	p.poolClient = &poolClient
+	log.Warningln("echo")
+
 	pool, err := poolClient.Get(p.ctx, p.batchConfig.PoolID, "*", "", nil, nil, nil, nil, "", "", nil, nil)
+	log.Warningln("echo")
+	log.Info(pool)
+	log.Info(err)
 
 	// If we observe an error which isn't related to the pool not existing panic.
 	// 404 is expected if this is first run.
+	if err != nil && pool.Response.Response == nil {
+		log.WithError(err).Panicf("Failed to get pool. nil response %v", p.batchConfig.PoolID)
+	}
 	if err != nil && pool.StatusCode != 404 {
-		panic(err)
+		log.Warningln("echo")
+		log.WithError(err).Panicf("Failed to get pool %v", p.batchConfig.PoolID)
 	}
 
 	if err != nil && pool.State == batch.PoolStateActive {

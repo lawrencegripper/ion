@@ -12,7 +12,6 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
 	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
-	log "github.com/sirupsen/logrus"
 )
 
 func prettyPrintStruct(item interface{}) string {
@@ -46,7 +45,7 @@ func TestIntegrationNewListener(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	listener := NewListener(ctx, config)
+	listener := NewAmqpConnection(ctx, config)
 	// Remove topic to ensure each test has a clean topic to work with
 	defer deleteSubscription(listener, config)
 
@@ -72,7 +71,7 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Fail()
 	}
 
-	amqpMessage, err := listener.AmqpReceiver.Receive(ctx)
+	amqpMessage, err := listener.Receiver.Receive(ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -106,7 +105,7 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 
-	listener := NewListener(ctx, config)
+	listener := NewAmqpConnection(ctx, config)
 	// Remove topic to ensure each test has a clean topic to work with
 	defer deleteSubscription(listener, config)
 
@@ -120,7 +119,7 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	}
 
 	for index := 0; index < 6; index++ {
-		amqpMessage, err := listener.AmqpReceiver.Receive(ctx)
+		amqpMessage, err := listener.Receiver.Receive(ctx)
 		message := messaging.NewAmqpMessageWrapper(amqpMessage)
 		if err != nil {
 			t.Error(err)
@@ -140,31 +139,14 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	checkCtx, cancel := context.WithDeadline(context.Background(), checkUntil)
 	defer cancel()
 
-	_, err = listener.AmqpReceiver.Receive(checkCtx)
+	_, err = listener.Receiver.Receive(checkCtx)
 	if err != nil {
 		t.Log(err)
 	} else {
 		t.Error("message delivered a 6th time - after 5 should be deadlettered")
 	}
 }
-
-// createAmqpSender exists for e2e testing.
-func createAmqpSender(listener *Listener) *amqp.Sender {
-	if listener.AmqpSession == nil {
-		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a session already configured")
-	}
-
-	sender, err := listener.AmqpSession.NewSender(
-		amqp.LinkTargetAddress("/" + listener.TopicName),
-	)
-	if err != nil {
-		log.Fatal("Creating receiver:", err)
-	}
-
-	return sender
-}
-
-func deleteSubscription(listener *Listener, config *types.Configuration) {
+func deleteSubscription(listener *AmqpConnection, config *types.Configuration) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*45)
 	defer cancel()
 	_, err := listener.subsClient.Delete(ctx, config.ResourceGroup, config.ServiceBusNamespace, listener.TopicName, listener.SubscriptionName)
