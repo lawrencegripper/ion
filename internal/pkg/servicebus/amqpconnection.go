@@ -53,6 +53,18 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 	if config == nil {
 		log.Panic("Nil config not allowed")
 	}
+	if config.SubscribesToEvent == "" {
+		log.Panic("Empty subscribesToEvent not allowed")
+	}
+	if config.ModuleName == "" {
+		log.Panic("Empty module name not allowed")
+	}
+	if config.SubscribesToEvent == "" {
+		log.Panic("Empty subscribesToEvent not allowed")
+	}
+	if config.Job == nil {
+		log.Panic("Job config required")
+	}
 
 	//Todo: close connection to amqp when context is cancelled/done
 
@@ -97,8 +109,11 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 	topic := createTopic(ctx, topicsClient, config, config.SubscribesToEvent)
 	listener.TopicName = strings.ToLower(*topic.Name)
 
-	// Check topic to publish to. Create is missing
-	createTopic(ctx, topicsClient, config, config.EventsPublished)
+	eventsPublished := strings.Split(config.EventsPublished, ",")
+	for _, eventName := range eventsPublished {
+		// Check topic to publish to. Create is missing
+		createTopic(ctx, topicsClient, config, eventName)
+	}
 
 	// Check subscription to listen on. Create if missing
 	subName := getSubscriptionName(config.SubscribesToEvent, config.ModuleName)
@@ -192,7 +207,7 @@ func createAmqpSender(listener *AmqpConnection) *amqp.Sender {
 
 func createTopic(ctx context.Context, topicsClient servicebus.TopicsClient, config *types.Configuration, topicName string) servicebus.SBTopic {
 	topic, err := topicsClient.Get(ctx, config.ResourceGroup, config.ServiceBusNamespace, topicName)
-	if err != nil && topic.Response.StatusCode == http.StatusNotFound {
+	if err != nil && topic.Response.Response != nil && topic.Response.StatusCode == http.StatusNotFound {
 		log.WithField("config", types.RedactConfigSecrets(config)).Debugf("topic %v doesn't exist.. creating", topicName)
 		topic, err = topicsClient.CreateOrUpdate(ctx, config.ResourceGroup, config.ServiceBusNamespace, topicName, servicebus.SBTopic{})
 		if err != nil {

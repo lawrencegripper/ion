@@ -24,6 +24,38 @@
             "problemMatcher": [
                 "$go"
             ]
+        },
+        {
+            "label": "Publish Test event",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "command": "export $(cat ./.vscode/private.env | xargs) && go build ./cmd/servicebus-publisher && ./servicebus-publisher",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Drain all events",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "command": "export $(cat ./.vscode/private.env | xargs) && go build ./cmd/servicebus-subscriber && ./servicebus-subscriber",
+            "problemMatcher": [
+                "$go"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            }
         }
     ]
 }
