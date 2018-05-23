@@ -109,7 +109,7 @@ func createOrGetJob(p *AzureBatch, auth autorest.Authorizer) {
 	jobClient.Authorizer = auth
 	p.jobClient = &jobClient
 	// check if job exists already
-	currentJob, err := jobClient.Get(p.ctx, p.dispatcherName, "", "", nil, nil, nil, nil, "", "", nil, nil)
+	currentJob, err := jobClient.Get(p.ctx, p.jobID, "", "", nil, nil, nil, nil, "", "", nil, nil)
 
 	if err == nil && currentJob.State == batch.JobStateActive {
 		log.Println("Wrapper job already exists...")
@@ -118,7 +118,7 @@ func createOrGetJob(p *AzureBatch, auth autorest.Authorizer) {
 
 		log.Println("Wrapper job missing... creating...")
 		wrapperJob := batch.JobAddParameter{
-			ID: &p.dispatcherName,
+			ID: &p.jobID,
 			PoolInfo: &batch.PoolInformation{
 				PoolID: &p.batchConfig.PoolID,
 			},

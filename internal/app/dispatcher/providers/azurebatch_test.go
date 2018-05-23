@@ -25,7 +25,7 @@ func NewMockAzureBatchProvider(createTask func(taskDetails batch.TaskAddParamete
 		HandlerImage: "handler-image",
 		WorkerImage:  "worker-image",
 	}
-	b.dispatcherName = mockDispatcherName
+	b.jobID = mockDispatcherName
 
 	b.inprogressJobStore = map[string]messaging.Message{}
 	b.createTask = createTask

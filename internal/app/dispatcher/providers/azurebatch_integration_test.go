@@ -109,7 +109,7 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 		loop:
 			for {
 				//Get task
-				task, err := p.taskClient.Get(p.ctx, p.dispatcherName, message.ID(), "", "", nil, nil, nil, nil, "", "", nil, nil)
+				task, err := p.taskClient.Get(p.ctx, p.jobID, message.ID(), "", "", nil, nil, nil, nil, "", "", nil, nil)
 				if err != nil {
 					t.Error(err)
 				}
