@@ -11,7 +11,6 @@
             },
             "command": "export $(cat ./.vscode/private.env | xargs) && go test -timeout 15m -v ./internal/app/dispatcher/providers",
             "problemMatcher": [
-                "$go"
             ]
         },
         {
@@ -22,7 +21,6 @@
             },
             "command": "export $(cat ./.vscode/private.env | xargs) && go test -timeout 5m -v ./internal/pkg/servicebus",
             "problemMatcher": [
-                "$go"
             ]
         },
         {
@@ -48,7 +46,6 @@
             },
             "command": "export $(cat ./.vscode/private.env | xargs) && go build ./cmd/servicebus-subscriber && ./servicebus-subscriber",
             "problemMatcher": [
-                "$go"
             ],
             "presentation": {
                 "echo": true,

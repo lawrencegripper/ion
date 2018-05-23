@@ -25,14 +25,15 @@ func getPool(ctx context.Context, batchBaseURL, poolID string, auth autorest.Aut
 	if err != nil && pool.Response.Response == nil {
 		log.WithError(err).Error("Failed to get pool. nil response %v", poolID)
 		return nil, err
-	}
-	if err != nil && pool.StatusCode != 404 {
-		log.Warningln("echo")
-		log.WithError(err).Error("Failed to get pool %v", poolID)
+	} else if err != nil && pool.StatusCode == 404 {
+		log.WithError(err).Error("Pool doesn't exist 404 received PoolID: %v", poolID)
+		return nil, err
+	} else if err != nil {
+		log.WithError(err).Error("Failed to get pool. Response:%v", pool.Response)
 		return nil, err
 	}
 
-	if err != nil && pool.State == batch.PoolStateActive {
+	if pool.State == batch.PoolStateActive {
 		log.Println("Pool active and running...")
 		return &poolClient, nil
 	}

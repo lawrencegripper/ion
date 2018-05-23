@@ -125,6 +125,10 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		if err != nil {
 			log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stderr")
 		}
+		err = logFileContent(b.ctx, t, b.fileClient, b.jobID, "wd/modulecontainer.log")
+		if err != nil {
+			log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stderr")
+		}
 		//remove the task
 		return b.taskClient.Delete(b.ctx, b.jobID, *t.ID, nil, nil, nil, nil, "", "", nil, nil)
 	}
