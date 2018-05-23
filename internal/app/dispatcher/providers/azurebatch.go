@@ -72,15 +72,24 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		}
 	}
 
-	// Todo: Allow users to pass in/choose a different machine type and init script
-	createOrGetPool(&b, auth)
-	createOrGetJob(&b, auth)
+	batchBaseURL := getBatchBaseURL(config.AzureBatch.BatchAccountName, config.AzureBatch.BatchAccountLocation)
+	poolClient, err := getPool(ctx, batchBaseURL, config.AzureBatch.PoolID, auth)
+	if err != nil {
+		return nil, err
+	}
+	b.poolClient = poolClient
 
-	taskclient := batch.NewTaskClientWithBaseURI(getBatchBaseURL(b.batchConfig))
+	jobClient, err := createOrGetJob(ctx, batchBaseURL, b.jobID, config.AzureBatch.PoolID, auth)
+	if err != nil {
+		return nil, err
+	}
+	b.jobClient = jobClient
+
+	taskclient := batch.NewTaskClientWithBaseURI(batchBaseURL)
 	taskclient.Authorizer = auth
 	b.taskClient = &taskclient
 
-	fileClient := batch.NewFileClientWithBaseURI(getBatchBaseURL(b.batchConfig))
+	fileClient := batch.NewFileClientWithBaseURI(batchBaseURL)
 	fileClient.Authorizer = auth
 	b.fileClient = &fileClient
 
