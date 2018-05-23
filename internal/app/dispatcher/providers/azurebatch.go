@@ -142,6 +142,8 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		return fmt.Errorf("failed generating handler args from message: %v", err)
 	}
 	fullHandlerArgs := append(b.handlerArgs, perJobArgs...)
+	//Prevent later append calls overwriting original backing array: https://stackoverflow.com/a/40036950/3437018
+	fullHandlerArgs = fullHandlerArgs[:len(fullHandlerArgs):len(fullHandlerArgs)]
 
 	workerEnvVars := []apiv1.EnvVar{
 		{
@@ -163,8 +165,6 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 	}
 
 	//Todo: Refactor this bit as got a bit messy now.
-	handlerPrepareAgs := append(fullHandlerArgs, "--action=prepare")
-	handlerCommitAgs := append(fullHandlerArgs, "--action=commit")
 	moduleContainer := apiv1.Container{
 		Name:            "modulecontainer",
 		Image:           b.jobConfig.WorkerImage,
@@ -182,12 +182,11 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		moduleContainer.Resources.Limits = apiv1.ResourceList{}
 		moduleContainer.Resources.Limits["nvidia.com/gpu"] = *v1resource.NewQuantity(1, v1resource.DecimalSI)
 	}
-
 	initContainers := []apiv1.Container{
 		{
 			Name:            "prepare",
 			Image:           b.jobConfig.HandlerImage,
-			Args:            handlerPrepareAgs,
+			Args:            append(fullHandlerArgs, "--action=prepare"),
 			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
@@ -202,7 +201,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		{
 			Name:            "commit",
 			Image:           b.jobConfig.HandlerImage,
-			Args:            handlerCommitAgs,
+			Args:            append(fullHandlerArgs, "--action=commit"),
 			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{

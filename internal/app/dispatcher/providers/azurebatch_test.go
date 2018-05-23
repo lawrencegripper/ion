@@ -20,7 +20,7 @@ const (
 
 func NewMockAzureBatchProvider(createTask func(taskDetails batch.TaskAddParameter) (autorest.Response, error), listTasks func() (*[]batch.CloudTask, error)) (*AzureBatch, error) {
 	b := AzureBatch{}
-
+	b.handlerArgs = []string{"--things=stuff", "--things=stuff", "--things=stuff", "--things=stuff", "--things=stuff"}
 	b.jobConfig = &types.JobConfig{
 		HandlerImage: "handler-image",
 		WorkerImage:  "worker-image",
@@ -69,6 +69,52 @@ func TestAzureBatchDispatchAddsJob(t *testing.T) {
 
 	if inMemMockTaskStore[0].CommandLine == nil {
 		t.Error("Command not passed to azure batch!")
+	}
+}
+
+func TestAzureBatchDispatchAddsJob_CorrectPrepareAndCommit(t *testing.T) {
+	inMemMockTaskStore := []batch.CloudTask{}
+
+	create := func(taskDetails batch.TaskAddParameter) (autorest.Response, error) {
+		inMemMockTaskStore = append(inMemMockTaskStore, batch.CloudTask{
+			CommandLine: taskDetails.CommandLine,
+		})
+		return autorest.Response{}, nil
+	}
+
+	list := func() (*[]batch.CloudTask, error) {
+		return &inMemMockTaskStore, nil
+	}
+
+	b, _ := NewMockAzureBatchProvider(create, list)
+
+	messageToSend := MockMessage{
+		MessageID: mockMessageID,
+	}
+
+	err := b.Dispatch(messageToSend)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	jobsLen := len(inMemMockTaskStore)
+	if jobsLen != 1 {
+		t.Errorf("Job count incorrected Expected: 1 Got: %v", jobsLen)
+	}
+
+	if inMemMockTaskStore[0].CommandLine == nil {
+		t.Error("Command not passed to azure batch!")
+	}
+
+	t.Log(*inMemMockTaskStore[0].CommandLine)
+
+	if strings.Count(*inMemMockTaskStore[0].CommandLine, "--action=prepare") != 1 {
+		t.Error("Missing prepare action")
+	}
+
+	if strings.Count(*inMemMockTaskStore[0].CommandLine, "--action=commit") != 1 {
+		t.Error("Missing commit action")
 	}
 }
 

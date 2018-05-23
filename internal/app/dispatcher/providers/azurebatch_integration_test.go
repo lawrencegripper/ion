@@ -74,7 +74,7 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 					BatchAccountLocation: os.Getenv("AZURE_BATCH_ACCOUNT_LOCATION"),
 					BatchAccountName:     os.Getenv("AZURE_BATCH_ACCOUNT_NAME"),
 					JobID:                helpers.RandomName(12),
-					PoolID:               "testpool",
+					PoolID:               os.Getenv("AZURE_BATCH_POOLID"),
 				},
 			}
 
