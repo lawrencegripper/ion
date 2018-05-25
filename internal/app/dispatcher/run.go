@@ -60,7 +60,10 @@ func Run(cfg *types.Configuration) {
 			wrapper := messaging.NewAmqpMessageWrapper(message)
 			if wrapper.DeliveryCount() > cfg.Job.RetryCount+1 {
 				log.WithField("message", message).Error("message re-received when above retryCount. AMQP provider wrongly redelivered message.")
-				wrapper.Reject()
+				err := wrapper.Reject()
+				if err != nil {
+					log.WithField("message", message).Error("error rejecting message")
+				}
 			}
 			err = provider.Dispatch(wrapper)
 			if err != nil {

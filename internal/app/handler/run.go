@@ -40,7 +40,7 @@ const (
 )
 
 // Run the handler using config
-func Run(config configuration) {
+func Run(config Configuration) {
 	if err := validateConfig(&config); err != nil {
 		panic(err)
 	}
@@ -105,7 +105,7 @@ func getDefaultBaseDir() string {
 	}
 }
 
-func validateConfig(c *configuration) error {
+func validateConfig(c *Configuration) error {
 	if (strings.ToLower(c.Action) != constants.Prepare &&
 		strings.ToLower(c.Action) != constants.Commit) ||
 		c.Context.EventID == "" ||
@@ -115,7 +115,7 @@ func validateConfig(c *configuration) error {
 	return nil
 }
 
-func getMetaProvider(config *configuration) dataplane.DocumentStorageProvider {
+func getMetaProvider(config *Configuration) dataplane.DocumentStorageProvider {
 	if config.Development || config.MongoDBDocumentStorageProvider.Enabled == false {
 		inMemDB, err := inmemory.NewInMemoryDB()
 		if err != nil {
@@ -134,7 +134,7 @@ func getMetaProvider(config *configuration) dataplane.DocumentStorageProvider {
 	return nil
 }
 
-func getBlobProvider(config *configuration) dataplane.BlobStorageProvider {
+func getBlobProvider(config *Configuration) dataplane.BlobStorageProvider {
 	if config.Development || config.AzureBlobStorageProvider.Enabled == false {
 		fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
 			InputDir:  filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.ParentEventID, "blobs")),
@@ -158,7 +158,7 @@ func getBlobProvider(config *configuration) dataplane.BlobStorageProvider {
 	return nil
 }
 
-func getEventProvider(config *configuration) dataplane.EventPublisher {
+func getEventProvider(config *Configuration) dataplane.EventPublisher {
 	if config.Development || config.ServiceBusEventProvider.Enabled == false {
 		fsEvents := mock.NewEventPublisher(filepath.FromSlash(path.Join(constants.DevBaseDir, "events")))
 		return fsEvents
