@@ -87,7 +87,7 @@
                     "commandLine": "/bin/bash -c ./init.sh",
                     "resourceFiles": [
                         {
-                            "blobSource": "https://gist.githubusercontent.com/lawrencegripper/f4745ec70c40e609dba6d318c37a4093/raw/6c6284984154a2114bcc899a130748092a355b70/init.sh",
+                            "blobSource": "https://gist.githubusercontent.com/lawrencegripper/f4745ec70c40e609dba6d318c37a4093/raw/0184cbcf2968473e832f46fb5281109173c566d4/init.sh",
                             "fileMode": "777",
                             "filePath": "./init.sh"
                         }
@@ -99,7 +99,7 @@
                         }
                     },
                     "waitForSuccess": true,
-                    "maxTaskRetryCount": 1
+                    "maxTaskRetryCount": 0
                 },
                 "deploymentConfiguration": {
                     "virtualMachineConfiguration": {

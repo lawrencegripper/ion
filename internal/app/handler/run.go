@@ -33,9 +33,7 @@ const (
 
 	// Providers
 	metaProviderMongoDB      string = "mongodb"
-	metaProviderInMemory     string = "inmemory"
 	blobProviderAzureStorage string = "azureblob"
-	blobProviderFileSystem   string = "filesystem"
 	eventProviderServiceBus  string = "servicebus"
 )
 
