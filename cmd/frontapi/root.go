@@ -38,7 +38,7 @@ var rootCmd = &cobra.Command{
 	Short: "frontapi receive external requests and generate the first event",
 }
 
-func Execute() {
+func execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

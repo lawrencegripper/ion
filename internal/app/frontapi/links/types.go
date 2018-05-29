@@ -9,6 +9,7 @@ import (
 
 var amqpClt *servicebus.AmqpConnection
 
+// InitAmqp initialize the amqp client to fire events
 func InitAmqp(cfg *types.Configuration) {
 	amqpClt = servicebus.NewAmqpConnection(context.Background(), cfg)
 }

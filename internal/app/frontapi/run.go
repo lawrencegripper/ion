@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Run starts the webserver that on port
 func Run(cfg *types.Configuration, port int) {
 
 	links.InitAmqp(cfg)
