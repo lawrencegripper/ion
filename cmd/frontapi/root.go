@@ -14,13 +14,7 @@ import (
 var cfgFile string
 
 var cfg = types.Configuration{
-	Kubernetes: &types.KubernetesConfig{},
-	Job:        &types.JobConfig{},
-	Handler: &types.HandlerConfig{
-		AzureBlobStorageProvider:       &types.AzureBlobConfig{},
-		MongoDBDocumentStorageProvider: &types.MongoDBConfig{},
-	},
-	AzureBatch: &types.AzureBatchConfig{},
+	Job: &types.JobConfig{},
 }
 
 func init() {
