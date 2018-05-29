@@ -32,7 +32,7 @@ func init() {
 	// job.*
 	serveCmd.PersistentFlags().Int("job.retrycount", 0, "Max number of times a job can be retried")
 
-	viper.BindPFlag("port", serveCmd.PersistentFlags().Lookup("port"))
+	_ = viper.BindPFlag("port", serveCmd.PersistentFlags().Lookup("port"))
 
 	viper.SetEnvPrefix("frontapi")
 	viper.AutomaticEnv()

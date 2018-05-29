@@ -21,7 +21,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "../../configs/frontapi.yaml", "Config file path")
 	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-	viper.BindPFlag("useViper", rootCmd.PersistentFlags().Lookup("viper"))
+	_ = viper.BindPFlag("useViper", rootCmd.PersistentFlags().Lookup("viper"))
 }
 
 func initConfig() {
