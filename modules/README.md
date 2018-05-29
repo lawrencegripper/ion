@@ -1,5 +1,5 @@
 # Module
-A module is a processing unit or task. It can be written in any language as long as it has all its dependencies packaged into a container. A module is executed by the Dispatcher as the result of an event trigger. A module can also trigger other modules by emitting new events. The module can choose to pass data to the subsequent modules such as files or metadata. This data will be handled by Ion's data plane. Please refer to the [handler docs](../handler/README.md) for more information.
+A module is a processing unit or task. It can be written in any language as long as it has all its dependencies packaged into a container. A module is executed by the Dispatcher as the result of an event trigger. A module can also trigger other modules by emitting new events. The module can choose to pass data to the subsequent modules such as files or metadata. This data will be handled by Ion's data plane. Please refer to the [handler docs](../internal/app/handler/README.md) for more information.
 
 ![](../docs/ion-toplevel-2.png)
 
