@@ -59,6 +59,7 @@ type AzureBlobConfig struct {
 // AzureBatchConfig - Basic azure config used to interact with ARM resources.
 type AzureBatchConfig struct {
 	ResourceGroup           string `yaml:"resourcegroup"`
+	RequiresGPU             bool   `yaml:"module requires gpu"`
 	PoolID                  string `yaml:"poolid"`
 	JobID                   string `yaml:"jobid"`
 	BatchAccountName        string `yaml:"batchaccountname"`

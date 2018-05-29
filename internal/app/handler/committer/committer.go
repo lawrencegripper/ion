@@ -29,7 +29,7 @@ const (
 type Committer struct {
 	dataPlane   *dataplane.DataPlane
 	context     *common.Context
-	environment *module.ModuleEnvironment
+	environment *module.Environment
 
 	executionID     string
 	validEventTypes []string

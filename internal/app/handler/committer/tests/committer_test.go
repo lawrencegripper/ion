@@ -23,7 +23,7 @@ import (
 const testdata = "testdata"
 
 var c *committer.Committer
-var environment *module.ModuleEnvironment
+var environment *module.Environment
 var dataPlane *dataplane.DataPlane
 var eventTypes []string
 var context *common.Context

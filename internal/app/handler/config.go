@@ -9,8 +9,8 @@ import (
 
 // cSpell:ignore mongodb
 
-// configuration represents the input configuration schema
-type configuration struct {
+// Configuration represents the input Configuration schema
+type Configuration struct {
 	Action                         string             `description:"The action for the handler to perform (prepare or commit)"`
 	BaseDir                        string             `description:"This base directory to use to store local files"`
 	Context                        *common.Context    `description:"The module details"`
@@ -25,8 +25,8 @@ type configuration struct {
 }
 
 // NewConfiguration create an empty config
-func NewConfiguration() configuration {
-	cfg := configuration{}
+func NewConfiguration() Configuration {
+	cfg := Configuration{}
 	cfg.Context = &common.Context{}
 	cfg.AzureBlobStorageProvider = &azure.Config{}
 	cfg.MongoDBDocumentStorageProvider = &mongodb.Config{}

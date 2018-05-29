@@ -139,18 +139,6 @@
   version = "v0.1.0"
 
 [[projects]]
-  name = "github.com/gorilla/context"
-  packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  revision = "53c1911da2b537f792e7cafcb446b05ffe33b996"
-  version = "v1.6.1"
-
-[[projects]]
   branch = "master"
   name = "github.com/gregjones/httpcache"
   packages = [
@@ -215,8 +203,8 @@
 [[projects]]
   name = "github.com/lawrencegripper/pod2docker"
   packages = ["."]
-  revision = "a6fd026742b6f0fa4e5afda1c843555bcb000ace"
-  version = "v0.5"
+  revision = "9a9182c0c682798fe214fa11df7bfca83048d433"
+  version = "v0.5.1"
 
 [[projects]]
   name = "github.com/magiconair/properties"
@@ -566,6 +554,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5cd63245fd8f99606ecfe8577219a7b838b1855a23e7941de5043ff451c33bfe"
+  inputs-digest = "bdf15b43c8543d909023f4ac93a5f0f7e819b4e8a12e01dca227d827aa90dce2"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -18,6 +18,8 @@ import (
 
 func Run(cfg *types.Configuration, port int) {
 
+	links.InitAmqp(cfg)
+
 	// Routers declarations
 	r := mux.NewRouter()
 

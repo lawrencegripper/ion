@@ -1,3 +1,5 @@
+//nolint: golint
+
 package env
 
 const (

@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -16,6 +17,7 @@ import (
 	"github.com/lawrencegripper/pod2docker"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
+	v1resource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 //Check providers match interface at compile time
@@ -24,7 +26,7 @@ var _ Provider = &AzureBatch{}
 // AzureBatch schedules jobs onto k8s from the queue and monitors their progress
 type AzureBatch struct {
 	inprogressJobStore map[string]messaging.Message
-	dispatcherName     string
+	jobID              string
 	handlerArgs        []string
 	workerEnvVars      map[string]interface{}
 	ctx                context.Context
@@ -49,10 +51,11 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return nil, fmt.Errorf("Cannot create a provider - invalid configuration, require config, AzureBatch and Job")
 	}
 	b := AzureBatch{}
+	b.handlerArgs = sharedHandlerArgs
 	b.inprogressJobStore = make(map[string]messaging.Message)
 	b.batchConfig = config.AzureBatch
 	b.jobConfig = config.Job
-	b.dispatcherName = config.Hostname + "-" + config.ModuleName
+	b.jobID = config.Hostname + "-" + config.ModuleName
 	ctx, cancel := context.WithCancel(context.Background())
 	b.ctx = ctx
 	b.cancelOps = cancel
@@ -69,23 +72,32 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		}
 	}
 
-	// Todo: Allow users to pass in/choose a different machine type and init script
-	createOrGetPool(&b, auth)
-	createOrGetJob(&b, auth)
+	batchBaseURL := getBatchBaseURL(config.AzureBatch.BatchAccountName, config.AzureBatch.BatchAccountLocation)
+	poolClient, err := getPool(ctx, batchBaseURL, config.AzureBatch.PoolID, auth)
+	if err != nil {
+		return nil, err
+	}
+	b.poolClient = poolClient
 
-	taskclient := batch.NewTaskClientWithBaseURI(getBatchBaseURL(b.batchConfig))
+	jobClient, err := createOrGetJob(ctx, batchBaseURL, b.jobID, config.AzureBatch.PoolID, auth)
+	if err != nil {
+		return nil, err
+	}
+	b.jobClient = jobClient
+
+	taskclient := batch.NewTaskClientWithBaseURI(batchBaseURL)
 	taskclient.Authorizer = auth
 	b.taskClient = &taskclient
 
-	fileClient := batch.NewFileClientWithBaseURI(getBatchBaseURL(b.batchConfig))
+	fileClient := batch.NewFileClientWithBaseURI(batchBaseURL)
 	fileClient.Authorizer = auth
 	b.fileClient = &fileClient
 
 	b.createTask = func(taskDetails batch.TaskAddParameter) (autorest.Response, error) {
-		return b.taskClient.Add(b.ctx, b.dispatcherName, taskDetails, nil, nil, nil, nil)
+		return b.taskClient.Add(b.ctx, b.jobID, taskDetails, nil, nil, nil, nil)
 	}
 	b.listTasks = func() (*[]batch.CloudTask, error) {
-		res, err := b.taskClient.List(b.ctx, b.dispatcherName, "", "", "", nil, nil, nil, nil, nil)
+		res, err := b.taskClient.List(b.ctx, b.jobID, "", "", "", nil, nil, nil, nil, nil)
 		if err != nil {
 			return &[]batch.CloudTask{}, err
 		}
@@ -104,7 +116,21 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return &currentTasks, nil
 	}
 	b.removeTask = func(t *batch.CloudTask) (autorest.Response, error) {
-		return b.taskClient.Delete(b.ctx, b.dispatcherName, *t.ID, nil, nil, nil, nil, "", "", nil, nil)
+		//Log the details from the running task
+		err := logFileContent(b.ctx, t, b.fileClient, b.jobID, "stdout.txt")
+		if err != nil {
+			log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stdout")
+		}
+		err = logFileContent(b.ctx, t, b.fileClient, b.jobID, "stderr.txt")
+		if err != nil {
+			log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stderr")
+		}
+		err = logFileContent(b.ctx, t, b.fileClient, b.jobID, "wd/modulecontainer.log")
+		if err != nil {
+			log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stderr")
+		}
+		//remove the task
+		return b.taskClient.Delete(b.ctx, b.jobID, *t.ID, nil, nil, nil, nil, "", "", nil, nil)
 	}
 
 	return &b, nil
@@ -129,6 +155,8 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		return fmt.Errorf("failed generating handler args from message: %v", err)
 	}
 	fullHandlerArgs := append(b.handlerArgs, perJobArgs...)
+	//Prevent later append calls overwriting original backing array: https://stackoverflow.com/a/40036950/3437018
+	fullHandlerArgs = fullHandlerArgs[:len(fullHandlerArgs):len(fullHandlerArgs)]
 
 	workerEnvVars := []apiv1.EnvVar{
 		{
@@ -149,13 +177,29 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
-	handlerPrepareAgs := append(fullHandlerArgs, "--action=prepare")
-	handlerCommitAgs := append(fullHandlerArgs, "--action=commit")
+	//Todo: Refactor this bit as got a bit messy now.
+	moduleContainer := apiv1.Container{
+		Name:            "modulecontainer",
+		Image:           b.jobConfig.WorkerImage,
+		Env:             workerEnvVars,
+		ImagePullPolicy: pullPolicy,
+		VolumeMounts: []apiv1.VolumeMount{
+			{
+				Name:      "ionvolume",
+				MountPath: "/ion",
+			},
+		},
+	}
+
+	if b.batchConfig != nil && b.batchConfig.RequiresGPU {
+		moduleContainer.Resources.Limits = apiv1.ResourceList{}
+		moduleContainer.Resources.Limits["nvidia.com/gpu"] = *v1resource.NewQuantity(1, v1resource.DecimalSI)
+	}
 	initContainers := []apiv1.Container{
 		{
 			Name:            "prepare",
 			Image:           b.jobConfig.HandlerImage,
-			Args:            handlerPrepareAgs,
+			Args:            append(fullHandlerArgs, "--action=prepare"),
 			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
@@ -164,24 +208,13 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 				},
 			},
 		},
-		{
-			Name:            "worker",
-			Image:           b.jobConfig.WorkerImage,
-			Env:             workerEnvVars,
-			ImagePullPolicy: pullPolicy,
-			VolumeMounts: []apiv1.VolumeMount{
-				{
-					Name:      "ionvolume",
-					MountPath: "/ion",
-				},
-			},
-		},
+		moduleContainer,
 	}
 	containers := []apiv1.Container{
 		{
 			Name:            "commit",
 			Image:           b.jobConfig.HandlerImage,
-			Args:            handlerCommitAgs,
+			Args:            append(fullHandlerArgs, "--action=commit"),
 			ImagePullPolicy: pullPolicy,
 			VolumeMounts: []apiv1.VolumeMount{
 				{
@@ -225,7 +258,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 	}
 
 	task := batch.TaskAddParameter{
-		DisplayName: to.StringPtr(fmt.Sprintf("%s:%s", b.dispatcherName, message.ID())),
+		DisplayName: to.StringPtr(fmt.Sprintf("%s:%s", b.jobID, message.ID())),
 		ID:          to.StringPtr(message.ID()),
 		CommandLine: to.StringPtr(fmt.Sprintf(`/bin/bash -c "%s"`, podCommand)),
 		Constraints: &batch.TaskConstraints{
@@ -347,5 +380,18 @@ func (b *AzureBatch) Reconcile() error {
 		}
 	}
 
+	return nil
+}
+
+func logFileContent(ctx context.Context, t *batch.CloudTask, fileClient *batch.FileClient, jobName, filepath string) error {
+	stdout, err := fileClient.GetFromTask(ctx, jobName, *t.ID, filepath, nil, nil, nil, nil, "", nil, nil)
+	if err != nil {
+		return err
+	}
+	stdoutByptes, err := ioutil.ReadAll(*stdout.Value)
+	if err != nil {
+		return err
+	}
+	log.WithField("task", *t).WithField(filepath, string(stdoutByptes)).Info("logged file content from batch task")
 	return nil
 }
