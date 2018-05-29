@@ -23,7 +23,7 @@ import (
 type Preparer struct {
 	dataPlane   *dataplane.DataPlane
 	context     *common.Context
-	environment *module.ModuleEnvironment
+	environment *module.Environment
 
 	baseDir         string
 	developmentFlag bool
@@ -63,7 +63,10 @@ func (p *Preparer) Prepare(
 
 	p.environment = module.GetModuleEnvironment(p.baseDir)
 
-	p.doPrepare()
+	err := p.doPrepare()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

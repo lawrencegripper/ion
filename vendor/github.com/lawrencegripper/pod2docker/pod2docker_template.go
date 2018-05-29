@@ -91,6 +91,9 @@ echo 'Running init container {{$index}}..'
 docker pull {{$container.Image}}
     {{end}}
 docker run --network container:{{$podName}} --ipc container:{{$podName}} \
+    {{- if isNvidiaRuntime $container}}
+    --runtime nvidia \
+    {{- end}}
     {{- range $index, $envs := $container.Env}}
 -e "{{$envs.Name}}:{{$envs.Value}}" \
     {{- end}}
@@ -107,6 +110,9 @@ docker run --network container:{{$podName}} --ipc container:{{$podName}} \
 docker pull {{$container.Image}}
     {{end}}
 docker run -d --network container:{{$podName}} --ipc container:{{$podName}} \
+    {{- if isNvidiaRuntime $container}}
+    --runtime nvidia \
+    {{- end}}
     {{- range $index, $envs := $container.Env}}
 -e "{{$envs.Name}}:{{$envs.Value}}" \
     {{- end}}

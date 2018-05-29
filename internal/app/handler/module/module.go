@@ -8,9 +8,9 @@ import (
 
 // cSpell:ignore bson
 
-// ModuleEnvironment represents the directory structure in
+// Environment represents the directory structure in
 // which the module operates
-type ModuleEnvironment struct {
+type Environment struct {
 	InputBlobDirPath  string
 	InputMetaFilePath string
 
@@ -22,8 +22,8 @@ type ModuleEnvironment struct {
 // GetModuleEnvironment returns a struct that represents
 // the require directory structure for the module
 // environment.
-func GetModuleEnvironment(baseDir string) *ModuleEnvironment {
-	return &ModuleEnvironment{
+func GetModuleEnvironment(baseDir string) *Environment {
+	return &Environment{
 		InputBlobDirPath:  helpers.GetPath(baseDir, constants.InputBlobDir),
 		InputMetaFilePath: helpers.GetPath(baseDir, constants.InputEventMetaFile),
 
@@ -34,7 +34,7 @@ func GetModuleEnvironment(baseDir string) *ModuleEnvironment {
 }
 
 // Build creates a clean directory structure for the module
-func (m *ModuleEnvironment) Build() error {
+func (m *Environment) Build() error {
 	if err := helpers.CreateDirClean(m.InputBlobDirPath); err != nil {
 		return fmt.Errorf("could not create input blob directory, %+v", err)
 	}
@@ -51,7 +51,7 @@ func (m *ModuleEnvironment) Build() error {
 }
 
 // Clear will clean down the module's directory structure
-func (m *ModuleEnvironment) Clear() error {
+func (m *Environment) Clear() error {
 	if err := helpers.ClearDir(m.InputBlobDirPath); err != nil {
 		return fmt.Errorf("could not create input blob directory, %+v", err)
 	}

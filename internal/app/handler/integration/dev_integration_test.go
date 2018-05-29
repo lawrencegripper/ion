@@ -14,11 +14,8 @@ import (
 
 	"github.com/lawrencegripper/ion/internal/app/handler"
 	"github.com/lawrencegripper/ion/internal/app/handler/constants"
-	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/inmemory"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 )
-
-var sharedDB *inmemory.InMemoryDB
 
 func TestDevIntegration(t *testing.T) {
 

@@ -32,6 +32,7 @@ func GetBashCommand(p PodComponents) (string, error) {
 		"isEmptyDirVolume":     isEmptyDirVolume,
 		"isPullAlways":         isPullAlways,
 		"getValidVolumeMounts": getValidVolumeMounts,
+		"isNvidiaRuntime":      isNvidiaRuntime,
 	})
 
 	template, err := template.Parse(azureBatchPodTemplate)
@@ -54,6 +55,13 @@ func getLaunchCommand(container v1.Container) (cmd string) {
 		cmd += strings.Join(container.Args, " ")
 	}
 	return
+}
+
+func isNvidiaRuntime(c v1.Container) bool {
+	if _, exists := c.Resources.Limits["nvidia.com/gpu"]; exists {
+		return true
+	}
+	return false
 }
 
 func isHostPathVolume(v v1.Volume) bool {

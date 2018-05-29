@@ -15,6 +15,7 @@ import (
 // GetSharedHandlerArgs gets the shared arguments used by the handler container
 func GetSharedHandlerArgs(c *types.Configuration, sbKeys servicebus.AccessKeys) []string {
 	return []string{
+		"start",
 		"--context.name=" + c.ModuleName,
 		"--azureblobprovider.enabled=true",
 		"--azureblobprovider.blobaccountname=" + c.Handler.AzureBlobStorageProvider.BlobAccountName,

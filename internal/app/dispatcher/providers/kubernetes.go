@@ -209,6 +209,8 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		return fmt.Errorf("failed generating handler args from message: %v", err)
 	}
 	fullHandlerArgs := append(k.handlerArgs, perJobArgs...)
+	//Prevent later append calls overwriting original backing array: https://stackoverflow.com/a/40036950/3437018
+	fullHandlerArgs = fullHandlerArgs[:len(fullHandlerArgs):len(fullHandlerArgs)]
 
 	labels := map[string]string{
 		dispatcherNameLabel: k.dispatcherName,
