@@ -51,7 +51,7 @@ func Run(cfg *types.Configuration, port int) {
 	log.Infoln("Stopping gracefully the application...")
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	server.Shutdown(ctx)
+	_ = server.Shutdown(ctx)
 
 	//TODO When should I call that?
 	//links.publisher.Close()

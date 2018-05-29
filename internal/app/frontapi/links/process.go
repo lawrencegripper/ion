@@ -24,7 +24,7 @@ func Process(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error(err)
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	log.Infoln("Processing URL:", linkReq.URL)
 
@@ -58,5 +58,5 @@ func Process(w http.ResponseWriter, r *http.Request) {
 	log.Infoln("Event published")
 
 	// Send back a ressource_id
-	fmt.Fprintln(w, "UUID:", uuid)
+	_, _ = fmt.Fprintln(w, "UUID:", uuid)
 }
