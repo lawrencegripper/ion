@@ -1,0 +1,8 @@
+printconfig: true
+
+job:
+  maxrunningtimemins: 10
+  pullalways: true
+  
+kubernetes:
+  namespace: "default"

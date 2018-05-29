@@ -1,0 +1,86 @@
+replicas: 1
+
+image:
+  name: dotjson/ion-dispatcher
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 50Mi
+  # limits:
+  #   cpu: 100m
+  #   memory: 100Mi
+
+terminationGracePeriodSeconds: 10
+nodeSelector: {}
+tolerations: []
+# E.g. kubernetes   ---  https://kubernetes.io/docs/concepts/configuration/assign-pod-     node/#taints-and-tolerations-beta-feature
+# - key: "key1"
+#   operator: "Equal"
+#   value: "value1"
+#   effect: "NoSchedule"
+# - key: "key1"
+#   operator: "Equal"
+#   value: "value1"
+#   effect: "NoExecute"
+
+rbac:
+  enabled: true
+
+log:
+  level: info
+  sensitive: false
+
+module:
+  name: pyex
+  image:
+    name: dotjson/ion-python-example-module
+    tag: latest
+    pullPolicy: Always
+  eventsPublished: ""
+  maxRunningTimeMins: 10
+  subscribesToEvent: ""
+  retryCount: 5
+  handler:
+    host: localhost:8080
+    printConfig: false
+    image:
+      name: dotjson/ion-handler
+      tag: latest
+      pullPolicy: Always
+# This is the configuration to be passed to the module.
+# It will be pushed in a config map as such.
+  config: ""
+
+# Only Azure is supported at the moment
+cloud:
+  azure:
+    clientId: ""
+    clientSecret: ""
+    tenantId: ""
+    subscriptionId: ""
+    resourceGroup: ""
+
+fileStorage:
+  provider: azure
+  azure:
+    accountName: blob
+    accountKey: thisisanexampleaccountkey
+    useProxy: false
+
+dbStorage:
+  provider: mongodb
+  mongodb:
+    # A comma separated list of hosts with their ports
+    uri: "localhost:27017"
+    username: mongodb
+    password: mongodb
+
+amqp:
+  # Azure servicebus is the only supported at the moment
+  provider: servicebus
+  servicebus:
+    namespace: dispatcher
+

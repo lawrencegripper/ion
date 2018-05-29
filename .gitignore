@@ -1,0 +1,10 @@
+.directory
+build/dispatcher/dispatcher
+build/handler/ion-handler
+cmd/dispatcher/dispatcher
+cmd/handler/handler
+tools/publishevent/main.go
+tools/publishevent/publishevent
+.memdb
+.dev
+**/debug.test

@@ -1,11 +1,23 @@
 language: go
 sudo: required
-
 services:
-  - docker
+- docker
 
-go:
-  - "1.10.x"
+notifications:
+  email:
+    on_success: never
+    on_failure: change
+
+before_install:
+  # Download and install dep
+  - curl -sI https://github.com/golang/dep/releases/latest | grep -Fi Location  | tr -d '\r' | sed "s/tag/download/g" | awk -F " " '{ print $2 "/dep-linux-amd64"}' | wget --output-document=$GOPATH/bin/dep -i -
+  - chmod +x $GOPATH/bin/dep
 
 script:
-  - chmod +x ci.sh && sudo ./ci.sh
+- make
+- if [ "$TRAVIS_PULL_REQUEST" = "false" -a "$TRAVIS_BRANCH" = "master" ]; then chmod +x ./build/pushimages.sh && sudo ./build/pushimages.sh; fi
+
+env:
+  global:
+  - secure: EhUZbxt13FxrP8JEuIyHv15GCoflmXPZJv877+PBjnkV7jY8SE8wgWVBOzAAzmAQXrWa2O43IsbT84RsqOoEBhwnYuDx3mOzVDvuJRwOwQ9y3wZ2vfhBiMcgLhpcaseVj4IiRdKUFwcfRRJfecTOpNzYXg+cERExZ0k4n56zrJX8n3eVDlv5dpuMpmS8KKCPiurn5ll2GGWe9jRRQKawNMPzufvK6UMTQNkGPeDL+F3hP8H0kUZBMiathC0Tl83IiSUShmNuozzj4P3vvIURT5E3Hnw8VPiAdXQ4hCwlKazpkleqNvKTE3fPQELzvYZgRlhci7rONbCzkBkzGiHy4SNMsPGhpk7MhtbQVy2UQ/2Pfm3/Ymgh2/tzStpHK0TkY8juaZE26DzqtF7mYIQshU/58yPMGxJMIMzU1bUwHLwxugMa3K6TYHwyfze3S3SMDPUC+ecYZiFhwai34zTLn894wTDBaFpy6DU3qFkYLE6JtlOPYS1fKnydpgehFhqwYL3QkTyfQFLpiiQ3cEA/l1DVMoz9aZaC+EMSCeNwT3FgNzGpUDr+zMBnqkd36qLsX19hXrdyR2Jh++SqJHKDPIMQjtBe8GOnAadq4SuCHNTKS6CpMEhcJhS3Vhi2gEIurABVyl3Q653uoXBwCylJ827Fambv7AlMIETywKSHpqg=
+  - secure: ef/L2s9MMml/ZAUrnamOwE6wsARS1ZTMRvfI3iAvvQTD2XIC+BhYWrxY6ZM8aF29XCBI58UtiTRfbslQx1+7wVxP73BkGt0QEkmsxHbSRXVW2yNJ1Xu4mdQMJn4V0EVP0sz+RYXR2MsEhIRt6LjKZgBliGfF7Q+pOvccP4WcxwjCYKbltT3spOhwzCSXUZ6Y0t0UGNv+Z72CjECtJiI1p6zRaHnRJtAujGVtWSQHtei6js2j4q7f7O2V8ghkw6jaXuJrXOsjbJyEDtXmusoWZITOsrScifyI3H/7vJgO5XH8szzz2YSto80qOfTabjL8Z6ASHBB3dIgg4hEw3sAN+M0xyL1aQ4Kt6ZFCbzTMqWWFfDROsBDcnXte2eDpw+gqERB9jcjmezJN3u6bH5wkvsgmMpZQGi4yJeI0/U9fORmtcFpZYZRucC6Y0Uj2KRvZywv77l5llVvvyGGxGoJ6qVzm7Cq5+TUG6W5WK5mv9EwePCMCkQ4+XnoG/DqsQVX5WLt9m/nwn+LaUUA/v2fbbIZ19q6F2uUlt031lTIAyUY4GnjHSJgruwAN/cvEvy4xIywwjsleyNp7Djfskop7vy9kmPGHshULmPk/hGrrJGQj6Mc+xZC2pghSi7+MQTI241iZSLGe1czQp72Xve8CnBtCLQ+5ksj+yjx8lOPdKi8=

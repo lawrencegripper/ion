@@ -9,7 +9,7 @@ import (
 	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/events"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/log"
-	"github.com/lawrencegripper/ion/modules/helpers/Go/sidecar"
+	"github.com/lawrencegripper/ion/modules/helpers/Go/handler"
 )
 
 func downloadFile(url, filepath string) error {
@@ -36,7 +36,7 @@ func downloadFile(url, filepath string) error {
 }
 
 func main() {
-	sidecar.Ready()
+	handler.Ready()
 
 	filename := env.OutputDataDir + "/file.raw"
 
@@ -56,7 +56,7 @@ func main() {
 		return
 	}
 
-	sidecar.Commit()
+	handler.Commit()
 
 	events.Fire([]events.Event{
 		events.Event{
