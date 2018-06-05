@@ -20,21 +20,21 @@ Each module will be supplied with the following environment variables:
 * `HANDLER_BASE_DIR` - **[Development Only]** Used to set the base directory for the module to write state to. If not provided, will default to `/ion/`.
 
 ### FileSystem
-Ion expects a module to read/write data that is intended to be passed between modules or persisted using a specific directory structure. For details on how to leverage this directory structure, please refer to the [handler docs](../handler/README.md).
+Ion expects a module to read/write data that is intended to be passed between modules or persisted using a specific directory structure. For details on how to leverage this directory structure, please refer to the [handler docs](../internal/app/handler/README.md).
 
 ### API
-Ion will handle the transition of data between your modules for you if you instruct it to do so. This requires you to make a few simple calls to the handler's API. For more information on how to do this, please refer to the [handler docs](../handler/README.md).
+Ion will handle the transition of data between your modules for you if you instruct it to do so. This requires you to make a few simple calls to the handler's API. For more information on how to do this, please refer to the [handler docs](../internal/app/handler/README.md).
 
 ## Developing with the Handler
-In order to run your module against the handler, you'll need to follow the instructions on the [handler docs](../handler/README.md) to get the side car up and running.
+In order to run your module against the handler, you'll need to follow the instructions on the [handler docs](../internal/app/handler/README.md) to get the side car up and running.
 
-Please review the `--development` configuration on the [handler docs](../handler/README.md).
+Please review the `--development` configuration on the [handler docs](../internal/app/handler/README.md).
 
 Once you have the handler running, you can simply execute your module locally with the correct environment variables set and it should communicate with the handler. If you're using `development` mode you will not need to provide the handler with any external provider configuration and data will be stored in a `dev` directory.
 
 ### Chaining Modules Locally
 
-> NOTE: When offline mode is supported as documented on the [handler docs](../handler/README.md), you will be able to use the local dispatcher to orchestrate this flow.
+> NOTE: When offline mode is supported as documented on the [handler docs](../internal/app/handler/README.md), you will be able to use the local dispatcher to orchestrate this flow.
 
 If you wish to develop multiple modules locally and have them chained together, you will need to write an orchestration script. The script will configure and run the first module (likely setting the `baseDir` config to a relative path i.e. `module1`).
 
