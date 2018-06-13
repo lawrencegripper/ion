@@ -1,0 +1,2 @@
+all:
+	docker build -f build/management/Dockerfile -t ion-management .

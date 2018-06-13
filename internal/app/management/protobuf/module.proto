@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+option go_package = "protobuf";
+
+message ModuleCreateRequest {
+  string name = 1;
+  string subsribestoevent = 2;
+  string eventspublished = 3;
+  string moduleimage = 4;
+  string moduleimagetag = 5;
+  string handlerimage = 6;
+  string handlerimagetag = 7;
+  int32 instanceCount = 8;
+  int32 retrycount = 9;
+  string containerregistryurl = 10;      
+  string containerregistryusername = 11;
+  string containerregistrypassword = 12;
+  string containerregistryemail = 13;
+  map<string, string> configmap = 14;
+}
+
+message Empty {
+
+}
+
+service ModuleService {
+  rpc Create (ModuleCreateRequest) returns (Empty) {}
+}
