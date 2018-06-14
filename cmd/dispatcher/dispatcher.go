@@ -3,6 +3,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func NewDispatcherCommand() *cobra.Command {
 			// Read config file
 			viper.SetConfigFile(cfgFile)
 			if err := viper.ReadInConfig(); err != nil {
-				log.WithError(err).Warningln("Can't read dispatcher config from file %s", cfgFile)
+				log.WithError(err).Warningln(fmt.Sprintf("Can't read dispatcher config from file %s", cfgFile))
 			}
 			viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 			viper.AutomaticEnv()

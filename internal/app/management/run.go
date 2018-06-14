@@ -53,7 +53,7 @@ func genID() string {
 }
 
 // Run the GRPC server
-func Run(config *Configuration) error {
+func Run(config *Configuration) {
 
 	logLevel = config.LogLevel
 
@@ -66,27 +66,25 @@ func Run(config *Configuration) error {
 	var err error
 	k.client, err = getClientSet()
 	if err != nil {
-		return fmt.Errorf("error connecting to Kubernetes %+v", err)
+		panic(fmt.Errorf("error connecting to Kubernetes %+v", err))
 	}
 	k.namespace = config.Namespace
 
 	err = createDispatcherSecret(config)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
 	if err != nil {
-		return fmt.Errorf("failed to listen: %v", err)
+		panic(fmt.Errorf("failed to listen: %v", err))
 	}
 	s := grpc.NewServer()
 	module.RegisterModuleServiceServer(s, &server{})
 	reflection.Register(s)
 	if err := s.Serve(lis); err != nil {
-		return fmt.Errorf("failed to serve: %v", err)
+		panic(fmt.Errorf("failed to serve: %v", err))
 	}
-
-	return nil
 }
 
 func createDispatcherSecret(config *Configuration) error {
@@ -170,7 +168,7 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 
 	var buffer strings.Builder
 	for k, v := range r.Configmap {
-		buffer.WriteString(fmt.Sprintf("%s=%s\n", k, v))
+		_, _ = buffer.WriteString(fmt.Sprintf("%s=%s\n", k, v))
 	}
 	configMapStr := strings.TrimSuffix(buffer.String(), "\n")
 
