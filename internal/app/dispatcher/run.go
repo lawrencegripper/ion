@@ -71,7 +71,7 @@ func Run(cfg *types.Configuration) {
 			}
 
 			log.WithField("message", message).Debug("message dispatched")
-			queueDepth, err := listener.GetQueueDepth()
+			queueDepth, err := amqpConnection.GetQueueDepth()
 			if err != nil {
 				log.WithError(err).Error("failed getting queue depth from listener")
 			}
