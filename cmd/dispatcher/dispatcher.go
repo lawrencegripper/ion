@@ -25,7 +25,6 @@ var cfg = types.Configuration{
 		AzureBlobStorageProvider:       &types.AzureBlobConfig{},
 		MongoDBDocumentStorageProvider: &types.MongoDBConfig{},
 	},
-	AzureBatch: &types.AzureBatchConfig{},
 }
 var cfgFile string
 
@@ -74,15 +73,18 @@ func NewDispatcherCommand() *cobra.Command {
 			cfg.Handler.MongoDBDocumentStorageProvider.Collection = viper.GetString("handler.mongodbdocprovider.collection")
 			cfg.Handler.MongoDBDocumentStorageProvider.Port = viper.GetInt("handler.mongodbdocprovider.port")
 			// azurebatch.*
-			cfg.AzureBatch.RequiresGPU = viper.GetBool("azurebatch.requiresgpu")
-			cfg.AzureBatch.ResourceGroup = viper.GetString("azurebatch.resourcegroup")
-			cfg.AzureBatch.PoolID = viper.GetString("azurebatch.poolid")
-			cfg.AzureBatch.JobID = viper.GetString("azurebatch.jobid")
-			cfg.AzureBatch.BatchAccountName = viper.GetString("azurebatch.batchaccountname")
-			cfg.AzureBatch.BatchAccountLocation = viper.GetString("azurebatch.batchaccountlocation")
-			cfg.AzureBatch.ImageRepositoryServer = viper.GetString("azurebatch.imagerepositoryserver")
-			cfg.AzureBatch.ImageRepositoryUsername = viper.GetString("azurebatch.imagerepositoryusername")
-			cfg.AzureBatch.ImageRepositoryPassword = viper.GetString("azurebatch.imagerepositorypassword")
+			if viper.GetBool("azurebatch.enabled") {
+				cfg.AzureBatch = &types.AzureBatchConfig{}
+				cfg.AzureBatch.RequiresGPU = viper.GetBool("azurebatch.requiresgpu")
+				cfg.AzureBatch.ResourceGroup = viper.GetString("azurebatch.resourcegroup")
+				cfg.AzureBatch.PoolID = viper.GetString("azurebatch.poolid")
+				cfg.AzureBatch.JobID = viper.GetString("azurebatch.jobid")
+				cfg.AzureBatch.BatchAccountName = viper.GetString("azurebatch.batchaccountname")
+				cfg.AzureBatch.BatchAccountLocation = viper.GetString("azurebatch.batchaccountlocation")
+				cfg.AzureBatch.ImageRepositoryServer = viper.GetString("azurebatch.imagerepositoryserver")
+				cfg.AzureBatch.ImageRepositoryUsername = viper.GetString("azurebatch.imagerepositoryusername")
+				cfg.AzureBatch.ImageRepositoryPassword = viper.GetString("azurebatch.imagerepositorypassword")
+			}
 
 			// Globally set configuration level
 			switch strings.ToLower(cfg.LogLevel) {
@@ -163,6 +165,7 @@ func NewDispatcherCommand() *cobra.Command {
 	dispatcherCmd.PersistentFlags().String("handler.mongodbdocprovider.collection", "", "MongoDB database collection to use")
 	dispatcherCmd.PersistentFlags().Int("handler.mongodbdocprovider.port", 27017, "MongoDB server port")
 	// azurebatch.*
+	dispatcherCmd.PersistentFlags().Bool("azurebatch.enabled", false, "Dispatcher should use Azure Batch for scheduling")
 	dispatcherCmd.PersistentFlags().Bool("azurebatch.requiresgpu", false, "Module requries gpu")
 	dispatcherCmd.PersistentFlags().String("azurebatch.resourcegroup", "", "")
 	dispatcherCmd.PersistentFlags().String("azurebatch.poolid", "", "")
@@ -211,6 +214,7 @@ func NewDispatcherCommand() *cobra.Command {
 	viper.BindPFlag("handler.mongodbdocprovider.collection", dispatcherCmd.PersistentFlags().Lookup("handler.mongodbdocprovider.collection"))
 	viper.BindPFlag("handler.mongodbdocprovider.port", dispatcherCmd.PersistentFlags().Lookup("handler.mongodbdocprovider.port"))
 	// azurebatch.*
+	viper.BindPFlag("azurebatch.enabled", dispatcherCmd.PersistentFlags().Lookup("azurebatch.enabled"))
 	viper.BindPFlag("azurebatch.requiresgpu", dispatcherCmd.PersistentFlags().Lookup("azurebatch.requiresgpu"))
 	viper.BindPFlag("azurebatch.resourcegroup", dispatcherCmd.PersistentFlags().Lookup("azurebatch.resourcegroup"))
 	viper.BindPFlag("azurebatch.poolid", dispatcherCmd.PersistentFlags().Lookup("azurebatch.poolid"))
