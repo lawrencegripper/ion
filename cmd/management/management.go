@@ -45,8 +45,8 @@ func NewManagementCommand() *cobra.Command {
 	flags.StringP("loglevel", "l", "warn", "Logging level, possible values {debug, info, warn, error}")
 	flags.BoolP("printconfig", "P", false, "Set to print config on start")
 
-	viper.BindPFlag("log-level", flags.Lookup("loglevel"))
-	viper.BindPFlag("print-config", flags.Lookup("printconfig"))
+	_ = viper.BindPFlag("log-level", flags.Lookup("loglevel"))
+	_ = viper.BindPFlag("print-config", flags.Lookup("printconfig"))
 
 	return cmd
 }

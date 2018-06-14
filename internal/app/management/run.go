@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/lawrencegripper/ion/internal/app/management/module"
 	"github.com/rs/xid"
@@ -44,7 +45,7 @@ type DispatcherMeta struct {
 var k Kubernetes
 var dispatcher *DispatcherMeta
 var dispatcherSecretName string
-var empty module.Empty
+var logLevel string
 
 func genID() string {
 	id := xid.New()
@@ -53,6 +54,8 @@ func genID() string {
 
 // Run the GRPC server
 func Run(config *Configuration) error {
+
+	logLevel = config.LogLevel
 
 	dispatcher = &DispatcherMeta{
 		ID:        genID(),
@@ -96,22 +99,21 @@ func createDispatcherSecret(config *Configuration) error {
 			Name: dispatcherSecretName,
 		},
 		StringData: map[string]string{
-			"AZURE_CLIENT_ID":              config.AzureClientID,
-			"AZURE_CLIENT_SECRET":          config.AzureClientSecret,
-			"AZURE_SUBSCRIPTION_ID":        config.AzureSubscriptionID,
-			"AZURE_TENANT_ID":              config.AzureTenantID,
-			"AZURE_SERVICEBUS_NAMESPACE":   config.AzureServiceBusNamespace,
-			"AZURE_RESOURCE_GROUP":         config.AzureResourceGroup,
-			"AZURE_BATCH_POOLID":           config.AzureBatchPoolID,
-			"AZURE_AD_RESOURCE":            config.AzureADResource,
-			"AZURE_BATCH_ACCOUNT_LOCATION": config.AzureBatchAccountLocation,
-			"AZURE_BATCH_ACCOUNT_NAME":     config.AzureBatchAccountName,
-			"MONGODB_PORT":                 strconv.Itoa(config.MongoDBPort),
-			"MONGODB_NAME":                 config.MongoDBName,
-			"MONGODB_PASSWORD":             config.MongoDBPassword,
-			"MONGODB_COLLECTION":           config.MongoDBCollection,
-			"AZURE_STORAGE_ACCOUNT_NAME":   config.AzureStorageAccountName,
-			"AZURE_STORAGE_ACCOUNT_KEY":    config.AzureStorageAccountKey,
+			"CLIENTID":                                  config.AzureClientID,
+			"CLIENTSECRET":                              config.AzureClientSecret,
+			"SUBSCRIPTIONID":                            config.AzureSubscriptionID,
+			"TENANTID":                                  config.AzureTenantID,
+			"SERVICEBUSNAMESPACE":                       config.AzureServiceBusNamespace,
+			"RESOURCEGROUP":                             config.AzureResourceGroup,
+			"AZUREBATCH_POOLID":                         config.AzureBatchPoolID,
+			"AZUREBATCH_BATCHACCOUNTLOCATION":           config.AzureBatchAccountLocation,
+			"AZUREBATCH_BATCHACCOUNTNAME":               config.AzureBatchAccountName,
+			"HANDLER_MONGODBDOCPROVIDER_PORT":           strconv.Itoa(config.MongoDBPort),
+			"HANDLER_MONGODBDOCPROVIDER_NAME":           config.MongoDBName,
+			"HANDLER_MONGODBDOCPROVIDER_PASSWORD":       config.MongoDBPassword,
+			"HANDLER_MONGODBDOCPROVIDER_COLLECTION":     config.MongoDBCollection,
+			"HANDLER_AZUREBLOBPROVIDER_BLOBACCOUNTNAME": config.AzureStorageAccountName,
+			"HANDLER_AZUREBLOBPROVIDER_BLOBACCOUNTKEY":  config.AzureStorageAccountKey,
 		},
 	}
 
@@ -166,11 +168,19 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 	// dispatches the module.
 	moduleConfigMapName := fmt.Sprintf("module-config-%s", dispatcher.ID)
 
+	var buffer strings.Builder
+	for k, v := range r.Configmap {
+		buffer.WriteString(fmt.Sprintf("%s=%s\n", k, v))
+	}
+	configMapStr := strings.TrimSuffix(buffer.String(), "\n")
+
 	moduleConfigMap := &apiv1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: moduleConfigMapName,
 		},
-		Data: r.Configmap,
+		Data: map[string]string{
+			"module": configMapStr,
+		},
 	}
 
 	configMapClient := k.client.CoreV1().ConfigMaps(k.namespace)
@@ -179,11 +189,13 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 		return nil, fmt.Errorf("error creating module config map %+v", err)
 	}
 
-	configMapFilePath := "/etc/config/"
+	configMapFilePath := "/etc/config"
 
 	// Create an argument list to provide the the dispatcher
 	dispatcherArgs := []string{
+		"start",
 		"--modulename=" + r.Name,
+		"--moduleconfigpath=" + fmt.Sprintf("%s/module", configMapFilePath),
 		"--subscribestoevent=" + r.Eventsubscriptions,
 		"--eventspublished=" + r.Eventpublications,
 		"--job.workerimage=" + r.Moduleimage + ":" + r.Moduleimagetag,
@@ -191,9 +203,8 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 		"--job.retrycount=" + fmt.Sprintf("%d", r.Retrycount),
 		"--job.pullalways=false",
 		"--kubernetes.namespace=" + k.namespace,
-		"--Kubernetes.imagepullsecretname=" + moduleImagePullSecretName,
-		"--moduleconfigpath=" + configMapFilePath,
-		"--loglevel=warn",
+		"--kubernetes.imagepullsecretname=" + moduleImagePullSecretName,
+		"--loglevel=" + logLevel,
 	}
 
 	dispatcherDeploymentName := fmt.Sprintf("dispatcher-%s-%s", r.Name, dispatcher.ID)

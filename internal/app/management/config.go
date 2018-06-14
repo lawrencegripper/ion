@@ -14,9 +14,9 @@ type Configuration struct {
 	AzureServiceBusNamespace  string
 	AzureResourceGroup        string
 	AzureBatchPoolID          string
-	AzureADResource           string
 	AzureBatchAccountLocation string
 	AzureBatchAccountName     string
+	AzureBatchRequiresGPU     bool
 	MongoDBPort               int
 	MongoDBName               string
 	MongoDBPassword           string

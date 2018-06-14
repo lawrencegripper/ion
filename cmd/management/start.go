@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lawrencegripper/ion/internal/app/management"
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
@@ -21,8 +22,9 @@ func NewStartCommand() *cobra.Command {
 			// Read config file
 			viper.SetConfigFile(cfgFile)
 			if err := viper.ReadInConfig(); err != nil {
-				log.WithError(err).Warningln("Can't read config")
+				log.WithError(err).Warningln("Can't read management config from file %s", cfgFile)
 			}
+			viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 			viper.AutomaticEnv()
 
 			managementConfig.Port = viper.GetInt("management-port")
@@ -43,6 +45,7 @@ func NewStartCommand() *cobra.Command {
 			managementConfig.MongoDBPassword = viper.GetString("mongodb-password")
 			managementConfig.AzureStorageAccountName = viper.GetString("azure-storage-account-name")
 			managementConfig.AzureStorageAccountKey = viper.GetString("azure-storage-account-key")
+			managementConfig.AzureServiceBusNamespace = viper.GetString("azure-servicebus-namespace")
 			managementConfig.LogLevel = viper.GetString("loglevel")
 
 			if managementConfig.DispatcherImage == "" {
@@ -67,15 +70,15 @@ func NewStartCommand() *cobra.Command {
 				return fmt.Errorf("--azure-resource-group is required")
 			}
 			// Should be optional?
-			if managementConfig.AzureBatchPoolID == "" {
-				return fmt.Errorf("--azure-batch-pool-id is required")
-			}
-			if managementConfig.AzureBatchAccountName == "" {
-				return fmt.Errorf("--azure-batch-account-name is required")
-			}
-			if managementConfig.AzureBatchAccountLocation == "" {
-				return fmt.Errorf("--azure-batch-account-location is required")
-			}
+			// if managementConfig.AzureBatchPoolID == "" {
+			// 	return fmt.Errorf("--azure-batch-pool-id is required")
+			// }
+			// if managementConfig.AzureBatchAccountName == "" {
+			// 	return fmt.Errorf("--azure-batch-account-name is required")
+			// }
+			// if managementConfig.AzureBatchAccountLocation == "" {
+			// 	return fmt.Errorf("--azure-batch-account-location is required")
+			// }
 			if managementConfig.MongoDBName == "" {
 				return fmt.Errorf("--mongodb-name is required")
 			}
@@ -90,6 +93,9 @@ func NewStartCommand() *cobra.Command {
 			}
 			if managementConfig.AzureStorageAccountKey == "" {
 				return fmt.Errorf("--azure-storage-account-key is required")
+			}
+			if managementConfig.AzureServiceBusNamespace == "" {
+				return fmt.Errorf("--azure-servicebus-namespace is required")
 			}
 
 			if managementConfig.PrintConfig {
@@ -166,11 +172,14 @@ func NewStartCommand() *cobra.Command {
 	flags.Int("mongodb-port", 27017, "MongoDB server port")
 	viper.BindPFlag("mongodb-port", flags.Lookup("mongodb-port"))
 
-	flags.String("azure-storage-account-name", "", "ServiceBus topic name")
+	flags.String("azure-storage-account-name", "", "Azure storage account name")
 	viper.BindPFlag("azure-storage-account-name", flags.Lookup("azure-storage-account-name"))
 
-	flags.String("azure-storage-account-key", "", "ServiceBus access key")
+	flags.String("azure-storage-account-key", "", "Azure storage account key")
 	viper.BindPFlag("azure-storage-account-key", flags.Lookup("azure-storage-account-key"))
+
+	flags.String("azure_servicebus_namespace", "", "Azure Service Bus namespace")
+	viper.BindPFlag("azure_servicebus_namespace", flags.Lookup("azure_servicebus_namespace"))
 
 	return cmd
 }

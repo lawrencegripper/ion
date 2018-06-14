@@ -42,7 +42,7 @@
             "program": "${workspaceRoot}/internal/app/dispatcher/providers",
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "args": [
-                "-test.v",  
+                "-test.v",
                 "-test.timeout",
                 "15m"
             ],
@@ -59,7 +59,7 @@
             "program": "${workspaceRoot}/internal/pkg/servicebus",
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "args": [
-                "-test.v",  
+                "-test.v",
                 "-test.timeout",
                 "5m"
             ],

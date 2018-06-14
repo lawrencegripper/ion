@@ -39,7 +39,7 @@ func runClient() error {
 		Containerregistryemail:    "",
 		Containerregistrypassword: "",
 		Configmap: map[string]string{
-			"test": "test",
+			"HANDLER_BASE_DIR": "/ion/",
 		},
 	}
 
