@@ -11,15 +11,13 @@ import (
 
 var managementConfig = management.NewConfiguration()
 
-var managementCmdConfig = viper.New()
-
 // NewManagementCommand create the management command with its flags
 func NewManagementCommand() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "ion-management",
 		Short: "ion-management to embed in the processing",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			managementConfig.LogLevel = managementCmdConfig.GetString("log-level")
+			managementConfig.LogLevel = viper.GetString("log-level")
 			managementConfig.PrintConfig, _ = cmd.Flags().GetBool("printconfig")
 
 			// Globally set configuration level
@@ -47,8 +45,8 @@ func NewManagementCommand() *cobra.Command {
 	flags.StringP("loglevel", "l", "warn", "Logging level, possible values {debug, info, warn, error}")
 	flags.BoolP("printconfig", "P", false, "Set to print config on start")
 
-	managementCmdConfig.BindPFlag("log-level", flags.Lookup("loglevel"))
-	managementCmdConfig.BindPFlag("print-config", flags.Lookup("printconfig"))
+	viper.BindPFlag("log-level", flags.Lookup("loglevel"))
+	viper.BindPFlag("print-config", flags.Lookup("printconfig"))
 
 	return cmd
 }

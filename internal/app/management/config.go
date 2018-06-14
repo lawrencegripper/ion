@@ -1,6 +1,8 @@
 package management
 
-type configuration struct {
+// Configuration reprsents all the config values
+// needed to run the management server
+type Configuration struct {
 	Port                      int
 	Namespace                 string
 	DispatcherImage           string
@@ -26,7 +28,7 @@ type configuration struct {
 }
 
 // NewConfiguration create an empty config
-func NewConfiguration() configuration {
-	cfg := configuration{}
+func NewConfiguration() Configuration {
+	cfg := Configuration{}
 	return cfg
 }

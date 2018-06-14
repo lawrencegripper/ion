@@ -20,6 +20,18 @@
             ]
         },
         {
+            "name": "Debug Management Server",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceRoot}/cmd/management",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
+            "showLog": true,
+            "args": [
+                "start",
+            ]
+        },
+        {
             "name": "Dispatcher Provider Tests",
             "type": "go",
             "request": "launch",

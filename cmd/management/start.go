@@ -7,7 +7,10 @@ import (
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
+
+var cfgFile string
 
 // NewStartCommand create the start command with its flags
 func NewStartCommand() *cobra.Command {
@@ -15,26 +18,79 @@ func NewStartCommand() *cobra.Command {
 		Use:   "start",
 		Short: "ion-management to embed in the processing",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			managementConfig.Port = managementCmdConfig.GetInt("management-port")
-			managementConfig.Namespace = managementCmdConfig.GetString("namespace")
-			managementConfig.DispatcherImage = managementCmdConfig.GetString("dispatcher-image-name")
-			managementConfig.DispatcherImageTag = managementCmdConfig.GetString("dispatcher-image-tag")
-			managementConfig.AzureClientID = managementCmdConfig.GetString("azure-client-id")
-			managementConfig.AzureClientSecret = managementCmdConfig.GetString("azure-client-secret")
-			managementConfig.AzureSubscriptionID = managementCmdConfig.GetString("azure-subscription-id")
-			managementConfig.AzureTenantID = managementCmdConfig.GetString("azure-tenant-id")
-			managementConfig.AzureResourceGroup = managementCmdConfig.GetString("azure-resource-group")
-			managementConfig.AzureBatchPoolID = managementCmdConfig.GetString("azure-batch-pool-id")
-			managementConfig.AzureBatchAccountName = managementCmdConfig.GetString("azure-batch-account-name")
-			managementConfig.AzureBatchAccountLocation = managementCmdConfig.GetString("azure-batch-account-location")
-			managementConfig.AzureADResource = managementCmdConfig.GetString("azure-ad-resource")
-			managementConfig.MongoDBName = managementCmdConfig.GetString("mongodb-name")
-			managementConfig.MongoDBPort = managementCmdConfig.GetInt("mongodb-port")
-			managementConfig.MongoDBCollection = managementCmdConfig.GetString("mongodb-collection")
-			managementConfig.MongoDBPassword = managementCmdConfig.GetString("mongodb-password")
-			managementConfig.AzureStorageAccountName = managementCmdConfig.GetString("azure-storage-account-name")
-			managementConfig.AzureStorageAccountKey = managementCmdConfig.GetString("azure-storage-account-key")
-			managementConfig.LogLevel = managementCmdConfig.GetString("loglevel")
+			// Read config file
+			viper.SetConfigFile(cfgFile)
+			if err := viper.ReadInConfig(); err != nil {
+				log.WithError(err).Warningln("Can't read config")
+			}
+			viper.AutomaticEnv()
+
+			managementConfig.Port = viper.GetInt("management-port")
+			managementConfig.Namespace = viper.GetString("namespace")
+			managementConfig.DispatcherImage = viper.GetString("dispatcher-image-name")
+			managementConfig.DispatcherImageTag = viper.GetString("dispatcher-image-tag")
+			managementConfig.AzureClientID = viper.GetString("azure-client-id")
+			managementConfig.AzureClientSecret = viper.GetString("azure-client-secret")
+			managementConfig.AzureSubscriptionID = viper.GetString("azure-subscription-id")
+			managementConfig.AzureTenantID = viper.GetString("azure-tenant-id")
+			managementConfig.AzureResourceGroup = viper.GetString("azure-resource-group")
+			managementConfig.AzureBatchPoolID = viper.GetString("azure-batch-pool-id")
+			managementConfig.AzureBatchAccountName = viper.GetString("azure-batch-account-name")
+			managementConfig.AzureBatchAccountLocation = viper.GetString("azure-batch-account-location")
+			managementConfig.MongoDBName = viper.GetString("mongodb-name")
+			managementConfig.MongoDBPort = viper.GetInt("mongodb-port")
+			managementConfig.MongoDBCollection = viper.GetString("mongodb-collection")
+			managementConfig.MongoDBPassword = viper.GetString("mongodb-password")
+			managementConfig.AzureStorageAccountName = viper.GetString("azure-storage-account-name")
+			managementConfig.AzureStorageAccountKey = viper.GetString("azure-storage-account-key")
+			managementConfig.LogLevel = viper.GetString("loglevel")
+
+			if managementConfig.DispatcherImage == "" {
+				return fmt.Errorf("--dispatcher-image-name is required")
+			}
+			if managementConfig.DispatcherImageTag == "" {
+				return fmt.Errorf("--dispatcher-image-tag is required")
+			}
+			if managementConfig.AzureClientID == "" {
+				return fmt.Errorf("--azure-client-id is required")
+			}
+			if managementConfig.AzureClientSecret == "" {
+				return fmt.Errorf("--azure-client-secret is required")
+			}
+			if managementConfig.AzureSubscriptionID == "" {
+				return fmt.Errorf("--azure-subscription-id is required")
+			}
+			if managementConfig.AzureTenantID == "" {
+				return fmt.Errorf("--azure-tenant-id is required")
+			}
+			if managementConfig.AzureResourceGroup == "" {
+				return fmt.Errorf("--azure-resource-group is required")
+			}
+			// Should be optional?
+			if managementConfig.AzureBatchPoolID == "" {
+				return fmt.Errorf("--azure-batch-pool-id is required")
+			}
+			if managementConfig.AzureBatchAccountName == "" {
+				return fmt.Errorf("--azure-batch-account-name is required")
+			}
+			if managementConfig.AzureBatchAccountLocation == "" {
+				return fmt.Errorf("--azure-batch-account-location is required")
+			}
+			if managementConfig.MongoDBName == "" {
+				return fmt.Errorf("--mongodb-name is required")
+			}
+			if managementConfig.MongoDBCollection == "" {
+				return fmt.Errorf("--mongodb-collection is required")
+			}
+			if managementConfig.MongoDBPassword == "" {
+				return fmt.Errorf("--mongodb-password is required")
+			}
+			if managementConfig.AzureStorageAccountName == "" {
+				return fmt.Errorf("--azure-storage-account-name is required")
+			}
+			if managementConfig.AzureStorageAccountKey == "" {
+				return fmt.Errorf("--azure-storage-account-key is required")
+			}
 
 			if managementConfig.PrintConfig {
 				fmt.Println(tools.PrettyPrintStruct(managementConfig))
@@ -50,70 +106,71 @@ func NewStartCommand() *cobra.Command {
 	}
 
 	flags := cmd.PersistentFlags()
+
+	flags.StringVarP(&cfgFile, "config", "c", "../../configs/management.yaml", "Config file path")
+
 	flags.Int("management-port", 9000, "The management API port")
-	managementCmdConfig.BindPFlag("management-port", flags.Lookup("management-port"))
+	viper.BindPFlag("management-port", flags.Lookup("management-port"))
 
 	flags.String("namespace", "ion", "Namespace to deploy Ion into")
 	cmd.MarkFlagRequired("namespace")
-	managementCmdConfig.BindPFlag("namespace", flags.Lookup("namespace"))
+	viper.BindPFlag("namespace", flags.Lookup("namespace"))
 
 	flags.String("dispatcher-image-name", "", "The container image name for the dispatcher")
 	cmd.MarkFlagRequired("dispatcher-image-name")
-	managementCmdConfig.BindPFlag("dispatcher-image-name", flags.Lookup("dispatcher-image-name"))
+	viper.BindPFlag("dispatcher-image-name", flags.Lookup("dispatcher-image-name"))
 
 	flags.String("dispatcher-image-tag", "", "The container image tag")
 	cmd.MarkFlagRequired("dispatcher-image-tag")
-	managementCmdConfig.BindPFlag("dispatcher-image-tag", flags.Lookup("dispatcher-image-tag"))
+	viper.BindPFlag("dispatcher-image-tag", flags.Lookup("dispatcher-image-tag"))
 
 	flags.String("azure-client-id", "", "Azure Service Principal Client ID")
 	cmd.MarkFlagRequired("azure-client-id")
-	managementCmdConfig.BindPFlag(":azure-client-id", flags.Lookup(":azure-client-id"))
+	viper.BindPFlag("azure-client-id", flags.Lookup("azure-client-id"))
 
 	flags.String("azure-client-secret", "", "Azure Service Principal Client Secret")
 	cmd.MarkFlagRequired("azure-client-secret")
-	managementCmdConfig.BindPFlag("azure-client-secret", flags.Lookup("azure-client-secret"))
+	viper.BindPFlag("azure-client-secret", flags.Lookup("azure-client-secret"))
 
 	flags.String("azure-subscription-id", "", "Azure Subscription ID")
-	managementCmdConfig.BindPFlag("azure-subscription-id", flags.Lookup("azure-subscription-id"))
+	cmd.MarkFlagRequired("azure-subscription-id")
+	viper.BindPFlag("azure-subscription-id", flags.Lookup("azure-subscription-id"))
 
 	flags.String("azure-tenant-id", "", "Azure Tenant ID")
-	managementCmdConfig.BindPFlag("azure-tenant-id", flags.Lookup("azure-tenant-id"))
+	viper.BindPFlag("azure-tenant-id", flags.Lookup("azure-tenant-id"))
 
 	flags.String("azure-resource-group", "", "Azure Resource Group")
-	managementCmdConfig.BindPFlag("azure-resource-group", flags.Lookup("azure-resource-group"))
+	viper.BindPFlag("azure-resource-group", flags.Lookup("azure-resource-group"))
 
 	flags.String("azure-batch-pool-id", "", "Azure Batch Pool ID")
-	managementCmdConfig.BindPFlag("azure-batch-pool-id", flags.Lookup("azure-batch-pool-id"))
+	viper.BindPFlag("azure-batch-pool-id", flags.Lookup("azure-batch-pool-id"))
 
 	flags.String("azure-batch-account-name", "", "Azure Batch Account Name")
-	managementCmdConfig.BindPFlag("azure-batch-account-name", flags.Lookup("azure-batch-account-name"))
+	viper.BindPFlag("azure-batch-account-name", flags.Lookup("azure-batch-account-name"))
 
 	flags.String("azure-batch-account-location", "", "Azure Batch Account Location")
-	managementCmdConfig.BindPFlag("azure-batch-account-location", flags.Lookup("azure-batch-account-location"))
-
-	flags.String("azure-ad-resource", "", "Azure Active Directory Resource")
-	managementCmdConfig.BindPFlag("azure-ad-resource", flags.Lookup("azure-ad-resource"))
+	viper.BindPFlag("azure-batch-account-location", flags.Lookup("azure-batch-account-location"))
 
 	flags.String("mongodb-name", "", "MongoDB Name")
-	managementCmdConfig.BindPFlag("mongodb-name", flags.Lookup("mongodb-name"))
+	viper.BindPFlag("mongodb-name", flags.Lookup("mongodb-name"))
 
 	flags.String("mongodb-collection", "", "MongoDB Database Collection")
-	managementCmdConfig.BindPFlag("mongodb-collection", flags.Lookup("mongodb-collection"))
+	viper.BindPFlag("mongodb-collection", flags.Lookup("mongodb-collection"))
 
 	flags.String("mongodb-username", "", "MongoDB server username")
-	managementCmdConfig.BindPFlag("mongodb-username", flags.Lookup("mongodb-username"))
+	viper.BindPFlag("mongodb-username", flags.Lookup("mongodb-username"))
 
 	flags.String("mongodb-password", "", "MongoDB server password")
-	managementCmdConfig.BindPFlag("mongodb-password", flags.Lookup("mongodb-password"))
+	viper.BindPFlag("mongodb-password", flags.Lookup("mongodb-password"))
 
 	flags.Int("mongodb-port", 27017, "MongoDB server port")
-	managementCmdConfig.BindPFlag("mongodb-port", flags.Lookup("mongodb-port"))
+	viper.BindPFlag("mongodb-port", flags.Lookup("mongodb-port"))
 
 	flags.String("azure-storage-account-name", "", "ServiceBus topic name")
-	managementCmdConfig.BindPFlag("azure-storage-account-name", flags.Lookup("azure-storage-account-name"))
+	viper.BindPFlag("azure-storage-account-name", flags.Lookup("azure-storage-account-name"))
 
 	flags.String("azure-storage-account-key", "", "ServiceBus access key")
-	managementCmdConfig.BindPFlag("azure-storage-account-key", flags.Lookup("azure-storage-account-key"))
+	viper.BindPFlag("azure-storage-account-key", flags.Lookup("azure-storage-account-key"))
 
 	return cmd
 }

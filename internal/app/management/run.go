@@ -3,7 +3,12 @@ package management
 import (
 	"encoding/base64"
 	"fmt"
-	pb "github.com/lawrencegripper/ion/internal/app/management/protobuf"
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
+
+	"github.com/lawrencegripper/ion/internal/app/management/module"
 	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 	context "golang.org/x/net/context"
@@ -15,14 +20,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"net"
-	"os"
-	"path/filepath"
-	"strconv"
 )
 
 type server struct{}
 
+// Kubernetes client
 type Kubernetes struct {
 	client                    *kubernetes.Clientset
 	namespace                 string
@@ -32,6 +34,7 @@ type Kubernetes struct {
 	MongoDBSecretRef          string
 }
 
+// DispatcherMeta holds metadata used by the dispatcher
 type DispatcherMeta struct {
 	ImageName string
 	ImageTag  string
@@ -40,7 +43,8 @@ type DispatcherMeta struct {
 
 var k Kubernetes
 var dispatcher *DispatcherMeta
-var empty pb.Empty
+var dispatcherSecretName string
+var empty module.Empty
 
 func genID() string {
 	id := xid.New()
@@ -48,9 +52,9 @@ func genID() string {
 }
 
 // Run the GRPC server
-func Run(config *configuration) error {
+func Run(config *Configuration) error {
 
-	dispatcher := &DispatcherMeta{
+	dispatcher = &DispatcherMeta{
 		ID:        genID(),
 		ImageName: config.DispatcherImage,
 		ImageTag:  config.DispatcherImageTag,
@@ -63,11 +67,33 @@ func Run(config *configuration) error {
 	}
 	k.namespace = config.Namespace
 
+	err = createDispatcherSecret(config)
+	if err != nil {
+		return err
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
+	if err != nil {
+		return fmt.Errorf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	module.RegisterModuleServiceServer(s, &server{})
+	reflection.Register(s)
+	if err := s.Serve(lis); err != nil {
+		return fmt.Errorf("failed to serve: %v", err)
+	}
+
+	return nil
+}
+
+func createDispatcherSecret(config *Configuration) error {
 	secretsClient := k.client.CoreV1().Secrets(k.namespace)
+
+	dispatcherSecretName = fmt.Sprintf("dispatcher-%s", dispatcher.ID)
 
 	dispatcherSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("dispatcher-%s", dispatcher.ID),
+			Name: dispatcherSecretName,
 		},
 		StringData: map[string]string{
 			"AZURE_CLIENT_ID":              config.AzureClientID,
@@ -89,91 +115,110 @@ func Run(config *configuration) error {
 		},
 	}
 
-	_, err = secretsClient.Create(dispatcherSecret)
+	_, err := secretsClient.Create(dispatcherSecret)
 	if err != nil {
 		return fmt.Errorf("error creating dispatcher secret %+v", err)
 	}
-
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
-	if err != nil {
-		return fmt.Errorf("failed to listen: %v", err)
-	}
-	s := grpc.NewServer()
-	pb.RegisterModuleServiceServer(s, &server{})
-	reflection.Register(s)
-	if err := s.Serve(lis); err != nil {
-		return fmt.Errorf("failed to serve: %v", err)
-	}
-
 	return nil
 }
 
-func (s *server) Create(ctx context.Context, r *pb.ModuleCreateRequest) (*pb.Empty, error) {
+func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*module.ModuleCreateRequest, error) {
 
-	// Create Module pull secret
-	auth := encodeBase64(fmt.Sprintf("%s:%s", r.Containerregistryusername, r.Containerregistrypassword))
-	dockerAuthConfig := fmt.Sprintf(`{"auths":{"%s":{"username":"%s","password":"%s","email":"%s","auth":"%s"}}}`,
-		r.Containerregistryurl,
-		r.Containerregistryusername,
-		r.Containerregistrypassword,
-		r.Containerregistryemail,
-		auth)
+	// If container registry details are provided, create a secret
+	// to store them. These will then be used when fetching the module's
+	// container image.
+	moduleImagePullSecretName := ""
+	if r.Containerregistrypassword != "" &&
+		r.Containerregistryusername != "" &&
+		r.Containerregistryurl != "" &&
+		r.Containerregistryemail != "" {
 
-	moduleImagePullSecret := &apiv1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("module-secret-%s", dispatcher.ID),
-		},
-		Data: map[string][]byte{
-			".dockerconfigjson": []byte(dockerAuthConfig),
-		},
-		Type: apiv1.SecretTypeDockerConfigJson,
+		moduleImagePullSecretName = fmt.Sprintf("module-image-secret-%s", dispatcher.ID)
+
+		auth := encodeBase64(fmt.Sprintf("%s:%s", r.Containerregistryusername, r.Containerregistrypassword))
+		dockerAuthConfig := fmt.Sprintf(`{"auths":{"%s":{"username":"%s","password":"%s","email":"%s","auth":"%s"}}}`,
+			r.Containerregistryurl,
+			r.Containerregistryusername,
+			r.Containerregistrypassword,
+			r.Containerregistryemail,
+			auth)
+
+		moduleImagePullSecret := &apiv1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: moduleImagePullSecretName,
+			},
+			Data: map[string][]byte{
+				".dockerconfigjson": []byte(dockerAuthConfig),
+			},
+			Type: apiv1.SecretTypeDockerConfigJson,
+		}
+
+		secretsClient := k.client.CoreV1().Secrets(k.namespace)
+		_, err := secretsClient.Create(moduleImagePullSecret)
+		if err != nil {
+			return nil, fmt.Errorf("error creating dispatcher secret %+v", err)
+		}
 	}
 
-	secretsClient := k.client.CoreV1().Secrets(k.namespace)
-	_, err := secretsClient.Create(moduleImagePullSecret)
-	if err != nil {
-		return &empty, fmt.Errorf("error creating dispatcher secret %+v", err)
-	}
+	// Create a configmap to store the configuration details
+	// needed by the module. These will be mounted into the
+	// dispatcher as a volume and then passed on when i
+	// dispatches the module.
+	moduleConfigMapName := fmt.Sprintf("module-config-%s", dispatcher.ID)
 
-	// Create Module config map
 	moduleConfigMap := &apiv1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("module-config-%s", dispatcher.ID),
+			Name: moduleConfigMapName,
 		},
 		Data: r.Configmap,
 	}
 
 	configMapClient := k.client.CoreV1().ConfigMaps(k.namespace)
-	_, err = configMapClient.Create(moduleConfigMap)
+	_, err := configMapClient.Create(moduleConfigMap)
 	if err != nil {
-		return &empty, fmt.Errorf("error creating module config map %+v", err)
+		return nil, fmt.Errorf("error creating module config map %+v", err)
 	}
 
 	configMapFilePath := "/etc/config/"
 
-	// Create Module arguments
+	// Create an argument list to provide the the dispatcher
 	dispatcherArgs := []string{
 		"--modulename=" + r.Name,
-		"--subscribestoevent=" + r.Subsribestoevent,
-		"--eventspublished=" + r.Eventspublished,
+		"--subscribestoevent=" + r.Eventsubscriptions,
+		"--eventspublished=" + r.Eventpublications,
 		"--job.workerimage=" + r.Moduleimage + ":" + r.Moduleimagetag,
 		"--job.handlerimage=" + r.Handlerimage + ":" + r.Handlerimagetag,
-		"--job.retrycount=" + fmt.Sprintf("%s", r.Retrycount),
+		"--job.retrycount=" + fmt.Sprintf("%d", r.Retrycount),
 		"--job.pullalways=false",
 		"--kubernetes.namespace=" + k.namespace,
-		"--Kubernetes.imagepullsecretname=" + fmt.Sprintf("module-secret-%s", dispatcher.ID),
+		"--Kubernetes.imagepullsecretname=" + moduleImagePullSecretName,
 		"--moduleconfigpath=" + configMapFilePath,
 		"--loglevel=warn",
 	}
 
-	// Create Dispatcher Deployment
+	dispatcherDeploymentName := fmt.Sprintf("dispatcher-%s-%s", r.Name, dispatcher.ID)
+
+	// Create a deployment that runs a dispatcher
+	// pod, passing in environment variables from
+	// a secret and mounting a volume from a configmap.
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("module-%s-%s", r.Name, dispatcher.ID),
+			Name: dispatcherDeploymentName,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: int32Ptr(r.InstanceCount),
+			Replicas: int32Ptr(r.Instancecount),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "ion-dispatcher",
+				},
+			},
 			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: dispatcherDeploymentName,
+					Labels: map[string]string{
+						"app": "ion-dispatcher",
+					},
+				},
 				Spec: apiv1.PodSpec{
 					Containers: []apiv1.Container{
 						{
@@ -182,9 +227,9 @@ func (s *server) Create(ctx context.Context, r *pb.ModuleCreateRequest) (*pb.Emp
 							Args:  dispatcherArgs,
 							EnvFrom: []apiv1.EnvFromSource{
 								{
-									ConfigMapRef: &apiv1.ConfigMapEnvSource{
+									SecretRef: &apiv1.SecretEnvSource{
 										LocalObjectReference: apiv1.LocalObjectReference{
-											Name: fmt.Sprintf("dispatcher-%s", dispatcher.ID),
+											Name: dispatcherSecretName,
 										},
 									},
 								},
@@ -203,7 +248,7 @@ func (s *server) Create(ctx context.Context, r *pb.ModuleCreateRequest) (*pb.Emp
 							VolumeSource: apiv1.VolumeSource{
 								ConfigMap: &apiv1.ConfigMapVolumeSource{
 									LocalObjectReference: apiv1.LocalObjectReference{
-										Name: fmt.Sprintf("module-config-%s", dispatcher.ID),
+										Name: moduleConfigMapName,
 									},
 								},
 							},
@@ -214,14 +259,13 @@ func (s *server) Create(ctx context.Context, r *pb.ModuleCreateRequest) (*pb.Emp
 		},
 	}
 
-	// Create Dispatcher Deployment
 	deploymentsClient := k.client.AppsV1().Deployments(k.namespace)
 	_, err = deploymentsClient.Create(deployment)
 	if err != nil {
-		return &empty, fmt.Errorf("error creating dispatcher deployment %+v", err)
+		return nil, fmt.Errorf("error creating dispatcher deployment %+v", err)
 	}
 
-	return &empty, nil
+	return r, nil
 }
 
 func encodeBase64(s string) string {
