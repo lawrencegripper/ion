@@ -66,7 +66,7 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 				SubscriptionID:    os.Getenv("AZURE_SUBSCRIPTION_ID"),
 				TenantID:          os.Getenv("AZURE_TENANT_ID"),
 				Job: &types.JobConfig{
-					SidecarImage:       test.dockerimage,
+					HandlerImage:       test.dockerimage,
 					WorkerImage:        test.dockerimage,
 					MaxRunningTimeMins: test.maxExecutionTimeMins,
 				},
@@ -74,7 +74,7 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 					BatchAccountLocation: os.Getenv("AZURE_BATCH_ACCOUNT_LOCATION"),
 					BatchAccountName:     os.Getenv("AZURE_BATCH_ACCOUNT_NAME"),
 					JobID:                helpers.RandomName(12),
-					PoolID:               "testpool",
+					PoolID:               os.Getenv("AZURE_BATCH_POOLID"),
 				},
 			}
 
@@ -109,7 +109,7 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 		loop:
 			for {
 				//Get task
-				task, err := p.taskClient.Get(p.ctx, p.dispatcherName, message.ID(), "", "", nil, nil, nil, nil, "", "", nil, nil)
+				task, err := p.taskClient.Get(p.ctx, p.jobID, message.ID(), "", "", nil, nil, nil, nil, "", "", nil, nil)
 				if err != nil {
 					t.Error(err)
 				}

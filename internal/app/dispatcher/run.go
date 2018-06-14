@@ -17,21 +17,21 @@ import (
 func Run(cfg *types.Configuration) {
 	ctx := context.Background()
 
-	listener := servicebus.NewListener(ctx, cfg)
-	sidecarArgs := providers.GetSharedSidecarArgs(cfg, listener.AccessKeys)
+	amqpConnection := servicebus.NewAmqpConnection(ctx, cfg)
+	handlerArgs := providers.GetSharedHandlerArgs(cfg, amqpConnection.AccessKeys)
 
 	var provider providers.Provider
 
 	if cfg.AzureBatch != nil {
 		log.Info("Using Azure batch provider...")
-		batchProvider, err := providers.NewAzureBatchProvider(cfg, sidecarArgs)
+		batchProvider, err := providers.NewAzureBatchProvider(cfg, handlerArgs)
 		if err != nil {
 			log.WithError(err).Panic("Couldn't create azure batch provider")
 		}
 		provider = batchProvider
 	} else {
 		log.Info("Defaulting to using Kubernetes provider...")
-		k8sProvider, err := providers.NewKubernetesProvider(cfg, sidecarArgs)
+		k8sProvider, err := providers.NewKubernetesProvider(cfg, handlerArgs)
 		if err != nil {
 			log.WithError(err).Panic("Couldn't create kubernetes provider")
 		}
@@ -44,7 +44,7 @@ func Run(cfg *types.Configuration) {
 	go func() {
 		defer wg.Done()
 		for {
-			message, err := listener.AmqpReceiver.Receive(ctx)
+			message, err := amqpConnection.Receiver.Receive(ctx)
 			if err != nil {
 				// Todo: Investigate the type of error here. If this could be triggered by a poisened message
 				// app shouldn't panic.
@@ -60,7 +60,10 @@ func Run(cfg *types.Configuration) {
 			wrapper := messaging.NewAmqpMessageWrapper(message)
 			if wrapper.DeliveryCount() > cfg.Job.RetryCount+1 {
 				log.WithField("message", message).Error("message re-received when above retryCount. AMQP provider wrongly redelivered message.")
-				wrapper.Reject()
+				err := wrapper.Reject()
+				if err != nil {
+					log.WithField("message", message).Error("error rejecting message")
+				}
 			}
 			err = provider.Dispatch(wrapper)
 			if err != nil {

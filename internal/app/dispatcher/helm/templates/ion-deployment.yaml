@@ -64,12 +64,12 @@ spec:
           value: {{ .Values.module.subscribesToEvent }}
         - name: DISPATCHER_MODULE_CONFIG_PATH
           value: /etc/ion/module/config.yml
-        - name: DISPATCHER_MODULE_SIDECAR_HOST
-          value: {{ .Values.module.sidecar.host | quote }}
-        - name: DISPATCHER_MODULE_SIDECAR_IMAGE
-          value: "{{ .Values.module.sidecar.image.name }}:{{ .Values.module.sidecar.image.tag }}"
-        - name: DISPATCHER_MODULE_SIDECAR_PRINTCONFIG
-          value: {{ .Values.module.sidecar.printConfig | quote }}
+        - name: DISPATCHER_MODULE_HANDLER_HOST
+          value: {{ .Values.module.handler.host | quote }}
+        - name: DISPATCHER_MODULE_HANDLER_IMAGE
+          value: "{{ .Values.module.handler.image.name }}:{{ .Values.module.handler.image.tag }}"
+        - name: DISPATCHER_MODULE_HANDLER_PRINTCONFIG
+          value: {{ .Values.module.handler.printConfig | quote }}
         - name: DISPATCHER_LOG_LEVEL
           value: {{ .Values.log.level }}
         - name: DISPATCHER_LOG_SENSITIVE

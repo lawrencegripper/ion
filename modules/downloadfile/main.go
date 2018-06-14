@@ -8,8 +8,8 @@ import (
 
 	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/events"
+	"github.com/lawrencegripper/ion/modules/helpers/Go/handler"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/log"
-	"github.com/lawrencegripper/ion/modules/helpers/Go/sidecar"
 )
 
 func downloadFile(url, filepath string) error {
@@ -17,14 +17,14 @@ func downloadFile(url, filepath string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer out.Close() //nolint: errcheck
 
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint: errcheck
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
@@ -36,7 +36,7 @@ func downloadFile(url, filepath string) error {
 }
 
 func main() {
-	sidecar.Ready()
+	handler.Ready()
 
 	filename := env.OutputDataDir + "/file.raw"
 
@@ -56,10 +56,10 @@ func main() {
 		return
 	}
 
-	sidecar.Commit()
+	handler.Commit()
 
 	events.Fire([]events.Event{
-		events.Event{
+		{
 			Event: "file_downloaded",
 			File:  filename,
 		},

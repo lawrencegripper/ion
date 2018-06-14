@@ -1,0 +1,138 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "batchAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Batch Account Name"
+            }
+        },
+        "gpuPoolID": {
+            "type": "string",
+            "metadata": {
+                "description": "GPU Pool ID"
+            }
+        },
+        "storageAccountsku": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Standard_LRS",
+                "Standard_GRS",
+                "Standard_ZRS",
+                "Premium_LRS"
+            ],
+            "metadata": {
+                "description": "Storage Account type"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "variables": {
+        "storageAccountName": "[concat(uniqueString(resourceGroup().id),'storage')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[variables('storageAccountname')]",
+            "apiVersion": "2016-01-01",
+            "location": "[parameters('location')]",
+            "comments": "This storage account is used to associate to a batch account",
+            "sku": {
+                "name": "[parameters('storageAccountsku')]"
+            },
+            "kind": "Storage",
+            "tags": {
+                "ObjectName": "[variables('storageAccountName')]"
+            },
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Batch/batchAccounts",
+            "name": "[parameters('batchAccountName')]",
+            "apiVersion": "2015-12-01",
+            "location": "[parameters('location')]",
+            "tags": {
+                "ObjectName": "[parameters('batchAccountName')]"
+            },
+            "properties": {
+                "autoStorage": {
+                    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Batch/batchAccounts/pools",
+            "name": "[concat(parameters('batchAccountName'), '/', parameters('gpuPoolID'))]",
+            "apiVersion": "2017-09-01",
+            "scale": null,
+            "properties": {
+                "vmSize": "STANDARD_NC6",
+                "interNodeCommunication": "Disabled",
+                "maxTasksPerNode": 1,
+                "taskSchedulingPolicy": {
+                    "nodeFillType": "Spread"
+                },
+                "startTask": {
+                    "commandLine": "/bin/bash -c ./init.sh",
+                    "resourceFiles": [
+                        {
+                            "blobSource": "https://gist.githubusercontent.com/lawrencegripper/f4745ec70c40e609dba6d318c37a4093/raw/0184cbcf2968473e832f46fb5281109173c566d4/init.sh",
+                            "fileMode": "777",
+                            "filePath": "./init.sh"
+                        }
+                    ],
+                    "userIdentity": {
+                        "autoUser": {
+                            "elevationLevel": "Admin",
+                            "scope": "Pool"
+                        }
+                    },
+                    "waitForSuccess": true,
+                    "maxTaskRetryCount": 0
+                },
+                "deploymentConfiguration": {
+                    "virtualMachineConfiguration": {
+                        "imageReference": {
+                            "publisher": "Canonical",
+                            "offer": "UbuntuServer",
+                            "sku": "16.04-LTS",
+                            "version": "latest"
+                        },
+                        "nodeAgentSkuId": "batch.node.ubuntu 16.04"
+                    }
+                },
+                "scaleSettings": {
+                    "fixedScale": {
+                        "targetDedicatedNodes": 1,
+                        "targetLowPriorityNodes": 0,
+                        "resizeTimeout": "PT15M"
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Batch/batchAccounts', parameters('batchAccountName'))]"
+            ]
+        }
+    ],
+    "outputs": {
+        "storageAccountName": {
+            "type": "string",
+            "value": "[variables('storageAccountName')]"
+        },
+        "batchAccountName": {
+            "type": "string",
+            "value": "[parameters('batchAccountName')]"
+        }
+    }
+}

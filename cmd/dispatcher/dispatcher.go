@@ -1,3 +1,4 @@
+// nolint: errcheck
 package main
 
 import (
@@ -20,9 +21,9 @@ var errConfigurationMissing = errors.New("missing configuration values, use '--p
 var cfg = types.Configuration{
 	Kubernetes: &types.KubernetesConfig{},
 	Job:        &types.JobConfig{},
-	Sidecar: &types.SidecarConfig{
-		AzureBlobProvider:   &types.AzureBlobConfig{},
-		MongoDBMetaProvider: &types.MongoDBConfig{},
+	Handler: &types.HandlerConfig{
+		AzureBlobStorageProvider:       &types.AzureBlobConfig{},
+		MongoDBDocumentStorageProvider: &types.MongoDBConfig{},
 	},
 	AzureBatch: &types.AzureBatchConfig{},
 }
@@ -37,9 +38,9 @@ func NewDispatcherCommand() *cobra.Command {
 			// Read config file
 			viper.SetConfigFile(cfgFile)
 			if err := viper.ReadInConfig(); err != nil {
-				log.WithError(err).Errorln("Can't read config")
-				os.Exit(1)
+				log.WithError(err).Warningln("Can't read config")
 			}
+			viper.AutomaticEnv()
 
 			// Fill config with global settings
 			cfg.LogLevel = viper.GetString("loglevel")
@@ -58,21 +59,22 @@ func NewDispatcherCommand() *cobra.Command {
 			cfg.Job.MaxRunningTimeMins = viper.GetInt("job.maxrunningtimemins")
 			cfg.Job.RetryCount = viper.GetInt("job.retrycount")
 			cfg.Job.WorkerImage = viper.GetString("job.workerimage")
-			cfg.Job.SidecarImage = viper.GetString("job.sidecarimage")
+			cfg.Job.HandlerImage = viper.GetString("job.handlerimage")
 			cfg.Job.PullAlways = viper.GetBool("job.pullalways")
-			// sidecar.*
-			cfg.Sidecar.ServerPort = viper.GetInt("sidecar.serverport")
-			cfg.Sidecar.PrintConfig = viper.GetBool("sidecar.printconfig")
-			// sidecar.azureblobprovider.*
-			cfg.Sidecar.AzureBlobProvider.BlobAccountName = viper.GetString("sidecar.azureblobprovider.blobaccountname")
-			cfg.Sidecar.AzureBlobProvider.BlobAccountKey = viper.GetString("sidecar.azureblobprovider.blobaccountkey")
-			cfg.Sidecar.AzureBlobProvider.UseProxy = viper.GetBool("sidecar.azureblobprovider.useproxy")
-			// sidecar.mongodbmetaprovider.*
-			cfg.Sidecar.MongoDBMetaProvider.Name = viper.GetString("sidecar.mongodbmetaprovider.name")
-			cfg.Sidecar.MongoDBMetaProvider.Password = viper.GetString("sidecar.mongodbmetaprovider.password")
-			cfg.Sidecar.MongoDBMetaProvider.Collection = viper.GetString("sidecar.mongodbmetaprovider.collection")
-			cfg.Sidecar.MongoDBMetaProvider.Port = viper.GetInt("sidecar.mongodbmetaprovider.port")
+			// handler.*
+			cfg.Handler.ServerPort = viper.GetInt("handler.serverport")
+			cfg.Handler.PrintConfig = viper.GetBool("handler.printconfig")
+			// handler.azureblobprovider.*
+			cfg.Handler.AzureBlobStorageProvider.BlobAccountName = viper.GetString("handler.azureblobprovider.blobaccountname")
+			cfg.Handler.AzureBlobStorageProvider.BlobAccountKey = viper.GetString("handler.azureblobprovider.blobaccountkey")
+			cfg.Handler.AzureBlobStorageProvider.UseProxy = viper.GetBool("handler.azureblobprovider.useproxy")
+			// handler.mongodbdocprovider.*
+			cfg.Handler.MongoDBDocumentStorageProvider.Name = viper.GetString("handler.mongodbdocprovider.name")
+			cfg.Handler.MongoDBDocumentStorageProvider.Password = viper.GetString("handler.mongodbdocprovider.password")
+			cfg.Handler.MongoDBDocumentStorageProvider.Collection = viper.GetString("handler.mongodbdocprovider.collection")
+			cfg.Handler.MongoDBDocumentStorageProvider.Port = viper.GetInt("handler.mongodbdocprovider.port")
 			// azurebatch.*
+			cfg.AzureBatch.RequiresGPU = viper.GetBool("azurebatch.requiresgpu")
 			cfg.AzureBatch.ResourceGroup = viper.GetString("azurebatch.resourcegroup")
 			cfg.AzureBatch.PoolID = viper.GetString("azurebatch.poolid")
 			cfg.AzureBatch.JobID = viper.GetString("azurebatch.jobid")
@@ -146,21 +148,22 @@ func NewDispatcherCommand() *cobra.Command {
 	dispatcherCmd.PersistentFlags().Int("job.maxrunningtimemins", 10, "Max time a job can run for in mins")
 	dispatcherCmd.PersistentFlags().Int("job.retrycount", 0, "Max number of times a job can be retried")
 	dispatcherCmd.PersistentFlags().String("job.workerimage", "", "Image to use for the worker")
-	dispatcherCmd.PersistentFlags().String("job.sidecarimage", "", "Image to use for the sidecar")
+	dispatcherCmd.PersistentFlags().String("job.handlerimage", "", "Image to use for the handler")
 	dispatcherCmd.PersistentFlags().Bool("job.pullalways", true, "Should docker images always be pulled")
-	// sidecar.*
-	dispatcherCmd.PersistentFlags().Int("sidecar.serverport", 8080, "")
-	dispatcherCmd.PersistentFlags().Bool("sidecar.printconfig", false, "Print out config when starting")
-	// sidecar.azureblobprovider.*
-	dispatcherCmd.PersistentFlags().String("sidecar.azureblobprovider.blobaccountname", "", "Azure Blob Storage account name")
-	dispatcherCmd.PersistentFlags().String("sidecar.azureblobprovider.blobaccountkey", "", "Azure Blob Storage account key")
-	dispatcherCmd.PersistentFlags().Bool("sidecar.azureblobprovider.useproxy", false, "Enable proxy")
-	// sidecar.mongodbmetaprovider.*
-	dispatcherCmd.PersistentFlags().String("sidecar.mongodbmetaprovider.name", "", "MongoDB database name")
-	dispatcherCmd.PersistentFlags().String("sidecar.mongodbmetaprovider.password", "", "MongoDB database password")
-	dispatcherCmd.PersistentFlags().String("sidecar.mongodbmetaprovider.collection", "", "MongoDB database collection to use")
-	dispatcherCmd.PersistentFlags().Int("sidecar.mongodbmetaprovider.port", 27017, "MongoDB server port")
+	// handler.*
+	dispatcherCmd.PersistentFlags().Int("handler.serverport", 8080, "")
+	dispatcherCmd.PersistentFlags().Bool("handler.printconfig", false, "Print out config when starting")
+	// handler.azureblobprovider.*
+	dispatcherCmd.PersistentFlags().String("handler.azureblobprovider.blobaccountname", "", "Azure Blob Storage account name")
+	dispatcherCmd.PersistentFlags().String("handler.azureblobprovider.blobaccountkey", "", "Azure Blob Storage account key")
+	dispatcherCmd.PersistentFlags().Bool("handler.azureblobprovider.useproxy", false, "Enable proxy")
+	// handler.mongodbdocprovider.*
+	dispatcherCmd.PersistentFlags().String("handler.mongodbdocprovider.name", "", "MongoDB database name")
+	dispatcherCmd.PersistentFlags().String("handler.mongodbdocprovider.password", "", "MongoDB database password")
+	dispatcherCmd.PersistentFlags().String("handler.mongodbdocprovider.collection", "", "MongoDB database collection to use")
+	dispatcherCmd.PersistentFlags().Int("handler.mongodbdocprovider.port", 27017, "MongoDB server port")
 	// azurebatch.*
+	dispatcherCmd.PersistentFlags().Bool("azurebatch.requiresgpu", false, "Module requries gpu")
 	dispatcherCmd.PersistentFlags().String("azurebatch.resourcegroup", "", "")
 	dispatcherCmd.PersistentFlags().String("azurebatch.poolid", "", "")
 	dispatcherCmd.PersistentFlags().String("azurebatch.jobid", "", "")
@@ -193,21 +196,22 @@ func NewDispatcherCommand() *cobra.Command {
 	viper.BindPFlag("job.maxrunningtimemins", dispatcherCmd.PersistentFlags().Lookup("job.maxrunningtimemins"))
 	viper.BindPFlag("job.retrycount", dispatcherCmd.PersistentFlags().Lookup("job.retrycount"))
 	viper.BindPFlag("job.workerimage", dispatcherCmd.PersistentFlags().Lookup("job.workerimage"))
-	viper.BindPFlag("job.sidecarimage", dispatcherCmd.PersistentFlags().Lookup("job.sidecarimage"))
+	viper.BindPFlag("job.handlerimage", dispatcherCmd.PersistentFlags().Lookup("job.handlerimage"))
 	viper.BindPFlag("job.pullalways", dispatcherCmd.PersistentFlags().Lookup("job.pullalways"))
-	// sidecar.*
-	viper.BindPFlag("sidecar.serverport", dispatcherCmd.PersistentFlags().Lookup("sidecar.serverport"))
-	viper.BindPFlag("sidecar.printconfig", dispatcherCmd.PersistentFlags().Lookup("sidecar.printconfig"))
-	// sidecar.azureblobprovider.*
-	viper.BindPFlag("sidecar.azureblobprovider.blobaccountname", dispatcherCmd.PersistentFlags().Lookup("sidecar.azureblobprovider.blobaccountname"))
-	viper.BindPFlag("sidecar.azureblobprovider.blobaccountkey", dispatcherCmd.PersistentFlags().Lookup("sidecar.azureblobprovider.blobaccountkey"))
-	viper.BindPFlag("sidecar.azureblobprovider.useproxy", dispatcherCmd.PersistentFlags().Lookup("sidecar.azureblobprovider.useproxy"))
-	// sidecar.mongodbmetaprovider.*
-	viper.BindPFlag("sidecar.mongodbmetaprovider.name", dispatcherCmd.PersistentFlags().Lookup("sidecar.mongodbmetaprovider.name"))
-	viper.BindPFlag("sidecar.mongodbmetaprovider.password", dispatcherCmd.PersistentFlags().Lookup("sidecar.mongodbmetaprovider.password"))
-	viper.BindPFlag("sidecar.mongodbmetaprovider.collection", dispatcherCmd.PersistentFlags().Lookup("sidecar.mongodbmetaprovider.collection"))
-	viper.BindPFlag("sidecar.mongodbmetaprovider.port", dispatcherCmd.PersistentFlags().Lookup("sidecar.mongodbmetaprovider.port"))
+	// handler.*
+	viper.BindPFlag("handler.serverport", dispatcherCmd.PersistentFlags().Lookup("handler.serverport"))
+	viper.BindPFlag("handler.printconfig", dispatcherCmd.PersistentFlags().Lookup("handler.printconfig"))
+	// handler.azureblobprovider.*
+	viper.BindPFlag("handler.azureblobprovider.blobaccountname", dispatcherCmd.PersistentFlags().Lookup("handler.azureblobprovider.blobaccountname"))
+	viper.BindPFlag("handler.azureblobprovider.blobaccountkey", dispatcherCmd.PersistentFlags().Lookup("handler.azureblobprovider.blobaccountkey"))
+	viper.BindPFlag("handler.azureblobprovider.useproxy", dispatcherCmd.PersistentFlags().Lookup("handler.azureblobprovider.useproxy"))
+	// handler.mongodbdocprovider.*
+	viper.BindPFlag("handler.mongodbdocprovider.name", dispatcherCmd.PersistentFlags().Lookup("handler.mongodbdocprovider.name"))
+	viper.BindPFlag("handler.mongodbdocprovider.password", dispatcherCmd.PersistentFlags().Lookup("handler.mongodbdocprovider.password"))
+	viper.BindPFlag("handler.mongodbdocprovider.collection", dispatcherCmd.PersistentFlags().Lookup("handler.mongodbdocprovider.collection"))
+	viper.BindPFlag("handler.mongodbdocprovider.port", dispatcherCmd.PersistentFlags().Lookup("handler.mongodbdocprovider.port"))
 	// azurebatch.*
+	viper.BindPFlag("azurebatch.requiresgpu", dispatcherCmd.PersistentFlags().Lookup("azurebatch.requiresgpu"))
 	viper.BindPFlag("azurebatch.resourcegroup", dispatcherCmd.PersistentFlags().Lookup("azurebatch.resourcegroup"))
 	viper.BindPFlag("azurebatch.poolid", dispatcherCmd.PersistentFlags().Lookup("azurebatch.poolid"))
 	viper.BindPFlag("azurebatch.jobid", dispatcherCmd.PersistentFlags().Lookup("azurebatch.jobid"))

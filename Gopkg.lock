@@ -150,18 +150,6 @@
   version = "v0.1.0"
 
 [[projects]]
-  name = "github.com/gorilla/context"
-  packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  revision = "53c1911da2b537f792e7cafcb446b05ffe33b996"
-  version = "v1.6.1"
-
-[[projects]]
   branch = "master"
   name = "github.com/gregjones/httpcache"
   packages = [
@@ -232,8 +220,8 @@
 [[projects]]
   name = "github.com/lawrencegripper/pod2docker"
   packages = ["."]
-  revision = "a6fd026742b6f0fa4e5afda1c843555bcb000ace"
-  version = "v0.5"
+  revision = "9a9182c0c682798fe214fa11df7bfca83048d433"
+  version = "v0.5.1"
 
 [[projects]]
   name = "github.com/magiconair/properties"

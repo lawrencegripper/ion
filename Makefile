@@ -1,4 +1,4 @@
-all: dependencies test dispatcher sidecar
+all: dependencies checks test dispatcher handler
 
 dependencies:
 	dep ensure -v --vendor-only
@@ -12,6 +12,8 @@ integration:
 dispatcher:
 	make -f build/dispatcher/Makefile.Docker
 	
-sidecar:
-	make -f build/sidecar/Makefile.Docker
-	
+handler:
+	make -f build/handler/Makefile.Docker
+
+checks:
+	gometalinter --vendor --exclude=modules/helpers/Go/* --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline=15m ./...

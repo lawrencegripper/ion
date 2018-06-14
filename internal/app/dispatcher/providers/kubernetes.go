@@ -42,12 +42,12 @@ type Kubernetes struct {
 	dispatcherName   string
 	Namespace        string
 	pullSecret       string
-	sidecarArgs      []string
+	handlerArgs      []string
 	workerEnvVars    map[string]interface{}
 }
 
 // NewKubernetesProvider Creates an instance and does basic setup
-func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []string) (*Kubernetes, error) {
+func NewKubernetesProvider(config *types.Configuration, sharedHandlerArgs []string) (*Kubernetes, error) {
 	if config == nil {
 		return nil, fmt.Errorf("invalid config. Cannot be nil")
 	}
@@ -56,9 +56,9 @@ func NewKubernetesProvider(config *types.Configuration, sharedSidecarArgs []stri
 	}
 
 	k := Kubernetes{}
-	k.sidecarArgs = sharedSidecarArgs
+	k.handlerArgs = sharedHandlerArgs
 	k.workerEnvVars = map[string]interface{}{
-		"SIDECAR_PORT": config.Sidecar.ServerPort,
+		"HANDLER_PORT": config.Handler.ServerPort,
 	}
 
 	// Add module specific config
@@ -213,16 +213,17 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		return fmt.Errorf("invalid properties. Provider cannot be nil")
 	}
 
-	perJobArgs, context, err := getMessageSidecarArgs(message)
+	perJobArgs, err := getMessageHandlerArgs(message)
 	if err != nil {
-		return fmt.Errorf("failed generating sidecar args from message: %v", err)
+		return fmt.Errorf("failed generating handler args from message: %v", err)
 	}
-	fullSidecarArgs := append(k.sidecarArgs, perJobArgs...)
+	fullHandlerArgs := append(k.handlerArgs, perJobArgs...)
+	//Prevent later append calls overwriting original backing array: https://stackoverflow.com/a/40036950/3437018
+	fullHandlerArgs = fullHandlerArgs[:len(fullHandlerArgs):len(fullHandlerArgs)]
 
 	labels := map[string]string{
 		dispatcherNameLabel: k.dispatcherName,
 		messageIDLabel:      message.ID(),
-		correlationIDLabel:  context.CorrelationID,
 		deliverycountlabel:  strconv.Itoa(message.DeliveryCount()),
 	}
 
@@ -245,8 +246,8 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 		pullPolicy = apiv1.PullAlways
 	}
 
-	sidecarPrepareAgs := append(fullSidecarArgs, "--action=prepare")
-	sidecarCommitAgs := append(fullSidecarArgs, "--action=commit")
+	handlerPrepareAgs := append(fullHandlerArgs, "--action=prepare")
+	handlerCommitAgs := append(fullHandlerArgs, "--action=commit")
 	deadlineSeconds := k.jobConfig.MaxRunningTimeMins * 60
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -265,8 +266,8 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 					InitContainers: []apiv1.Container{
 						{
 							Name:            "prepare",
-							Image:           k.jobConfig.SidecarImage,
-							Args:            sidecarPrepareAgs,
+							Image:           k.jobConfig.HandlerImage,
+							Args:            handlerPrepareAgs,
 							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{
@@ -291,8 +292,8 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 					Containers: []apiv1.Container{
 						{
 							Name:            "commit",
-							Image:           k.jobConfig.SidecarImage,
-							Args:            sidecarCommitAgs,
+							Image:           k.jobConfig.HandlerImage,
+							Args:            handlerCommitAgs,
 							ImagePullPolicy: pullPolicy,
 							VolumeMounts: []apiv1.VolumeMount{
 								{

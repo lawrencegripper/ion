@@ -1,5 +1,5 @@
 # Python Example
-This Python example demonstrates how you can leverage the functionality provided by the Sidecar in order to execute processing tasks.
+This Python example demonstrates how you can leverage the functionality provided by the Handler in order to execute processing tasks.
 
 ### Scenario
 This example follows the scenario:
@@ -13,13 +13,13 @@ This example follows the scenario:
 
 ### Prerequisites
 * Python3
-* Sidecar binary (can build from source or use container)
+* Handler binary (can build from source or use container)
 
 ### Inputs
 In order to run correctly, the Python module requires environment variables set.
-* `SHARED_SECRET` - A pseudorandom string used to authenticate calls between the module and it's sidecar.
-* `SIDECAR_PORT` - The port the sidecar is currently listening on.
+* `SHARED_SECRET` - A pseudorandom string used to authenticate calls between the module and it's handler.
+* `HANDLER_PORT` - The port the handler is currently listening on.
 
 ### Usage
-1. Ensure the Sidecar is running
-2. Run `SHARED_SECRET=secret SIDECAR_PORT=8080 python3 example.py`
+1. Ensure the Handler is running
+2. Run `SHARED_SECRET=secret HANDLER_PORT=8080 python3 example.py`
