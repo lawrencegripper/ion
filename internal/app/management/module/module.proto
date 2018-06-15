@@ -10,7 +10,7 @@ service ModuleService {
 }
 
 message ModuleCreateRequest {
-  string name = 1;
+  string modulename = 1;
   string eventsubscriptions = 2;
   string eventpublications = 3;
   string moduleimage = 4;

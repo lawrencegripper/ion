@@ -26,7 +26,7 @@ func runClient() error {
 
 	// Create new module
 	createRequest := &module.ModuleCreateRequest{
-		Name:                      "test",
+		Modulename:                "test",
 		Eventsubscriptions:        "new_video",
 		Eventpublications:         "face_detected",
 		Moduleimage:               "dotjson/ion-python-example-module",
@@ -60,13 +60,13 @@ func runClient() error {
 	if err != nil {
 		return fmt.Errorf("failed to list module: %+v", err)
 	}
-	for _, moduleName := range listResponse.Names {
-		fmt.Printf("%s\n", moduleName)
+	for _, name := range listResponse.Names {
+		fmt.Printf("%s\n", name)
 	}
 
 	time.Sleep(5 * time.Second)
 
-	fmt.Printf("Deleting module %s\n", createRequest.Name)
+	fmt.Printf("Deleting module %s\n", createResponse.Name)
 	deleteRequest := &module.ModuleDeleteRequest{
 		Name: createResponse.Name,
 	}
