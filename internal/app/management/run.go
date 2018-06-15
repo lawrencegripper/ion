@@ -35,16 +35,16 @@ type Kubernetes struct {
 	MongoDBSecretRef          string
 }
 
-// DispatcherMeta holds metadata used by the dispatcher
-type DispatcherMeta struct {
-	ImageName string
-	ImageTag  string
-	ID        string
+// Management holds metadata used by the management server
+type Management struct {
+	DispatcherImageName string
+	DispatcherImageTag  string
+	ID                  string
 }
 
 var k Kubernetes
-var dispatcher *DispatcherMeta
-var dispatcherSecretName string
+var mgmt *Management
+var sharedSecretName string
 var logLevel string
 
 func genID() string {
@@ -57,10 +57,10 @@ func Run(config *Configuration) {
 
 	logLevel = config.LogLevel
 
-	dispatcher = &DispatcherMeta{
-		ID:        genID(),
-		ImageName: config.DispatcherImage,
-		ImageTag:  config.DispatcherImageTag,
+	mgmt = &Management{
+		ID:                  genID(),
+		DispatcherImageName: config.DispatcherImage,
+		DispatcherImageTag:  config.DispatcherImageTag,
 	}
 
 	var err error
@@ -70,7 +70,7 @@ func Run(config *Configuration) {
 	}
 	k.namespace = config.Namespace
 
-	err = createDispatcherSecret(config)
+	err = createSharedSecret(config)
 	if err != nil {
 		panic(err)
 	}
@@ -87,14 +87,13 @@ func Run(config *Configuration) {
 	}
 }
 
-func createDispatcherSecret(config *Configuration) error {
+func createSharedSecret(config *Configuration) error {
 	secretsClient := k.client.CoreV1().Secrets(k.namespace)
+	sharedSecretName = fmt.Sprintf("dispatcher-secret-%s", mgmt.ID)
 
-	dispatcherSecretName = fmt.Sprintf("dispatcher-%s", dispatcher.ID)
-
-	dispatcherSecret := &apiv1.Secret{
+	secret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: dispatcherSecretName,
+			Name: sharedSecretName,
 		},
 		StringData: map[string]string{
 			"CLIENTID":                                  config.AzureClientID,
@@ -115,14 +114,16 @@ func createDispatcherSecret(config *Configuration) error {
 		},
 	}
 
-	_, err := secretsClient.Create(dispatcherSecret)
+	_, err := secretsClient.Create(secret)
 	if err != nil {
 		return fmt.Errorf("error creating dispatcher secret %+v", err)
 	}
 	return nil
 }
 
-func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*module.ModuleCreateRequest, error) {
+func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*module.ModuleCreateResponse, error) {
+	// a unique ID for this creation
+	creationId := genID()
 
 	// If container registry details are provided, create a secret
 	// to store them. These will then be used when fetching the module's
@@ -133,7 +134,7 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 		r.Containerregistryurl != "" &&
 		r.Containerregistryemail != "" {
 
-		moduleImagePullSecretName = fmt.Sprintf("module-image-secret-%s", dispatcher.ID)
+		moduleImagePullSecretName = fmt.Sprintf("module-secret-%s", creationId)
 
 		auth := encodeBase64(fmt.Sprintf("%s:%s", r.Containerregistryusername, r.Containerregistrypassword))
 		dockerAuthConfig := fmt.Sprintf(`{"auths":{"%s":{"username":"%s","password":"%s","email":"%s","auth":"%s"}}}`,
@@ -146,6 +147,11 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 		moduleImagePullSecret := &apiv1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: moduleImagePullSecretName,
+				Labels: map[string]string{
+					"createdBy":  mgmt.ID,
+					"creationId": creationId,
+					"moduleName": r.Name,
+				},
 			},
 			Data: map[string][]byte{
 				".dockerconfigjson": []byte(dockerAuthConfig),
@@ -164,7 +170,7 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 	// needed by the module. These will be mounted into the
 	// dispatcher as a volume and then passed on when i
 	// dispatches the module.
-	moduleConfigMapName := fmt.Sprintf("module-config-%s", dispatcher.ID)
+	moduleConfigMapName := fmt.Sprintf("module-config-%s", creationId)
 
 	var buffer strings.Builder
 	for k, v := range r.Configmap {
@@ -175,6 +181,11 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 	moduleConfigMap := &apiv1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: moduleConfigMapName,
+			Labels: map[string]string{
+				"createdBy":  mgmt.ID,
+				"creationId": creationId,
+				"moduleName": r.Name,
+			},
 		},
 		Data: map[string]string{
 			"module": configMapStr,
@@ -205,7 +216,7 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 		"--loglevel=" + logLevel,
 	}
 
-	dispatcherDeploymentName := fmt.Sprintf("dispatcher-%s-%s", r.Name, dispatcher.ID)
+	dispatcherDeploymentName := fmt.Sprintf("module-dispatcher-%s", creationId)
 
 	// Create a deployment that runs a dispatcher
 	// pod, passing in environment variables from
@@ -213,6 +224,11 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dispatcherDeploymentName,
+			Labels: map[string]string{
+				"createdBy":  mgmt.ID,
+				"creationId": creationId,
+				"moduleName": r.Name,
+			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(r.Instancecount),
@@ -232,13 +248,13 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 					Containers: []apiv1.Container{
 						{
 							Name:  "ion-dispatcher",
-							Image: fmt.Sprintf("%s:%s", dispatcher.ImageName, dispatcher.ImageTag),
+							Image: fmt.Sprintf("%s:%s", mgmt.DispatcherImageName, mgmt.DispatcherImageTag),
 							Args:  dispatcherArgs,
 							EnvFrom: []apiv1.EnvFromSource{
 								{
 									SecretRef: &apiv1.SecretEnvSource{
 										LocalObjectReference: apiv1.LocalObjectReference{
-											Name: dispatcherSecretName,
+											Name: sharedSecretName,
 										},
 									},
 								},
@@ -274,7 +290,81 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 		return nil, fmt.Errorf("error creating dispatcher deployment %+v", err)
 	}
 
-	return r, nil
+	var createResponse = &module.ModuleCreateResponse{
+		Name: creationId,
+	}
+
+	return createResponse, nil
+}
+
+func (s *server) Delete(ctx context.Context, r *module.ModuleDeleteRequest) (*module.ModuleDeleteResponse, error) {
+	// Find deployments with matching label and delete them
+	deploymentsClient := k.client.AppsV1().Deployments(k.namespace)
+	deployments, err := deploymentsClient.List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("creationId=%s", r.Name),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing deployments with name %s", r.Name)
+	}
+	for _, deployment := range deployments.Items {
+		if err := deploymentsClient.Delete(deployment.Name, nil); err != nil {
+			return nil, fmt.Errorf("error deleting deployment %s", deployment.Name)
+		}
+	}
+
+	// Find configmaps with matching label and delete them
+	configMapClient := k.client.CoreV1().ConfigMaps(k.namespace)
+	configmaps, err := configMapClient.List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("creationId=%s", r.Name),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing configmaps with name %s", r.Name)
+	}
+	for _, configmap := range configmaps.Items {
+		if err := configMapClient.Delete(configmap.Name, nil); err != nil {
+			return nil, fmt.Errorf("error deleting configmap %s", configmap.Name)
+		}
+	}
+
+	// Delete the module image pull secret
+	secretsClient := k.client.CoreV1().Secrets(k.namespace)
+	secrets, err := secretsClient.List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("creationId=%s", r.Name),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing configmaps with name %s", r.Name)
+	}
+	for _, secret := range secrets.Items {
+		if err := secretsClient.Delete(secret.Name, nil); err != nil {
+			return nil, fmt.Errorf("error deleting secret %s", secret.Name)
+		}
+	}
+
+	var deleteResponse = &module.ModuleDeleteResponse{
+		Name: r.Name,
+	}
+
+	return deleteResponse, nil
+}
+
+func (s *server) List(ctx context.Context, r *module.ModuleListRequest) (*module.ModuleListResponse, error) {
+	// Find deployments with matching label and delete them
+	deploymentsClient := k.client.AppsV1().Deployments(k.namespace)
+	deployments, err := deploymentsClient.List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("createdBy=%s", mgmt.ID),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing deployments with label %s", mgmt.ID)
+	}
+	var list = &module.ModuleListResponse{}
+	for _, deployment := range deployments.Items {
+		list.Names = append(list.Names, deployment.Name)
+	}
+	return list, nil
+}
+
+func (s *server) Get(ctx context.Context, r *module.ModuleGetRequest) (*module.ModuleGetResponse, error) {
+	return nil, nil
 }
 
 func encodeBase64(s string) string {

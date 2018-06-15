@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/lawrencegripper/ion/internal/app/management/module"
 	"google.golang.org/grpc"
@@ -43,10 +44,34 @@ func runClient() error {
 		},
 	}
 
-	_, err = cl.Create(context.Background(), createRequest)
+	fmt.Println("Creating module")
+	createResponse, err := cl.Create(context.Background(), createRequest)
 	if err != nil {
 		return fmt.Errorf("failed to create module: %+v", err)
 	}
+	fmt.Printf("Created module %s\n", createResponse.Name)
+
+	time.Sleep(5 * time.Second)
+
+	listRequest := &module.ModuleListRequest{}
+
+	fmt.Println("Listing all modules")
+	listResponse, err := cl.List(context.Background(), listRequest)
+	if err != nil {
+		return fmt.Errorf("failed to list module: %+v", err)
+	}
+	for _, moduleName := range listResponse.Names {
+		fmt.Printf("%s\n", moduleName)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	fmt.Printf("Deleting module %s\n", createRequest.Name)
+	deleteRequest := &module.ModuleDeleteRequest{
+		Name: createResponse.Name,
+	}
+	deleteResponse, err := cl.Delete(context.Background(), deleteRequest)
+	fmt.Printf("Deleted module %s\n", deleteResponse.Name)
 
 	return nil
 }

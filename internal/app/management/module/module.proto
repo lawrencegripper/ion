@@ -3,7 +3,10 @@ syntax = "proto3";
 option go_package = "module";
 
 service ModuleService {
-  rpc Create (ModuleCreateRequest) returns (ModuleCreateRequest) {}
+  rpc Create (ModuleCreateRequest) returns (ModuleCreateResponse) {}
+  rpc Delete (ModuleDeleteRequest) returns (ModuleDeleteResponse) {}
+  rpc Get (ModuleGetRequest) returns (ModuleGetResponse) {}
+  rpc List (ModuleListRequest) returns (ModuleListResponse) {}
 }
 
 message ModuleCreateRequest {
@@ -16,12 +19,41 @@ message ModuleCreateRequest {
   string handlerimagetag = 7;
   int32 instancecount = 8;
   int32 retrycount = 9;
-  string containerregistryurl = 10;      
+  string containerregistryurl = 10;
   string containerregistryusername = 11;
   string containerregistrypassword = 12;
   string containerregistryemail = 13;
   map<string, string> configmap = 14;
-  int64 timestamp = 15;
+}
+
+message ModuleCreateResponse {
+  string name = 1;
+}
+
+message ModuleDeleteRequest {
+  string name = 1;
+}
+
+message ModuleDeleteResponse {
+  string name = 1;
+}
+
+message ModuleGetRequest {
+  string name = 1;
+}
+
+//TODO: add more fields
+message ModuleGetResponse {
+  string name = 1;
+
+}
+
+message ModuleListRequest {
+
+}
+
+message ModuleListResponse {
+  repeated string names = 1;
 }
 
 message Empty {}
