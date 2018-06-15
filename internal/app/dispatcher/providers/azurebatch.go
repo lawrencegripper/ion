@@ -56,6 +56,7 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 	b.batchConfig = config.AzureBatch
 	b.jobConfig = config.Job
 	b.jobID = config.Hostname + "-" + config.ModuleName
+	b.workerEnvVars = make(map[string]interface{})
 	ctx, cancel := context.WithCancel(context.Background())
 	b.ctx = ctx
 	b.cancelOps = cancel
