@@ -42,7 +42,7 @@ message ModuleGetRequest {
 //TODO: add more fields
 message ModuleGetResponse {
   string name = 1;
-
+  string status = 2;
 }
 
 message ModuleListRequest {

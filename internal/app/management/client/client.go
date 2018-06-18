@@ -50,6 +50,7 @@ func runClient() error {
 
 	time.Sleep(5 * time.Second)
 
+	// List all modules
 	listRequest := &module.ModuleListRequest{}
 
 	fmt.Println("Listing all modules")
@@ -63,13 +64,26 @@ func runClient() error {
 
 	time.Sleep(5 * time.Second)
 
-	fmt.Printf("Getting module %s\n", createResponse.Name)
-	getRequest := &module.ModuleGetRequest{
-		Name: createResponse.Name,
+	// Get module
+	moduleIsAvailable := false
+	for !moduleIsAvailable {
+		fmt.Printf("Getting module %s\n", createResponse.Name)
+		getRequest := &module.ModuleGetRequest{
+			Name: createResponse.Name,
+		}
+		getResponse, err := cl.Get(context.Background(), getRequest)
+		if err != nil {
+			fmt.Errorf("Failed to get module %s with error %+v", createResponse.Name, err)
+		}
+		fmt.Printf("Got module %s, status: %s\n", getResponse.Name, getResponse.Status)
+		if getResponse.Status == "Available" {
+			moduleIsAvailable = true
+			break
+		}
+		time.Sleep(1 * time.Second)
 	}
-	getResponse, err := cl.Get(context.Background(), getRequest)
-	fmt.Printf("Got module %s\n", getResponse.Name)
 
+	// Delete module
 	fmt.Printf("Deleting module %s\n", createResponse.Name)
 	deleteRequest := &module.ModuleDeleteRequest{
 		Name: createResponse.Name,

@@ -172,6 +172,10 @@ func createSharedImagePullSecret(config *Configuration) error {
 	return nil
 }
 
+// Create will create the necessary services to support the execution of
+// a module. This includes a configmap to hold the module's configuration
+// and a deployment that runs a disptcher pod. The dispatcher pod will
+// orchestrate the execution of the module itself.
 func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*module.ModuleCreateResponse, error) {
 	// a unique ID for this creation
 	id := fmt.Sprintf("%s-%s", r.Modulename, genID())
@@ -313,6 +317,9 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 	return createResponse, nil
 }
 
+// Delete will delete all the components associated with a module deployment.
+// This includes deleting the configmap that holds the module's configuration
+// and the deployment of the module's dispatcher.
 func (s *server) Delete(ctx context.Context, r *module.ModuleDeleteRequest) (*module.ModuleDeleteResponse, error) {
 	// Find deployments with matching label and delete them
 	deploymentsClient := k.client.AppsV1().Deployments(k.namespace)
@@ -342,20 +349,6 @@ func (s *server) Delete(ctx context.Context, r *module.ModuleDeleteRequest) (*mo
 		}
 	}
 
-	// Find the secrets with the matching label and delete them
-	secretsClient := k.client.CoreV1().Secrets(k.namespace)
-	secrets, err := secretsClient.List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("id=%s", r.Name),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error listing configmaps with name %s", r.Name)
-	}
-	for _, secret := range secrets.Items {
-		if err := secretsClient.Delete(secret.Name, nil); err != nil {
-			return nil, fmt.Errorf("error deleting secret %s", secret.Name)
-		}
-	}
-
 	var deleteResponse = &module.ModuleDeleteResponse{
 		Name: r.Name,
 	}
@@ -363,6 +356,8 @@ func (s *server) Delete(ctx context.Context, r *module.ModuleDeleteRequest) (*mo
 	return deleteResponse, nil
 }
 
+// List will list all the deployments that have been created by this
+// management server. It will simply list the deployment modules name.
 func (s *server) List(ctx context.Context, r *module.ModuleListRequest) (*module.ModuleListResponse, error) {
 	// Find deployments with matching label
 	deploymentsClient := k.client.AppsV1().Deployments(k.namespace)
@@ -379,15 +374,17 @@ func (s *server) List(ctx context.Context, r *module.ModuleListRequest) (*module
 	return list, nil
 }
 
+// Get will get information about a deployed module
 func (s *server) Get(ctx context.Context, r *module.ModuleGetRequest) (*module.ModuleGetResponse, error) {
 	// Get the deployment with the given name
 	deploymentsClient := k.client.AppsV1().Deployments(k.namespace)
-	deployments, err := deploymentsClient.Get(r.Name, metav1.GetOptions{})
+	deployment, err := deploymentsClient.Get(r.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error getting deployments with name %s", r.Name)
 	}
 	var getResponse = &module.ModuleGetResponse{
-		Name: deployments.Name,
+		Name:   deployment.Name,
+		Status: string(deployment.Status.Conditions[len(deployment.Status.Conditions)-1].Type),
 	}
 	return getResponse, nil
 }
