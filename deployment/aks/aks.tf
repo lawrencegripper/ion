@@ -1,12 +1,3 @@
-resource "random_id" "workspace" {
-  keepers = {
-    # Generate a new id each time we switch to a new resource group
-    group_name = "${var.resource_group_name}"
-  }
-
-  byte_length = 8
-}
-
 #an attempt to keep the AKS name (and dns label) somewhat unique
 resource "random_integer" "random_int" {
   min = 100

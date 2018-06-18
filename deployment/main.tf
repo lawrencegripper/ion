@@ -34,8 +34,8 @@ module "azurebatch" {
   resource_group_name     = "${azurerm_resource_group.batchrg.name}"
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
 
-  dedicated_node_count    = 1
-  low_priority_node_count = 2
+  dedicated_node_count    = 0
+  low_priority_node_count = 0
 }
 
 module "servicebus" {
@@ -43,7 +43,6 @@ module "servicebus" {
 
   resource_group_name     = "${azurerm_resource_group.batchrg.name}"
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
-  servicebus_name         = "ion-servicebus"
 }
 
 module "cosmos" {
@@ -52,6 +51,20 @@ module "cosmos" {
   resource_group_name     = "${azurerm_resource_group.batchrg.name}"
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
   db_name                 = "ion-cosmos"
+}
+
+module "acr" {
+  source = "acr"
+
+  resource_group_name     = "${azurerm_resource_group.batchrg.name}"
+  resource_group_location = "${azurerm_resource_group.batchrg.location}"
+}
+
+module "appinsights" {
+  source = "appinsights"
+
+  resource_group_name     = "${azurerm_resource_group.batchrg.name}"
+  resource_group_location = "${azurerm_resource_group.batchrg.location}"
 }
 
 module "ion" {

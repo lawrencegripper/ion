@@ -1,3 +1,18 @@
+variable "resource_group_name" {
+  description = "Resource group name"
+  type        = "string"
+}
+
+variable "resource_group_location" {
+  description = "Resource group location"
+  type        = "string"
+}
+
+variable "pool_bootstrap_script_path" {
+  description = "The filepath of the pool boostrapping script"
+  type        = "string"
+}
+
 resource "random_string" "storage" {
   keepers = {
     # Generate a new id each time we switch to a new resource group
@@ -16,7 +31,7 @@ resource "azurerm_storage_account" "batchstorage" {
   location                 = "${var.resource_group_location}"
   account_tier             = "Standard"
   account_replication_type = "LRS"
-  
+
   tags {
     source = "terraform"
   }

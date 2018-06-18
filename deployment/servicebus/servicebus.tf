@@ -10,12 +10,20 @@ variable "resource_group_location" {
   default     = "eastus"
 }
 
-variable "servicebus_name" {
-  description = "Input your unique Azure service bus name"
+resource "random_string" "name" {
+  keepers = {
+    # Generate a new id each time we switch to a new resource group
+    group_name = "${var.resource_group_name}"
+  }
+
+  length  = 8
+  upper   = false
+  special = false
+  number  = false
 }
 
 resource "azurerm_servicebus_namespace" "ion" {
-  name                = "${var.servicebus_name}"
+  name                = "ionsb-${random_string.name.result}"
   location            = "${var.resource_group_location}"
   resource_group_name = "${var.resource_group_name}"
   sku                 = "basic"
@@ -30,5 +38,5 @@ output "key" {
 }
 
 output "name" {
-  value = "${var.servicebus_name}"
+  value = "${azurerm_servicebus_namespace.ion.name}"
 }
