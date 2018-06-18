@@ -26,19 +26,16 @@ func runClient() error {
 
 	// Create new module
 	createRequest := &module.ModuleCreateRequest{
-		Modulename:                "test",
-		Eventsubscriptions:        "new_video",
-		Eventpublications:         "face_detected",
-		Moduleimage:               "dotjson/ion-python-example-module",
-		Moduleimagetag:            "latest",
-		Handlerimage:              "dotjson/handler",
-		Handlerimagetag:           "latest",
-		Instancecount:             1,
-		Retrycount:                3,
-		Containerregistryurl:      "https://hub.docker.com",
-		Containerregistryusername: "",
-		Containerregistryemail:    "",
-		Containerregistrypassword: "",
+		Modulename:         "testmodule",
+		Eventsubscriptions: "new_video",
+		Eventpublications:  "face_detected",
+		Moduleimage:        "dotjson/ion-python-example-module",
+		Moduleimagetag:     "latest",
+		Handlerimage:       "dotjson/handler",
+		Handlerimagetag:    "latest",
+		Instancecount:      1,
+		Retrycount:         3,
+		Provider:           "kubernetes",
 		Configmap: map[string]string{
 			"HANDLER_BASE_DIR": "/ion/",
 		},
@@ -65,6 +62,13 @@ func runClient() error {
 	}
 
 	time.Sleep(5 * time.Second)
+
+	fmt.Printf("Getting module %s\n", createResponse.Name)
+	getRequest := &module.ModuleGetRequest{
+		Name: createResponse.Name,
+	}
+	getResponse, err := cl.Get(context.Background(), getRequest)
+	fmt.Printf("Got module %s\n", getResponse.Name)
 
 	fmt.Printf("Deleting module %s\n", createResponse.Name)
 	deleteRequest := &module.ModuleDeleteRequest{
