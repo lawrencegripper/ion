@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lawrencegripper/ion/internal/app/management/module"
+	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 	context "golang.org/x/net/context"
@@ -93,10 +93,10 @@ func Run(config *Configuration) {
 	}
 }
 
+// createSharedServicesSecret creates a shared secret
+// that stores all the config needed by the dispatcher
+// to operate i.e. dataplane provider connection
 func createSharedServicesSecret(config *Configuration) error {
-	// create a shared secret that stores all the config
-	// needed by the dispatcher to operate i.e. dataplane
-	// provider connection
 	sharedServicesSecretName = fmt.Sprintf("services-%s", mgmt.ID)
 
 	secret := &apiv1.Secret{
@@ -133,10 +133,12 @@ func createSharedServicesSecret(config *Configuration) error {
 	return nil
 }
 
+// createSharedImagePullSecret creates a shared secrect to store
+// the module container registry connection details if they
+// are provided. These will be used by the dispatcher to pull
+// the module image.
 func createSharedImagePullSecret(config *Configuration) error {
-	// If container registry details are provided, create a secret
-	// to store them. These will then be used when fetching the module's
-	// container image.
+
 	sharedImagePullSecretName = fmt.Sprintf("imagepull-%s", mgmt.ID)
 	if config.ContainerImageRegistryUsername != "" &&
 		config.ContainerImageRegistryPassword != "" &&
@@ -186,11 +188,11 @@ func (s *server) Create(ctx context.Context, r *module.ModuleCreateRequest) (*mo
 	// dispatches the module.
 	moduleConfigMapName := id
 
-	var buffer strings.Builder
+	var stringBuilder strings.Builder
 	for k, v := range r.Configmap {
-		_, _ = buffer.WriteString(fmt.Sprintf("%s=%s\n", k, v))
+		_, _ = stringBuilder.WriteString(fmt.Sprintf("%s=%s\n", k, v))
 	}
-	configMapStr := strings.TrimSuffix(buffer.String(), "\n")
+	configMapStr := strings.TrimSuffix(stringBuilder.String(), "\n")
 
 	moduleConfigMap := &apiv1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

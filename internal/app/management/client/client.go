@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/lawrencegripper/ion/internal/app/management/module"
+	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"google.golang.org/grpc"
 )
 
