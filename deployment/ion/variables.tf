@@ -1,3 +1,23 @@
+variable "client_id" {
+  type        = "string"
+  description = "Client ID"
+}
+
+variable "client_secret" {
+  type        = "string"
+  description = "Client secret."
+}
+
+variable "subscription_id" {
+  type        = "string"
+  description = "Azure subscription ID"
+}
+
+variable "tenant_id" {
+  type        = "string"
+  description = "Azure tenant ID"
+}
+
 variable "cluster_client_certificate" {
   type        = "string"
   description = "Cluster client Certificate"
@@ -51,6 +71,18 @@ variable "cosmos_key" {
   type = "string"
 }
 
+variable "storage_name" {
+  type = "string"
+}
+
+variable "storage_key" {
+  type = "string"
+}
+
 variable "managementapi_docker_image" {
   description = "The docker image for the ion management api"
+}
+
+variable "dispatcher_docker_image" {
+  description = "The docker image for the ion dispatcher service"
 }

@@ -67,8 +67,13 @@ module "appinsights" {
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
 }
 
+data "azurerm_client_config" "current" {}
+
 module "ion" {
   source = "ion"
+
+  subscription_id = "${data.azurerm_subscription.current.subscription_id}"
+  tenant_id       = "${data.azurerm_subscription.current.tenant_id}"
 
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
 
@@ -77,6 +82,9 @@ module "ion" {
   cluster_ca                 = "${module.aks.cluster_ca}"
   cluster_host               = "${module.aks.host}"
 
+  client_id     = "${var.client_id}"
+  client_secret = "${var.client_secret}"
+
   managementapi_docker_image = "ion-management"
 
   batch_account_name = "${module.azurebatch.name}"
@@ -84,6 +92,7 @@ module "ion" {
   servicebus_key  = "${module.servicebus.key}"
   servicebus_name = "${module.servicebus.name}"
 
-  cosmos_key  = "${module.cosmos.key}"
-  cosmos_name = "${module.cosmos.name}"
+  cosmos_key     = "${module.cosmos.key}"
+  cosmos_name    = "${module.cosmos.name}"
+  cosmos_db_name = "${module.cosmos.db_name}"
 }

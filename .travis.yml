@@ -3,6 +3,10 @@ sudo: required
 services:
 - docker
 
+env:
+  matrix:
+    - tf_version=1.7.0
+
 notifications:
   email:
     on_success: never
@@ -15,6 +19,10 @@ before_install:
     # Install linters and misspell
   - go get -u github.com/alecthomas/gometalinter
   - gometalinter --install
+  - wget https://releases.hashicorp.com/terraform/${tf_version}/terraform_${tf_version}_linux_amd64.zip -O /tmp/terraform.zip
+  - sudo unzip -d /usr/local/bin/ /tmp/terraform.zip
+  - chmod +x bootstrap_linux.sh && ./bootstrap_linux.sh
+  - terraform init ./deployment
 
 script:
 - make

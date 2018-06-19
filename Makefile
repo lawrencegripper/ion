@@ -1,4 +1,4 @@
-all: dependencies checks test dispatcher handler
+all: dependencies checks test dispatcher handler check-tf
 
 dependencies:
 	dep ensure -v --vendor-only
@@ -14,6 +14,9 @@ dispatcher:
 	
 handler:
 	make -f build/handler/Makefile.Docker
+
+check-tf:
+	terraform init ./deployment && terraform validate ./deployment
 
 checks:
 	gometalinter --vendor --exclude=modules/helpers/Go/* --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline=15m ./...
