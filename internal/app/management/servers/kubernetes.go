@@ -161,12 +161,11 @@ func (k *Kubernetes) createSecretIfNotExist(secret *apiv1.Secret) error {
 			return fmt.Errorf("error creating dispatcher secret %+v", err)
 		}
 	} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
-		fmt.Printf("Error getting secret %s: %v\n", secret.Name, statusError.ErrStatus.Message)
+		return fmt.Errorf("error getting secret %s: %v\n", secret.Name, statusError.ErrStatus.Message)
 	} else if err != nil {
 		return err
-	} else {
-		fmt.Printf("using existing secret %s\n", secret.Name)
 	}
+
 	return nil
 }
 
