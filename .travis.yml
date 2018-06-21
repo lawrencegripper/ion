@@ -17,7 +17,9 @@ before_install:
   - gometalinter --install
   - wget https://releases.hashicorp.com/terraform/${tf_version}/terraform_${tf_version}_linux_amd64.zip -O /tmp/terraform.zip
   - sudo unzip -d /usr/local/bin/ /tmp/terraform.zip
-  - chmod +x ./deployment/bootstrap_linux.sh && ./deployment/bootstrap_linux.sh
+  - curl -L -o - https://github.com/sl1pm4t/terraform-provider-kubernetes/releases/download/v1.0.7-custom/terraform-provider-kubernetes_linux-amd64.gz | gunzip > terraform-provider-kubernetes
+  - chmod +x terraform-provider-kubernetes
+  - ssh-keygen -b 2048 -t rsa -f ~/.ssh/id_rsa -q -N ""
 
 script:
 - make check-tf
