@@ -3,13 +3,13 @@ package main
 import (
 	"strings"
 
-	"github.com/lawrencegripper/ion/internal/app/management"
+	"github.com/lawrencegripper/ion/internal/app/management/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var managementConfig = management.NewConfiguration()
+var managementConfig = types.NewConfiguration()
 
 // NewManagementCommand create the management command with its flags
 func NewManagementCommand() *cobra.Command {

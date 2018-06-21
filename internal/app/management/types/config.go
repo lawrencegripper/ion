@@ -1,8 +1,9 @@
-package management
+package types
 
 // Configuration reprsents all the config values
 // needed to run the management server
 type Configuration struct {
+	Provider                       string
 	Port                           int
 	Namespace                      string
 	DispatcherImage                string

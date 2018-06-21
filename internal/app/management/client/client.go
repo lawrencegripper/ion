@@ -1,3 +1,4 @@
+// nolint: errcheck
 package main
 
 import (
@@ -73,9 +74,9 @@ func runClient() error {
 		}
 		getResponse, err := cl.Get(context.Background(), getRequest)
 		if err != nil {
-			fmt.Errorf("Failed to get module %s with error %+v", createResponse.Name, err)
+			return fmt.Errorf("Failed to get module %s with error %+v", createResponse.Name, err)
 		}
-		fmt.Printf("Got module %s, status: %s\n", getResponse.Name, getResponse.Status)
+		fmt.Printf("Got module %s, status: %s, Message: %s\n", getResponse.Name, getResponse.Status, getResponse.StatusMessage)
 		if getResponse.Status == "Available" {
 			moduleIsAvailable = true
 			break

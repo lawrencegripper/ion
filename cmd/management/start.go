@@ -28,6 +28,7 @@ func NewStartCommand() *cobra.Command {
 			viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 			viper.AutomaticEnv()
 
+			managementConfig.Provider = viper.GetString("provider")
 			managementConfig.Port = viper.GetInt("management-port")
 			managementConfig.Namespace = viper.GetString("namespace")
 			managementConfig.DispatcherImage = viper.GetString("dispatcher-image-name")
@@ -49,6 +50,9 @@ func NewStartCommand() *cobra.Command {
 			managementConfig.AzureServiceBusNamespace = viper.GetString("azure-servicebus-namespace")
 			managementConfig.LogLevel = viper.GetString("loglevel")
 
+			if managementConfig.Provider == "" {
+				return fmt.Errorf("--provider is required")
+			}
 			if managementConfig.DispatcherImage == "" {
 				return fmt.Errorf("--dispatcher-image-name is required")
 			}
