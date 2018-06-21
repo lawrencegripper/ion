@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/lawrencegripper/ion/internal/pkg/management/module"
@@ -77,7 +78,7 @@ func runClient() error {
 			return fmt.Errorf("Failed to get module %s with error %+v", createResponse.Name, err)
 		}
 		fmt.Printf("Got module %s, status: %s, Message: %s\n", getResponse.Name, getResponse.Status, getResponse.StatusMessage)
-		if getResponse.Status == "Available" {
+		if strings.ToLower(getResponse.Status) == "available" {
 			moduleIsAvailable = true
 			break
 		}

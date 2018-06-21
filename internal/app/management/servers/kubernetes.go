@@ -8,6 +8,7 @@ import (
 	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 	context "golang.org/x/net/context"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
 	"strings"
 
@@ -105,10 +106,8 @@ func (k *Kubernetes) createSharedServicesSecret(config *types.Configuration) err
 		},
 	}
 
-	secretsClient := k.client.CoreV1().Secrets(k.namespace)
-	_, err := secretsClient.Create(secret)
-	if err != nil {
-		return fmt.Errorf("error creating dispatcher secret %+v", err)
+	if err := k.createSecretIfNotExist(secret); err != nil {
+		return err
 	}
 	return nil
 }
@@ -132,7 +131,7 @@ func (k *Kubernetes) createSharedImagePullSecret(config *types.Configuration) er
 			config.ContainerImageRegistryEmail,
 			auth)
 
-		moduleImagePullSecret := &apiv1.Secret{
+		secret := &apiv1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: sharedImagePullSecretName,
 				Labels: map[string]string{
@@ -145,11 +144,28 @@ func (k *Kubernetes) createSharedImagePullSecret(config *types.Configuration) er
 			Type: apiv1.SecretTypeDockerConfigJson,
 		}
 
-		secretsClient := k.client.CoreV1().Secrets(k.namespace)
-		_, err := secretsClient.Create(moduleImagePullSecret)
+		if err := k.createSecretIfNotExist(secret); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (k *Kubernetes) createSecretIfNotExist(secret *apiv1.Secret) error {
+	secretsClient := k.client.CoreV1().Secrets(k.namespace)
+	_, err := secretsClient.Get(secret.Name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		fmt.Printf("secret %s not found, creating it\n", secret.Name)
+		_, err := secretsClient.Create(secret)
 		if err != nil {
 			return fmt.Errorf("error creating dispatcher secret %+v", err)
 		}
+	} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
+		fmt.Printf("Error getting secret %s: %v\n", secret.Name, statusError.ErrStatus.Message)
+	} else if err != nil {
+		return err
+	} else {
+		fmt.Printf("using existing secret %s\n", secret.Name)
 	}
 	return nil
 }
@@ -366,8 +382,8 @@ func (k *Kubernetes) Get(ctx context.Context, r *module.ModuleGetRequest) (*modu
 	}
 	var getResponse = &module.ModuleGetResponse{
 		Name:          deployment.Name,
-		Status:        string(deployment.Status.Conditions[len(deployment.Status.Conditions)-1].Type),
-		StatusMessage: deployment.Status.Conditions[len(deployment.Status.Conditions)-1].Message,
+		Status:        string(deployment.Status.Conditions[0].Type),
+		StatusMessage: deployment.Status.Conditions[0].Message,
 	}
 	return getResponse, nil
 }
