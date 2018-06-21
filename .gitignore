@@ -12,3 +12,4 @@ dispatcher
 servicebus-publisher
 servicebus-subscriber
 cmd/dispatcher/debug
+internal/app/management/client/client

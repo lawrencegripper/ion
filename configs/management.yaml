@@ -1,0 +1,4 @@
+printconfig: true
+  
+kubernetes:
+  namespace: "default"

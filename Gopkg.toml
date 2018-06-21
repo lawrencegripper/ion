@@ -34,10 +34,6 @@
   version = "10.1.0"
 
 [[constraint]]
-  name = "github.com/gorilla/mux"
-  version = "1.6.1"
-
-[[constraint]]
   name = "github.com/joho/godotenv"
   version = "1.2.0"
 
