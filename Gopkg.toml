@@ -89,3 +89,7 @@
   go-tests = true
   unused-packages = true
   non-go = true
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/jjcollinge/logrus-appinsights"
