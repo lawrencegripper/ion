@@ -21,7 +21,7 @@ resource "random_string" "name" {
 }
 
 resource "azurerm_application_insights" "ai" {
-  name = "ionappinsight${random_string.name.result}"
+  name = "ionappinsight-${random_string.name.result}"
 
   location            = "${var.resource_group_location}"
   resource_group_name = "${var.resource_group_name}"

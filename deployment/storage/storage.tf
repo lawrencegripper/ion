@@ -19,14 +19,14 @@ resource "random_string" "storage" {
     group_name = "${var.resource_group_name}"
   }
 
-  length  = 8
+  length  = 5
   upper   = false
   special = false
   number  = false
 }
 
 resource "azurerm_storage_account" "batchstorage" {
-  name                     = "${lower(random_string.storage.result)}"
+  name                     = "ionstorage${lower(random_string.storage.result)}"
   resource_group_name      = "${var.resource_group_name}"
   location                 = "${var.resource_group_location}"
   account_tier             = "Standard"

@@ -1,13 +1,19 @@
-#an attempt to keep the AKS name (and dns label) somewhat unique
-resource "random_integer" "random_int" {
-  min = 100
-  max = 999
+resource "random_string" "batchname" {
+  keepers = {
+    # Generate a new id each time we switch to a new resource group
+    group_name = "${var.resource_group_name}"
+  }
+
+  length  = 8
+  upper   = false
+  special = false
+  number  = false
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name       = "aks-${random_integer.random_int.result}"
+  name       = "ionaks-${random_string.batchname.result}"
   location   = "${var.resource_group_location}"
-  dns_prefix = "aks-${random_integer.random_int.result}"
+  dns_prefix = "ionaks-${random_string.batchname.result}"
 
   resource_group_name = "${var.resource_group_name}"
   kubernetes_version  = "1.9.2"
