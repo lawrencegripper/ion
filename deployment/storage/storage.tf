@@ -91,6 +91,14 @@ output "pool_boostrap_script_url" {
   value = "${azurerm_storage_blob.initscript.url}${data.azurerm_storage_account_sas.scriptaccess.sas}"
 }
 
+output "name" {
+  value = "${azurerm_storage_account.batchstorage.name}"
+}
+
+output "key" {
+  value = "${azurerm_storage_account.batchstorage.primary_access_key}"
+}
+
 output "id" {
   value = "${azurerm_storage_account.batchstorage.id}"
 }

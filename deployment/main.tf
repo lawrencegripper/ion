@@ -50,7 +50,6 @@ module "cosmos" {
 
   resource_group_name     = "${azurerm_resource_group.batchrg.name}"
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
-  db_name                 = "ion-cosmos"
 }
 
 module "acr" {
@@ -72,10 +71,11 @@ data "azurerm_client_config" "current" {}
 module "ion" {
   source = "ion"
 
-  subscription_id = "${data.azurerm_subscription.current.subscription_id}"
-  tenant_id       = "${data.azurerm_subscription.current.tenant_id}"
+  subscription_id = "${data.azurerm_client_config.current.subscription_id}"
+  tenant_id       = "${data.azurerm_client_config.current.tenant_id}"
 
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
+  resource_group_name     = "${azurerm_resource_group.batchrg.name}"
 
   cluster_client_key         = "${module.aks.cluster_client_key}"
   cluster_client_certificate = "${module.aks.cluster_client_certificate}"
@@ -92,7 +92,12 @@ module "ion" {
   servicebus_key  = "${module.servicebus.key}"
   servicebus_name = "${module.servicebus.name}"
 
+  storage_name = "${module.storage.name}"
+  storage_key  = "${module.storage.key}"
+
   cosmos_key     = "${module.cosmos.key}"
   cosmos_name    = "${module.cosmos.name}"
-  cosmos_db_name = "${module.cosmos.db_name}"
+  cosmos_db_name = "iondb"
+
+  dispatcher_docker_image = "dotjson/ion-dispatcher:latest"
 }

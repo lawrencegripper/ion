@@ -55,6 +55,11 @@ variable "resource_group_location" {
   type        = "string"
 }
 
+variable "resource_group_name" {
+  description = "Resource group location"
+  type        = "string"
+}
+
 variable "servicebus_key" {
   type = "string"
 }
@@ -64,6 +69,10 @@ variable "servicebus_name" {
 }
 
 variable "cosmos_name" {
+  type = "string"
+}
+
+variable "cosmos_db_name" {
   type = "string"
 }
 

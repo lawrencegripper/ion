@@ -10,10 +10,6 @@ variable "resource_group_location" {
   default     = "eastus"
 }
 
-variable "db_name" {
-  type = "string"
-}
-
 variable "failover_location" {
   default = "northeurope"
 }
