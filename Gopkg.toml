@@ -91,3 +91,6 @@
   branch = "master"
   name = "github.com/gorilla/mux"
 
+[[constraint]]
+  branch = "master"
+  name = "github.com/jjcollinge/logrus-appinsights"

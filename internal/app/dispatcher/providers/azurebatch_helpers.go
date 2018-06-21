@@ -80,3 +80,25 @@ func createOrGetJob(ctx context.Context, batchBaseURL, jobID, poolID string, aut
 func getBatchBaseURL(batchAccountName, batchAccountLocation string) string {
 	return fmt.Sprintf("https://%s.%s.batch.azure.com", batchAccountName, batchAccountLocation)
 }
+
+func logFieldsForTask(batchTask *batch.CloudTask) log.Fields {
+	fields := log.Fields{
+		"taskID":   batchTask.ID,
+		"taskName": batchTask.DisplayName,
+	}
+
+	if batchTask.NodeInfo != nil {
+		fields["taskPoolID"] = batchTask.NodeInfo.PoolID
+		fields["taskNodeID"] = batchTask.NodeInfo.NodeID
+
+	}
+
+	if batchTask.ExecutionInfo != nil {
+		if batchTask.ExecutionInfo.StartTime != nil && batchTask.ExecutionInfo.EndTime != nil {
+			fields["endTime"] = *batchTask.ExecutionInfo.EndTime
+			fields["startTime"] = *batchTask.ExecutionInfo.StartTime
+			fields["taskDurationSec"] = batchTask.ExecutionInfo.EndTime.Sub(batchTask.ExecutionInfo.StartTime.Time).Seconds
+		}
+	}
+	return fields
+}
