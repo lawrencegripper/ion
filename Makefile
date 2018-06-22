@@ -17,6 +17,12 @@ handler:
 
 frontapi:
 	make -f build/frontapi/Makefile.Docker
-	
+
+check-tf:
+	terraform init ./deployment && terraform validate -var-file=./deployment/vars.example.tfvars ./deployment/
+
+plan-tf:
+	terraform plan -var-file=./deployment/vars.example.tfvars ./deployment
+
 checks:
 	gometalinter --vendor --exclude=modules/helpers/Go/* --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline=15m ./...

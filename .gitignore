@@ -12,3 +12,5 @@ dispatcher
 servicebus-publisher
 servicebus-subscriber
 cmd/dispatcher/debug
+terraform-provider-kubernetes
+.terraform/*
