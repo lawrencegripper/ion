@@ -27,3 +27,8 @@ variable "batch_low_priority_node_count" {
   description = "Number of low priority nodes to provision in the batch pool"
   default     = "3"
 }
+
+variable "aks_node_count" {
+  description = "Number of kubernetes nodes to provision in the AKS cluster"
+  default     = "3"
+}

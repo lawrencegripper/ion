@@ -11,7 +11,7 @@
         "--enable=structcheck",
         "--deadline=15m"
     ],
-    "go.lintOnSave": "workspace",
+    "go.lintOnSave": "package",
     "go.testFlags": [
         "-v"
     ],

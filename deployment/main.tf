@@ -15,6 +15,8 @@ module "aks" {
 
   resource_group_name     = "${azurerm_resource_group.batchrg.name}"
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
+
+  node_count = "${var.aks_node_count}"
 }
 
 module "storage" {
