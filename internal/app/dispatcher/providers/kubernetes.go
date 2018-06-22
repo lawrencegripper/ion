@@ -24,6 +24,7 @@ import (
 const (
 	dispatcherNameLabel = "dispatchername"
 	messageIDLabel      = "messageid"
+	correlationIDLabel  = "correlationid"
 	deliverycountlabel  = "deliverycount"
 )
 
@@ -90,6 +91,7 @@ func NewKubernetesProvider(config *types.Configuration, sharedHandlerArgs []stri
 	k.removeJob = func(j *batchv1.Job) error {
 		return k.client.BatchV1().Jobs(k.Namespace).Delete(j.Name, &metav1.DeleteOptions{})
 	}
+
 	return &k, nil
 }
 
@@ -148,6 +150,10 @@ func (k *Kubernetes) Reconcile() error {
 		for _, condition := range j.Status.Conditions {
 			// Job failed - reject the message so it goes back on the queue to be retried
 			if condition.Type == batchv1.JobFailed {
+				getStatsFromJob(&j).WithFields(log.Fields{
+					"message": sourceMessage,
+				}).Warning("job failed to execute in k8s")
+
 				//Remove the job from k8s
 				err = k.removeJob(&j)
 				if err != nil {
@@ -155,7 +161,6 @@ func (k *Kubernetes) Reconcile() error {
 				}
 
 				err := sourceMessage.Reject()
-
 				if err != nil {
 					log.WithFields(log.Fields{
 						"message": sourceMessage,
@@ -170,6 +175,10 @@ func (k *Kubernetes) Reconcile() error {
 
 			// Job succeeded - accept the message so it is removed from the queue
 			if condition.Type == batchv1.JobComplete {
+				getStatsFromJob(&j).WithFields(log.Fields{
+					"message": sourceMessage,
+				}).Info("job successfully to execute in k8s")
+
 				//Remove the job from k8s
 				err = k.removeJob(&j)
 				if err != nil {
@@ -339,6 +348,25 @@ func homeDir() string {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // windows
+}
+
+func getStatsFromJob(job *batchv1.Job) *log.Entry {
+	if job == nil {
+		return log.WithField("niljob", true)
+	}
+
+	entity := log.WithField("job", job)
+	if job.Status.CompletionTime != nil && job.Status.StartTime != nil {
+		log.WithField("taskDurationSec", job.Status.CompletionTime.Sub(job.Status.StartTime.Time).Seconds)
+	}
+
+	if c, ok := job.Annotations[correlationIDLabel]; ok {
+		entity = entity.WithField(correlationIDLabel, c)
+	}
+	if m, ok := job.Annotations[messageIDLabel]; ok {
+		entity = entity.WithField(messageIDLabel, m)
+	}
+	return entity
 }
 
 func getClientSet() (*kubernetes.Clientset, error) {

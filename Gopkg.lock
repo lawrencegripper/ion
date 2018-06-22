@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/clock"
+  packages = ["."]
+  revision = "e9dc86bbf0e5bbe6bf7ff5a6f71e048959b61f71"
+
+[[projects]]
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "services/batch/2017-09-01.6.0/batch",
@@ -25,6 +31,11 @@
   ]
   revision = "8d642cdaee69c1860886533711d7ff25ba2b8e04"
   version = "v10.8.0"
+
+[[projects]]
+  name = "github.com/Microsoft/ApplicationInsights-Go"
+  packages = ["appinsights"]
+  revision = "98ac7ca026c26818888600ea0d966987aa56f043"
 
 [[projects]]
   name = "github.com/PuerkitoBio/purell"
@@ -181,6 +192,12 @@
   packages = ["."]
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
   version = "v1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jjcollinge/logrus-appinsights"
+  packages = ["."]
+  revision = "9b66602d496a139e4722bdde32f0f1ac1c12d4a8"
 
 [[projects]]
   name = "github.com/joho/godotenv"
@@ -554,6 +571,12 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bdf15b43c8543d909023f4ac93a5f0f7e819b4e8a12e01dca227d827aa90dce2"
+  inputs-digest = "e43206091a18d9f0a1ee755384eeace47b7b0775a216b7f82110d29a817a325a"
   solver-name = "gps-cdcl"
   solver-version = 1
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  revision = "e0b5abaaae35242fa74372f26c24107711702a4e"

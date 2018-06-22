@@ -56,6 +56,7 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 	b.batchConfig = config.AzureBatch
 	b.jobConfig = config.Job
 	b.jobID = config.Hostname + "-" + config.ModuleName
+	b.workerEnvVars = make(map[string]interface{})
 	ctx, cancel := context.WithCancel(context.Background())
 	b.ctx = ctx
 	b.cancelOps = cancel
@@ -317,10 +318,8 @@ func (b *AzureBatch) Reconcile() error {
 		if t.State == batch.TaskStateCompleted {
 			if *t.ExecutionInfo.ExitCode == 0 {
 				// Task has completed successfully
-				log.WithFields(log.Fields{
-					"message": sourceMessage,
-					"task":    t,
-				}).Info("Task completed with success exit code")
+				log.WithField("message", sourceMessage).
+					WithFields(logFieldsForTask(&t)).Info("Task completed with success exit code")
 
 				//Remove the task from batch
 				_, err := b.removeTask(&t)
@@ -332,10 +331,9 @@ func (b *AzureBatch) Reconcile() error {
 				err = sourceMessage.Accept()
 
 				if err != nil {
-					log.WithFields(log.Fields{
-						"message": sourceMessage,
-						"task":    t,
-					}).Error("failed to accept message")
+					log.WithField("message", sourceMessage).
+						WithFields(logFieldsForTask(&t)).
+						Error("failed to accept message")
 					return err
 				}
 
@@ -344,10 +342,9 @@ func (b *AzureBatch) Reconcile() error {
 				continue
 			} else {
 				//Task has failed!
-				log.WithFields(log.Fields{
-					"message": sourceMessage,
-					"task":    t,
-				}).Info("Task completed with failed exit code")
+				log.WithField("message", sourceMessage).
+					WithFields(logFieldsForTask(&t)).
+					Info("Task completed with failed exit code")
 
 				// Remove the task from batch
 				_, err := b.removeTask(&t)
