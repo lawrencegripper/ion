@@ -124,6 +124,10 @@ resource "kubernetes_deployment" "ion-management-api" {
               value = "DEBUG"
             },
             {
+              name  = "PROVIDER"
+              value = "kubernetes"
+            },
+            {
               name  = "CONTAINER_IMAGE_REGISTRY_URL"
               value = "${var.acr_url}"
             },

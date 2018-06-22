@@ -85,8 +85,6 @@ module "ion" {
   client_id     = "${var.client_id}"
   client_secret = "${var.client_secret}"
 
-  managementapi_docker_image = "ion-management"
-
   batch_account_name = "${module.azurebatch.name}"
 
   servicebus_key  = "${module.servicebus.key}"
@@ -103,5 +101,6 @@ module "ion" {
   acr_username = "${module.acr.username}"
   acr_password = "${module.acr.password}"
 
-  dispatcher_docker_image = "dotjson/ion-dispatcher:latest"
+  managementapi_docker_image = "lawrencegripper/ion-management"
+  dispatcher_docker_image    = "dotjson/ion-dispatcher:latest"
 }
