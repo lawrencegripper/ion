@@ -59,9 +59,6 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 	if config.ModuleName == "" {
 		log.Panic("Empty module name not allowed")
 	}
-	if config.SubscribesToEvent == "" {
-		log.Panic("Empty subscribesToEvent not allowed")
-	}
 	if config.Job == nil {
 		log.Panic("Job config required")
 	}
