@@ -1,0 +1,7 @@
+port: 8080
+
+servicebus:
+  namespace: xxx
+  topic: xxx
+  sas_policy: xxx
+  key: xxx

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    application: {{ template "fullname" . }}
+    component: {{ template "name" . }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      application: {{ template "fullname" . }}
+      component: {{ template "name" . }}
+  template:
+    metadata:
+      name: {{ template "fullname" . }}
+      labels:
+        heritage: {{ .Release.Service | quote }}
+        release: {{ .Release.Name | quote }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        application: {{ template "fullname" . }}
+        component: {{ template "name" . }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if and (.Values.tolerations) (ge .Capabilities.KubeVersion.Minor "6") }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ template "fullname" . }}
+        image: "{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: FRONTAPI_AMQP_PROVIDER
+          value: {{ .Values.amqp.provider }}
+        {{- if eq .Values.amqp.provider "servicebus" }}
+        - name: FRONTAPI_SERVICEBUS_NAMESPACE
+          value: {{ .Values.amqp.servicebus.namespace }}
+        - name: FRONTAPI_SERVICEBUS_TOPIC
+          value: {{ .Values.amqp.servicebus.topic }}
+        - name: FRONTAPI_SERVICEBUS_SASPOLICY
+          value: {{ .Values.amqp.servicebus.sasPolicy }}
+        - name: FRONTAPI_SERVICEBUS_ACCESSKEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: servicebusAccessKey
+        {{- end }}
+        ports:
+        - name: server
+          containerPort: 80

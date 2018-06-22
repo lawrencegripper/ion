@@ -574,3 +574,9 @@
   inputs-digest = "e43206091a18d9f0a1ee755384eeace47b7b0775a216b7f82110d29a817a325a"
   solver-name = "gps-cdcl"
   solver-version = 1
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  revision = "e0b5abaaae35242fa74372f26c24107711702a4e"

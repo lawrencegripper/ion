@@ -33,9 +33,6 @@
   name = "github.com/Azure/go-autorest"
   version = "10.1.0"
 
-[[constraint]]
-  name = "github.com/gorilla/mux"
-  version = "1.6.1"
 
 [[constraint]]
   name = "github.com/joho/godotenv"
@@ -89,6 +86,10 @@
   go-tests = true
   unused-packages = true
   non-go = true
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/gorilla/mux"
 
 [[constraint]]
   branch = "master"

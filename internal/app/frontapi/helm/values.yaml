@@ -1,0 +1,50 @@
+replicas: 1
+
+image:
+  name: dotjson/ion-frontapi
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 50Mi
+  # limits:
+  #   cpu: 100m
+  #   memory: 100Mi
+
+terminationGracePeriodSeconds: 10
+nodeSelector: {}
+tolerations: []
+# E.g. kubernetes   ---  https://kubernetes.io/docs/concepts/configuration/assign-pod-     node/#taints-and-tolerations-beta-feature
+# - key: "key1"
+#   operator: "Equal"
+#   value: "value1"
+#   effect: "NoSchedule"
+# - key: "key1"
+#   operator: "Equal"
+#   value: "value1"
+#   effect: "NoExecute"
+
+log:
+  level: info
+  sensitive: false
+
+service:
+   port: 80
+   loadBalancer: false
+   annotations: {}
+   ingress:
+     enabled: false
+     annotations: {}
+     hosts: []
+     tls: []
+
+amqp:
+  # Azure servicebus is the only supported at the moment
+  provider: servicebus
+  servicebus:
+    namespace: frontapi
+    topic: frontapi
+    sasPolicy: frontapi
+    accessKey: "thisisatestkey"
