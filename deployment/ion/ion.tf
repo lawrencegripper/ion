@@ -125,15 +125,15 @@ resource "kubernetes_deployment" "ion-management-api" {
             },
             {
               name  = "CONTAINER_IMAGE_REGISTRY_URL"
-              value = "${var.batch_account_name}"
+              value = "${var.acr_url}"
             },
             {
               name  = "CONTAINER_IMAGE_REGISTRY_USERNAME"
-              value = "${var.batch_account_name}"
+              value = "${var.acr_username}"
             },
             {
               name  = "CONTAINER_IMAGE_REGISTRY_PASSWORD"
-              value = "${var.batch_account_name}"
+              value = "${var.acr_password}"
             },
           ]
         }

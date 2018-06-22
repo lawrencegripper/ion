@@ -88,6 +88,12 @@ variable "storage_key" {
   type = "string"
 }
 
+variable "acr_url" {}
+
+variable "acr_username" {}
+
+variable "acr_password" {}
+
 variable "managementapi_docker_image" {
   description = "The docker image for the ion management api"
 }

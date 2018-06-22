@@ -99,5 +99,9 @@ module "ion" {
   cosmos_name    = "${module.cosmos.name}"
   cosmos_db_name = "iondb"
 
+  acr_url      = "${module.acr.login_server}"
+  acr_username = "${module.acr.username}"
+  acr_password = "${module.acr.password}"
+
   dispatcher_docker_image = "dotjson/ion-dispatcher:latest"
 }
