@@ -15,5 +15,8 @@ dispatcher:
 handler:
 	make -f build/handler/Makefile.Docker
 
+management:
+	make -f build/management/Makefile.Docker
+
 checks:
 	gometalinter --vendor --exclude=modules/helpers/Go/* --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline=15m ./...
