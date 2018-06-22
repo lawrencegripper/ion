@@ -1,5 +1,6 @@
 provider "kubernetes" {
-  host = "${var.cluster_host}"
+  host             = "${var.cluster_host}"
+  load_config_file = false
 
   client_certificate     = "${var.cluster_client_certificate}"
   client_key             = "${var.cluster_client_key}"

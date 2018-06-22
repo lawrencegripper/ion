@@ -26,7 +26,7 @@ resource "azurerm_servicebus_namespace" "ion" {
   name                = "ionsb-${random_string.name.result}"
   location            = "${var.resource_group_location}"
   resource_group_name = "${var.resource_group_name}"
-  sku                 = "basic"
+  sku                 = "standard"
 
   tags {
     source = "terraform"

@@ -102,5 +102,5 @@ module "ion" {
   acr_password = "${module.acr.password}"
 
   managementapi_docker_image = "lawrencegripper/ion-management"
-  dispatcher_docker_image    = "dotjson/ion-dispatcher:latest"
+  dispatcher_docker_image    = "dotjson/ion-dispatcher"
 }
