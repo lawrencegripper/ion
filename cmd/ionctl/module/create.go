@@ -26,7 +26,7 @@ var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a module in ion",
 	Run: func(cmd *cobra.Command, args []string) {
-		conn, err := grpc.Dial(root.ManagementApiEndpoint, grpc.WithInsecure())
+		conn, err := grpc.Dial(root.ManagementAPIEndpoint, grpc.WithInsecure())
 		if err != nil {
 			fmt.Println(fmt.Sprintf("failed to dial server: %+v", err))
 			return
@@ -65,13 +65,13 @@ func init() {
 	moduleCmd.AddCommand(createCmd)
 
 	createCmd.Flags().StringVarP(&name, "name", "n", "", "The module name")
-	createCmd.MarkFlagRequired("name")
+	createCmd.MarkFlagRequired("name") //nolint: errcheck
 	createCmd.Flags().StringVarP(&eventSubscriptions, "event-subscriptions", "i", "", "Events to which the module subscribes")
-	createCmd.MarkFlagRequired("event-subscriptions")
+	createCmd.MarkFlagRequired("event-subscriptions") //nolint: errcheck
 	createCmd.Flags().StringVarP(&eventPublications, "events-publications", "o", "", "The events the module can publish")
-	createCmd.MarkFlagRequired("event-publications")
+	createCmd.MarkFlagRequired("event-publications") //nolint: errcheck
 	createCmd.Flags().StringVarP(&moduleImage, "module-image", "m", "", "The docker image for your module")
-	createCmd.MarkFlagRequired("module-image")
+	createCmd.MarkFlagRequired("module-image") //nolint: errcheck
 
 	createCmd.Flags().StringVar(&configMapFilepath, "config-map-file", "", "A .env file defining environment variables required by the module")
 

@@ -20,5 +20,5 @@ var createCmd = &cobra.Command{
 func init() {
 	createCmd.Flags().StringVarP(&eventName, "event-name", "e", "test_event", "Name of the event to create (default: test_event)")
 	createCmd.Flags().StringVarP(&serviceBusConnectionString, "amqp-connection-string", "a", "", "AMQP connection string ")
-	createCmd.MarkFlagRequired("amqp-connection-string")
+	createCmd.MarkFlagRequired("amqp-connection-string") //nolint: errcheck
 }
