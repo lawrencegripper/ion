@@ -95,9 +95,15 @@ func (k *Kubernetes) createSharedServicesSecret(config *types.Configuration) err
 			"TENANTID":                                  config.AzureTenantID,
 			"SERVICEBUSNAMESPACE":                       config.AzureServiceBusNamespace,
 			"RESOURCEGROUP":                             config.AzureResourceGroup,
+			"AZUREBATCH_JOBID":                          config.AzureBatchJobID,
 			"AZUREBATCH_POOLID":                         config.AzureBatchPoolID,
 			"AZUREBATCH_BATCHACCOUNTLOCATION":           config.AzureBatchAccountLocation,
 			"AZUREBATCH_BATCHACCOUNTNAME":               config.AzureBatchAccountName,
+			"AZUREBATCH_REQUIRESGPU":                    strconv.FormatBool(config.AzureBatchRequiresGPU),
+			"AZUREBATCH_RESOURCEGROUP":                  config.AzureBatchResourceGroup,
+			"AZUREBATCH_IMAGEREPOSITORYSERVER":          config.AzureBatchImageRepositoryServer,
+			"AZUREBATCH_IMAGEREPOSITORYPASSWORD":        config.AzureBatchImageRepositoryPassword,
+			"AZUREBATCH_IMAGEREPOSITORYUSERNAME":        config.AzureBatchImageRepositoryUsername,
 			"HANDLER_MONGODBDOCPROVIDER_PORT":           strconv.Itoa(config.MongoDBPort),
 			"HANDLER_MONGODBDOCPROVIDER_NAME":           config.MongoDBName,
 			"HANDLER_MONGODBDOCPROVIDER_PASSWORD":       config.MongoDBPassword,
@@ -232,6 +238,7 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 		"--kubernetes.namespace=" + k.namespace,
 		"--kubernetes.imagepullsecretname=" + sharedImagePullSecretName,
 		"--loglevel=" + logLevel,
+		"--printconfig=true",
 	}
 
 	dispatcherDeploymentName := id
