@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 	// Create committer
 	log.SetOutput(os.Stdout)
-	c = committer.NewCommitter(testdata, false)
+	c = committer.NewCommitter(testdata, nil)
 
 	exitCode := m.Run()
 

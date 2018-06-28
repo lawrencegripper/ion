@@ -3,6 +3,7 @@ package integration
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"github.com/lawrencegripper/ion/internal/app/handler/module"
 	"io/ioutil"
 	"os"
@@ -22,6 +23,8 @@ func TestDevIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
 	}
+
+	devBaseDir := ".dev"
 
 	// Create context
 	eventID := "1111111"
@@ -43,7 +46,10 @@ func TestDevIntegration(t *testing.T) {
 	config.ValidEventTypes = eventTypesStr
 	config.PrintConfig = false
 	config.LogLevel = "Debug"
-	config.Development = true
+	config.DevelopmentConfiguration = &development.Configuration{
+		BaseDir: devBaseDir,
+		Enabled: true,
+	}
 
 	environment := module.GetModuleEnvironment(baseDir)
 
@@ -51,14 +57,14 @@ func TestDevIntegration(t *testing.T) {
 
 	defer func() {
 		_ = os.RemoveAll(baseDir)
-		_ = os.RemoveAll(constants.DevBaseDir)
+		_ = os.RemoveAll(devBaseDir)
 		_ = os.Remove(".memdb")
 	}()
 
 	// Check dev.prepared exists in development dir
-	preparedPath := filepath.FromSlash(path.Join(constants.DevBaseDir, eventID, "dev.prepared"))
+	preparedPath := filepath.FromSlash(path.Join(config.DevelopmentConfiguration.ModuleDir, "prepared"))
 	if _, err := os.Stat(preparedPath); os.IsNotExist(err) {
-		t.Errorf("dev.prepared file should exist at path '%s'", preparedPath)
+		t.Fatalf("prepared file should exist at path '%s'", preparedPath)
 	}
 
 	// Write an output image blob
@@ -74,7 +80,7 @@ func TestDevIntegration(t *testing.T) {
 	// Grab the length of the output directory
 	outFiles, err := ioutil.ReadDir(environment.OutputBlobDirPath)
 	if err != nil {
-		t.Errorf("error reading out dir '%+v'", err)
+		t.Fatalf("error reading out dir '%+v'", err)
 	}
 	outLength := len(outFiles)
 
@@ -91,13 +97,13 @@ func TestDevIntegration(t *testing.T) {
 	handler.Run(config)
 
 	// Check dev.committed exists in development dir
-	committedPath := filepath.FromSlash(path.Join(constants.DevBaseDir, eventID, "dev.committed"))
+	committedPath := filepath.FromSlash(path.Join(config.DevelopmentConfiguration.ModuleDir, "committed"))
 	if _, err := os.Stat(committedPath); os.IsNotExist(err) {
-		t.Fatalf("dev.committed file should exist at path '%s'", committedPath)
+		t.Fatalf("committed file should exist at path '%s'", committedPath)
 	}
 
 	// Grab event ID from module 1's output event
-	b, err := ioutil.ReadFile(filepath.FromSlash(path.Join(constants.DevBaseDir, "events", "event0.json")))
+	b, err := ioutil.ReadFile(filepath.FromSlash(path.Join(config.DevelopmentConfiguration.EventsDir(), "event0.json")))
 	if err != nil {
 		t.Fatalf("error reading event from disk '%+v'", err)
 	}

@@ -22,8 +22,12 @@ func NewHandlerCommand() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			handlerConfig.LogFile = handlerCmdConfig.GetString("log-file")
 			handlerConfig.LogLevel = handlerCmdConfig.GetString("log-level")
-			handlerConfig.Development = handlerCmdConfig.GetBool("development")
 			handlerConfig.PrintConfig, _ = cmd.Flags().GetBool("printconfig")
+
+			if handlerCmdConfig.GetBool("development.enabled") {
+				handlerConfig.DevelopmentConfiguration.Enabled = true
+				handlerConfig.DevelopmentConfiguration.BaseDir = handlerCmdConfig.GetString("development.basedir")
+			}
 
 			// Globally set configuration level
 			switch strings.ToLower(handlerConfig.LogLevel) {
@@ -50,12 +54,14 @@ func NewHandlerCommand() *cobra.Command {
 
 	flags.StringP("logfile", "L", "", "File to log output to")
 	flags.StringP("loglevel", "l", "warn", "Logging level, possible values {debug, info, warn, error}")
-	flags.BoolP("development", "d", false, "A flag to enable development features")
+	flags.Bool("development.enabled", false, "A flag to enable development features")
+	flags.String("development.basedir", ".dev", "Base directory to write development output to")
 	flags.BoolP("printconfig", "P", false, "Set to print config on start")
 
 	handlerCmdConfig.BindPFlag("log-file", flags.Lookup("logfile"))
 	handlerCmdConfig.BindPFlag("log-level", flags.Lookup("loglevel"))
-	handlerCmdConfig.BindPFlag("development", flags.Lookup("development"))
+	handlerCmdConfig.BindPFlag("development.enabled", flags.Lookup("development.enabled"))
+	handlerCmdConfig.BindPFlag("development.basedir", flags.Lookup("development.basedir"))
 
 	return cmd
 }

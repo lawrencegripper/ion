@@ -7,6 +7,7 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/handler/constants"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/blobstorage/azure"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/mongodb"
+	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"github.com/lawrencegripper/ion/internal/app/handler/module"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"io/ioutil"
@@ -30,7 +31,14 @@ func TestAzureIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
-	// Create context
+	devBaseDir := ".dev"
+	devConfig := &development.Configuration{
+		BaseDir: devBaseDir,
+		Enabled: true,
+	}
+
+	// Create a phony a context for our
+	// first test module
 	eventID := "1111111"
 	baseDir := "ion"
 	eventTypesStr := "face_detected"
@@ -41,7 +49,8 @@ func TestAzureIntegration(t *testing.T) {
 		CorrelationID: "fish",
 		ParentEventID: "",
 	}
-	inEventsDir := filepath.FromSlash(path.Join(constants.DevBaseDir, "events"))
+
+	inEventsDir := filepath.FromSlash(filepath.Join(devBaseDir, eventID, devConfig.EventsDir()))
 	inEventFilePath := filepath.FromSlash(path.Join(inEventsDir, "event0.json"))
 
 	environment := module.GetModuleEnvironment(baseDir)
@@ -56,6 +65,8 @@ func TestAzureIntegration(t *testing.T) {
 		t.Fatal("env var 'MONGODB_PORT' should be an integer!")
 	}
 
+	// Build a configuration based on our phony context
+	// and Azure environment variables
 	config := handler.NewConfiguration()
 	config.Action = constants.Prepare
 	config.BaseDir = baseDir
@@ -76,12 +87,14 @@ func TestAzureIntegration(t *testing.T) {
 	config.ValidEventTypes = eventTypesStr
 	config.PrintConfig = false
 	config.LogLevel = "Debug"
+	config.DevelopmentConfiguration = devConfig
 
-	// Create Module #1
+	// Run handler with 'Prepare' action  #1
+	// This will create the 'ion' module env
 	handler.Run(config)
 	defer func() {
 		_ = os.RemoveAll(baseDir) // This cleans up the local events directory created by the mock event publisher
-		_ = os.RemoveAll(constants.DevBaseDir)
+		_ = os.RemoveAll(devBaseDir)
 	}()
 
 	// Write an output image blob
@@ -111,6 +124,9 @@ func TestAzureIntegration(t *testing.T) {
 	writeOutputBytes(outEvent, filepath.FromSlash(path.Join(environment.OutputEventsDirPath, "event1.json")))
 
 	config.Action = constants.Commit
+	// Run handler with 'commit' action #1
+	// This will commit our data to the Azure
+	// dataplane
 	handler.Run(config)
 
 	// Grab event ID from module 1's output event
@@ -151,6 +167,10 @@ func TestAzureIntegration(t *testing.T) {
 	err = json.Unmarshal(inMetaData, &kvps)
 	if err != nil {
 		t.Fatalf("error decoding file '%s' content: '%+v'", environment.InputMetaFilePath, err)
+	}
+
+	if len(kvps) != 1 {
+		t.Fatalf("insights file should contain 1 key value pair, but has %d", len(kvps))
 	}
 
 	// The first key, value pair should be as expected

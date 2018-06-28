@@ -14,17 +14,17 @@ type KeyValuePair struct {
 type KeyValuePairs []KeyValuePair
 
 //Append adds a new key value pair to the end of the slice
-func (kvps KeyValuePairs) Append(kvp KeyValuePair) {
-	kvps = append(kvps, kvp)
+func (kvps KeyValuePairs) Append(kvp KeyValuePair) KeyValuePairs {
+	return append(kvps, kvp)
 }
 
 //Remove a key value pair at an index by shifting the slice
-func (kvps KeyValuePairs) Remove(index int) error {
+func (kvps KeyValuePairs) Remove(index int) (KeyValuePairs, error) {
 	if (index > len(kvps)+1) || (index < 0) {
-		return fmt.Errorf("Invalid index provided")
+		return nil, fmt.Errorf("Invalid index provided")
 	}
 	kvps = append(kvps[:index], kvps[index+1:]...)
-	return nil
+	return kvps, nil
 }
 
 //Event the basic event data format

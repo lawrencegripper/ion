@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"path/filepath"
 
 	"os"
@@ -43,6 +44,25 @@ func Run(config Configuration) {
 		panic(err)
 	}
 
+	log.SetOutput(os.Stdout)
+	if config.LogFile != "" {
+		logFile, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY, 0666)
+		if err == nil {
+			log.SetOutput(logFile)
+		} else {
+			log.Warnf("failed to open log file %s, using default stderr", config.LogFile)
+		}
+	}
+
+	if config.DevelopmentConfiguration != nil {
+		if config.DevelopmentConfiguration.Enabled {
+			log.Debug("initializing development configuration")
+			if err := config.DevelopmentConfiguration.Init(config.Context.ParentEventID, config.Context.EventID); err != nil {
+				log.Errorf("%+v", err) // non fatal error
+			}
+		}
+	}
+
 	metaProvider := getMetaProvider(&config)
 	blobProvider := getBlobProvider(&config)
 	eventProvider := getEventProvider(&config)
@@ -55,16 +75,6 @@ func Run(config Configuration) {
 
 	// TODO Refactor out below into doRun(dataPlane *dataplane.Dataplane, config Configuration)
 
-	log.SetOutput(os.Stdout)
-	if config.LogFile != "" {
-		logFile, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY, 0666)
-		if err == nil {
-			log.SetOutput(logFile)
-		} else {
-			log.Warnf("Failed to open log file %s, using default stderr", config.LogFile)
-		}
-	}
-
 	validEventTypes := strings.Split(config.ValidEventTypes, ",")
 
 	baseDir := config.BaseDir
@@ -74,19 +84,19 @@ func Run(config Configuration) {
 
 	action := strings.ToLower(config.Action)
 	if config.Action == constants.Prepare {
-		preparer := preparer.NewPreparer(baseDir, config.Development)
+		preparer := preparer.NewPreparer(baseDir, config.DevelopmentConfiguration)
 		defer preparer.Close()
 		if err := preparer.Prepare(config.Context, dataPlane); err != nil {
-			panic(fmt.Sprintf("Error during prepration %+v", err))
+			panic(fmt.Sprintf("error during prepration %+v", err))
 		}
 	} else if config.Action == constants.Commit {
-		committer := committer.NewCommitter(baseDir, config.Development)
+		committer := committer.NewCommitter(baseDir, config.DevelopmentConfiguration)
 		defer committer.Close()
 		if err := committer.Commit(config.Context, dataPlane, validEventTypes); err != nil {
-			panic(fmt.Sprintf("Error during commit %+v", err))
+			panic(fmt.Sprintf("error during commit %+v", err))
 		}
 	} else {
-		panic(fmt.Sprintf("Unsupported action type %+v", action))
+		panic(fmt.Sprintf("unsupported action type %+v", action))
 	}
 }
 
@@ -99,7 +109,7 @@ func getDefaultBaseDir() string {
 	case "darwin":
 		return defaultDarwinBaseDir
 	default:
-		panic("Unsupported OS platform")
+		panic("unsupported OS platform")
 	}
 }
 
@@ -114,60 +124,57 @@ func validateConfig(c *Configuration) error {
 }
 
 func getMetaProvider(config *Configuration) dataplane.DocumentStorageProvider {
-	if config.Development || config.MongoDBDocumentStorageProvider.Enabled == false {
-		inMemDB, err := inmemory.NewInMemoryDB()
-		if err != nil {
-			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
-		}
-		return inMemDB
-	}
 	if config.MongoDBDocumentStorageProvider.Enabled {
+		log.Info("using mongodb metadata provider")
 		c := config.MongoDBDocumentStorageProvider
 		mongoDB, err := mongodb.NewMongoDB(c)
 		if err != nil {
-			panic(fmt.Errorf("Failed to establish metadata store with provider '%s', error: %+v", metaProviderMongoDB, err))
+			panic(fmt.Errorf("failed to establish metadata store with provider '%s', error: %+v", metaProviderMongoDB, err))
 		}
 		return mongoDB
+	} // else
+	log.Info("defaulting to in-memory metadata provider")
+	inMemDB, err := inmemory.NewInMemoryDB()
+	if err != nil {
+		panic(fmt.Errorf("failed to establish metadata store with debug provider, error: %+v", err))
 	}
-	return nil
+	return inMemDB
 }
 
 func getBlobProvider(config *Configuration) dataplane.BlobStorageProvider {
-	if config.Development || config.AzureBlobStorageProvider.Enabled == false {
-		fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
-			InputDir:  filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.ParentEventID, "blobs")),
-			OutputDir: filepath.FromSlash(path.Join(constants.DevBaseDir, config.Context.EventID, "blobs")),
-		})
-		if err != nil {
-			panic(fmt.Errorf("Failed to establish metadata store with debug provider, error: %+v", err))
-		}
-		return fsBlob
-	}
 	if config.AzureBlobStorageProvider.Enabled {
+		log.Info("using azure blob storage provider")
 		c := config.AzureBlobStorageProvider
 		azureBlob, err := azure.NewBlobStorage(c,
 			helpers.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
 			helpers.JoinBlobPath(config.Context.EventID, config.Context.Name))
 		if err != nil {
-			panic(fmt.Errorf("Failed to establish blob storage with provider '%s', error: %+v", blobProviderAzureStorage, err))
+			panic(fmt.Errorf("failed to establish blob storage with provider '%s', error: %+v", blobProviderAzureStorage, err))
 		}
 		return azureBlob
+	} // else
+	log.Info("defaulting to filesystem blob storage provider")
+	fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
+		InputDir:  filepath.FromSlash(path.Join(config.DevelopmentConfiguration.ParentModuleDir, development.BlobsDirExt)),
+		OutputDir: filepath.FromSlash(path.Join(config.DevelopmentConfiguration.ModuleDir, development.BlobsDirExt)),
+	})
+	if err != nil {
+		panic(fmt.Errorf("failed to establish metadata store with debug provider, error: %+v", err))
 	}
-	return nil
+	return fsBlob
 }
 
 func getEventProvider(config *Configuration) dataplane.EventPublisher {
-	if config.Development || config.ServiceBusEventProvider.Enabled == false {
-		fsEvents := mock.NewEventPublisher(filepath.FromSlash(path.Join(constants.DevBaseDir, "events")))
-		return fsEvents
-	}
 	if config.ServiceBusEventProvider.Enabled {
+		log.Info("using azure service bus event publisher")
 		c := config.ServiceBusEventProvider
 		serviceBus, err := servicebus.NewServiceBus(c)
 		if err != nil {
-			panic(fmt.Errorf("Failed to establish event publisher with provider '%s', error: %+v", eventProviderServiceBus, err))
+			panic(fmt.Errorf("failed to establish event publisher with provider '%s', error: %+v", eventProviderServiceBus, err))
 		}
 		return serviceBus
-	}
-	return nil
+	} // else
+	log.Info("defaulting to filesystem event publisher")
+	fsEvents := mock.NewEventPublisher(filepath.FromSlash(path.Join(config.DevelopmentConfiguration.ModuleDir, development.EventsDirExt)))
+	return fsEvents
 }
