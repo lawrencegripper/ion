@@ -148,7 +148,7 @@ func (c *Committer) commitBlob(blobsPath string) (map[string]string, error) {
 		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
 
-	logger.Info(c.context, "committed blob data"
+	logger.Info(c.context, "committed blob data")
 	return blobURIs, nil
 }
 
