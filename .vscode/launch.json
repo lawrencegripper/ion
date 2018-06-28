@@ -5,6 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug Handler",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceRoot}/cmd/handler",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
+            "showLog": true,
+            "args": [
+                "start",
+            ]
+        },
+        {
             "name": "Debug Handler Azure Integration Tests",
             "type": "go",
             "request": "launch",
