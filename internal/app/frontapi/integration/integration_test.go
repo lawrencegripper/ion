@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/lawrencegripper/ion/internal/app/frontapi"
+	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/mongodb"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -44,7 +46,6 @@ func TestHttpServer(t *testing.T) {
 	go frontapi.Run(config, 9898)
 
 	i := 0
-	success := false
 
 	for i < 6 {
 		time.Sleep(time.Second * 10)
@@ -77,15 +78,44 @@ func TestHttpServer(t *testing.T) {
 
 		resBytes, _ := ioutil.ReadAll(res.Body)
 		if res.StatusCode == 200 {
-			t.Log(string(resBytes))
-			success = true
-			break
+			event := &common.Event{}
+			json.Unmarshal(resBytes, event)
+			checkEventData(t, event, config)
+			return
 		}
+	}
+}
 
+func checkEventData(t *testing.T, e *common.Event, config *types.Configuration) {
+
+	mongoConfig := &mongodb.Config{
+		Enabled:    true,
+		Name:       config.Handler.MongoDBDocumentStorageProvider.Name,
+		Collection: config.Handler.MongoDBDocumentStorageProvider.Collection,
+		Password:   config.Handler.MongoDBDocumentStorageProvider.Password,
+		Port:       config.Handler.MongoDBDocumentStorageProvider.Port,
 	}
 
-	if !success {
-		t.FailNow()
+	docStore, err := mongodb.NewMongoDB(mongoConfig)
+
+	if err != nil {
+		t.Error("Couldn't connect to mongo")
+		return
 	}
 
+	res, err := docStore.GetEventMetaByID(e.Context.EventID)
+	if err != nil {
+		t.Error("Failed getting metadata from docstore")
+		t.Error(err)
+		return
+	}
+
+	if len(res.Data) != 1 {
+		t.Error("metadata from docstore contained wrong number of items")
+		return
+	}
+
+	if res.Data[0].Key != "url" || res.Data[0].Value != "http://doesnt.matter.not.real" {
+		t.Errorf("data in docstore not as expected: %+v", res.Data[0])
+	}
 }

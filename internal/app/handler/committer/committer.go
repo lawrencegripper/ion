@@ -274,7 +274,7 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 					Key:   f,
 					Value: blobURIs[f],
 				}
-				keyValuePairs.Append(blobInfo)
+				keyValuePairs = keyValuePairs.Append(blobInfo)
 			}
 		}
 

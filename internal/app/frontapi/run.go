@@ -20,7 +20,7 @@ import (
 func Run(cfg *types.Configuration, port int) {
 
 	log.Info("Initialising AMQP connection")
-	links.InitAmqp(cfg)
+	links.InitAmqp(cfg, "frontapi.new_link")
 	log.Info("Initialising Mongo connection")
 	links.InitMongoDB(cfg)
 

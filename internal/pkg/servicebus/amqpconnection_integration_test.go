@@ -50,8 +50,12 @@ func TestIntegrationNewListener(t *testing.T) {
 	defer deleteSubscription(listener, config)
 
 	nonce := time.Now().String()
-	sender := createAmqpSender(listener)
-	err := sender.Send(ctx, &amqp.Message{
+	sender, err := listener.CreateAmqpSender(config.SubscribesToEvent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = sender.Send(ctx, &amqp.Message{
 		Value: nonce,
 	})
 	if err != nil {
@@ -110,8 +114,12 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 	defer deleteSubscription(listener, config)
 
 	nonce := time.Now().String()
-	sender := createAmqpSender(listener)
-	err := sender.Send(ctx, &amqp.Message{
+	sender, err := listener.CreateAmqpSender(config.SubscribesToEvent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = sender.Send(ctx, &amqp.Message{
 		Value: nonce,
 	})
 	if err != nil {

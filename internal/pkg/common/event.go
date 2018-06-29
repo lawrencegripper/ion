@@ -14,8 +14,8 @@ type KeyValuePair struct {
 type KeyValuePairs []KeyValuePair
 
 //Append adds a new key value pair to the end of the slice
-func (kvps KeyValuePairs) Append(kvp KeyValuePair) {
-	kvps = append(kvps, kvp)
+func (kvps KeyValuePairs) Append(kvp KeyValuePair) KeyValuePairs {
+	return append(kvps, kvp)
 }
 
 //Remove a key value pair at an index by shifting the slice
