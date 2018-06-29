@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	dispatcherNameLabel = "dispatchername"
+	dispatcherNameLabel = "ion/createdBy"
 	messageIDLabel      = "messageid"
 	correlationIDLabel  = "correlationid"
 	deliverycountlabel  = "deliverycount"
