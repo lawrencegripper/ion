@@ -1,10 +1,10 @@
-all: dependencies checks test dispatcher handler frontapi
+all: dependencies checks test dispatcher handler frontapi management
 
 dependencies:
 	dep ensure -v --vendor-only
 
 test:
-	go test -v -short ./...
+	go test -short ./...
 
 integration:
 	go test ./...

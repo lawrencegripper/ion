@@ -69,9 +69,7 @@ func Process(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Infoln("Publishing event", amqpSender.Address())
-	err = amqpSender.Send(ctx, &amqp.Message{
-		Value: eventJSON,
-	})
+	err = amqpSender.Send(ctx, amqp.NewMessage(eventJSON))
 	if err != nil {
 		log.Errorln(err)
 		http.Error(w, "Failed publishing event", http.StatusInternalServerError)
