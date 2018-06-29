@@ -1,3 +1,5 @@
+.PHONY: dependencies checks test dispatcher handler frontapi management
+
 all: dependencies checks test dispatcher handler frontapi management
 
 dependencies:
@@ -11,7 +13,7 @@ integration:
 
 dispatcher:
 	make -f build/dispatcher/Makefile.Docker
-	
+
 handler:
 	make -f build/handler/Makefile.Docker
 
