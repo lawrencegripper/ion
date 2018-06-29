@@ -13,6 +13,7 @@ import (
 
 	"github.com/satori/go.uuid"
 
+	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 )
 
@@ -33,11 +34,8 @@ func Process(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 
-	data := common.KeyValuePairs{}
-	data.Append(common.KeyValuePair{Key: "url", Value: linkReq.URL})
 	event := common.Event{
 		PreviousStages: []string{},
-		Data:           data,
 		Type:           "frontapi.new_link",
 		Context: &common.Context{
 			CorrelationID: uuid.String(),
@@ -45,13 +43,40 @@ func Process(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	eventJson, err := json.Marshal(event)
+	if err != nil {
+		log.Errorf("failed marshalling event to json: %v", err)
+		http.Error(w, "Failed marshalling event", http.StatusInternalServerError)
+		return
+	}
+
+	// Create event metadata that
+	// can store additional metadata
+	// without bloating th event such
+	// as a list of files to process.
+	// This will be looked up by
+	// the processing modules using the
+	// event id.
+	data := common.KeyValuePairs{}
+	data.Append(common.KeyValuePair{Key: "url", Value: linkReq.URL})
+	eventMeta := documentstorage.EventMeta{
+		Context: event.Context,
+		Data:    data,
+	}
+	err = documentStore.CreateEventMeta(&eventMeta)
+	if err != nil {
+		log.Errorf("failed to add context '%+v' with error '%+v'", eventMeta, err)
+		http.Error(w, "Failed writing to document store", http.StatusInternalServerError)
+		return
+	}
+
 	log.Infoln("Publishing event", amqpClt.Sender.Address())
 	err = amqpClt.Sender.Send(ctx, &amqp.Message{
-		Value: event,
+		Value: eventJson,
 	})
 	if err != nil {
 		log.Errorln(err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		http.Error(w, "Failed publishing event", http.StatusInternalServerError)
 		return
 	}
 

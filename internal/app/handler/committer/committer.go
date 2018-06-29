@@ -53,10 +53,7 @@ func NewCommitter(baseDir string, developmentFlag bool) *Committer {
 }
 
 // Commit persists the module's environment in the data plane
-func (c *Committer) Commit(
-	context *common.Context,
-	dataPlane *dataplane.DataPlane,
-	validEventTypes []string) error {
+func (c *Committer) Commit(context *common.Context, dataPlane *dataplane.DataPlane, validEventTypes []string) error {
 
 	if err := helpers.ErrorIfNil(dataPlane, context); err != nil {
 		return err

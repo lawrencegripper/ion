@@ -36,8 +36,8 @@ module "azurebatch" {
   resource_group_name     = "${azurerm_resource_group.batchrg.name}"
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
 
-  dedicated_node_count    = 0
-  low_priority_node_count = 1
+  dedicated_node_count    = "${var.batch_dedicated_node_count}"
+  low_priority_node_count = "${var.batch_low_priority_node_count}"
 }
 
 module "servicebus" {

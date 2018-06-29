@@ -18,7 +18,7 @@ variable "resource_group_location" {
   type        = "string"
 }
 
-variable "batch_dedicate_node_count" {
+variable "batch_dedicated_node_count" {
   description = "Number of dedicated nodes to provision in the batch pool"
   default     = "1"
 }

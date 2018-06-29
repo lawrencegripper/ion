@@ -64,6 +64,23 @@
                 "5m"
             ],
             "showLog": true
+        },
+        {
+            "name": "Frontapi integration Tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}/internal/app/frontapi/integration/integration_test.go",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
+            "args": [
+                "-test.v",
+                "-test.timeout",
+                "5m"
+            ],
+            "showLog": true
         }
     ]
 }

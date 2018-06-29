@@ -19,8 +19,12 @@ import (
 // Run starts the webserver that on port
 func Run(cfg *types.Configuration, port int) {
 
+	log.Info("Initialising AMQP connection")
 	links.InitAmqp(cfg)
+	log.Info("Initialising Mongo connection")
+	links.InitMongoDB(cfg)
 
+	log.Info("Starting api server")
 	// Routers declarations
 	r := mux.NewRouter()
 
@@ -52,9 +56,6 @@ func Run(cfg *types.Configuration, port int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	_ = server.Shutdown(ctx)
-
-	//TODO When should I call that?
-	//links.publisher.Close()
 
 	log.Infoln("Application stopped gracefully")
 }
