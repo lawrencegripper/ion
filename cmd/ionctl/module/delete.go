@@ -3,28 +3,45 @@ package module
 import (
 	"fmt"
 
+	"context"
+	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"github.com/spf13/cobra"
 )
+
+type deleteOptions struct {
+	name string
+}
+
+var deleteOpts deleteOptions
 
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
 	Use:   "delete",
-	Short: "Delete a module from ion",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("delete called")
-	},
+	Short: "delete a module from ion",
+	RunE:  Delete,
+}
+
+// Delete an ion module
+func Delete(cmd *cobra.Command, args []string) error {
+
+	deleteRequest := &module.ModuleDeleteRequest{
+		Name: deleteOpts.name,
+	}
+
+	fmt.Println("deleting module")
+	_, err := Client.Delete(context.Background(), deleteRequest)
+	if err != nil {
+		return fmt.Errorf(fmt.Sprintf("failed to delete module: %+v", err))
+	}
+	fmt.Printf("deleted module %s\n", deleteOpts.name)
+	return nil
 }
 
 func init() {
-	moduleCmd.AddCommand(deleteCmd)
 
-	// Here you will define your flags and configuration settings.
+	// Local flags for the delete command
+	deleteCmd.Flags().StringVarP(&deleteOpts.name, "name", "n", "", "the module name")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// deleteCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// deleteCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Mark required flags
+	deleteCmd.MarkFlagRequired("name") //nolint: errcheck
 }

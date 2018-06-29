@@ -5,6 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug Ion CLI",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceRoot}/cmd/ionctl",
+            "showLog": true,
+            "args": [
+                "module"
+            ]
+        },
+        {
             "name": "Debug Handler",
             "type": "go",
             "request": "launch",
