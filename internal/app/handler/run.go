@@ -80,6 +80,7 @@ func Run(config Configuration) {
 	baseDir := config.BaseDir
 	if baseDir == "" || baseDir == "./" || baseDir == ".\\" {
 		baseDir = getDefaultBaseDir()
+		log.Debugf("using default base directory %s", baseDir)
 	}
 
 	action := strings.ToLower(config.Action)

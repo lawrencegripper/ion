@@ -36,9 +36,8 @@ func Process(w http.ResponseWriter, r *http.Request) {
 	data := common.KeyValuePairs{}
 	data.Append(common.KeyValuePair{Key: "url", Value: linkReq.URL})
 	event := common.Event{
-		PreviousStages: []string{},
-		Data:           data,
-		Type:           "frontapi.new_link",
+		Data: data,
+		Type: "frontapi.new_link",
 		Context: &common.Context{
 			CorrelationID: uuid.String(),
 			ParentEventID: "",

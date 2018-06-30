@@ -54,9 +54,8 @@ func Create(cmd *cobra.Command, args []string) error {
 			CorrelationID: createOpts.correlationID,
 			ParentEventID: createOpts.parentEventID,
 		},
-		Type:           createOpts.eventType,
-		PreviousStages: []string{},
-		Data:           kvps,
+		Type: createOpts.eventType,
+		Data: kvps,
 	}
 
 	ctx := context.Background()

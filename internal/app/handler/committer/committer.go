@@ -307,9 +307,8 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		// This will embed the context
 		// created above.
 		event := common.Event{
-			Context:        context,
-			PreviousStages: []string{},
-			Type:           eventType,
+			Context: context,
+			Type:    eventType,
 		}
 
 		// Create event metadata that

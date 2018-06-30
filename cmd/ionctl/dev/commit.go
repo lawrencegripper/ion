@@ -58,13 +58,12 @@ func init() {
 	commitCmd.Flags().StringVar(&commitOpts.name, "name", "", "module name")
 	commitCmd.Flags().StringSliceVar(&commitOpts.eventTypes, "event-types", []string{}, "comma delimited string of valid event types for this module to publish")
 	commitCmd.Flags().StringVar(&commitOpts.eventID, "event-id", "", "module's event id")
-	commitCmd.Flags().StringVar(&commitOpts.correlationID, "correlation-id", "", "module's correlation id")
+	commitCmd.Flags().StringVar(&commitOpts.correlationID, "correlation-id", "dev", "module's correlation id")
 	commitCmd.Flags().StringVar(&commitOpts.parentEventID, "parent-event-id", "", "module's parent event id")
 
 	// Mark required flags
 	commitCmd.MarkFlagRequired("name")            //nolint: errcheck
 	commitCmd.MarkFlagRequired("event-types")     //nolint: errcheck
 	commitCmd.MarkFlagRequired("event-id")        //nolint: errcheck
-	commitCmd.MarkFlagRequired("correlation-id")  //nolint: errcheck
 	commitCmd.MarkFlagRequired("parent-event-id") //nolint: errcheck
 }

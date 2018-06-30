@@ -50,14 +50,26 @@ func Prepare(cmd *cobra.Command, args []string) error {
 
 	handler.Run(config)
 
-	inputBlobDir := filepath.FromSlash(filepath.Join(ionModulesDir, prepareOpts.parentEventID, "_blobs"))
+	var inputBlobDir string
+	err := filepath.Walk(ionModulesDir, func(path string, info os.FileInfo, err error) error {
+		if strings.Contains(path, filepath.FromSlash(filepath.Join(prepareOpts.parentEventID, "_blobs"))) {
+			if !info.IsDir() {
+				return nil // ignore files in the directory
+			}
+			inputBlobDir = path
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error reading parent module's blobs directory in %s: %+v", ionModulesDir, err)
+	}
 	moduleInputBlobDir := filepath.FromSlash(filepath.Join(prepareOpts.baseDir, "in", "data"))
 	_ = os.RemoveAll(moduleInputBlobDir)
 	if err := copyDir(inputBlobDir, moduleInputBlobDir); err != nil {
 		return fmt.Errorf("error copying input blob data from %s to %s: %+v", inputBlobDir, moduleInputBlobDir, err)
 	}
 
-	fmt.Printf("module prepared, now run/debug your module. Set environment var $ION_BASE_DIR to %s\n", prepareOpts.baseDir)
+	fmt.Printf("module prepared, now run/debug your module. Set environment variable $HANDLER_BASE_DIR to '%s'\n", prepareOpts.baseDir)
 
 	return nil
 }
@@ -69,13 +81,12 @@ func init() {
 	prepareCmd.Flags().StringVar(&prepareOpts.name, "name", "", "module name")
 	prepareCmd.Flags().StringSliceVar(&prepareOpts.eventTypes, "event-types", []string{}, "comma delimited string of valid event types for this module to publish")
 	prepareCmd.Flags().StringVar(&prepareOpts.eventID, "event-id", "", "module's event id")
-	prepareCmd.Flags().StringVar(&prepareOpts.correlationID, "correlation-id", "", "module's correlation id")
+	prepareCmd.Flags().StringVar(&prepareOpts.correlationID, "correlation-id", "dev", "module's correlation id")
 	prepareCmd.Flags().StringVar(&prepareOpts.parentEventID, "parent-event-id", "", "module's parent event id")
 
 	// Mark required flags
 	prepareCmd.MarkFlagRequired("name")            //nolint: errcheck
 	prepareCmd.MarkFlagRequired("event-types")     //nolint: errcheck
 	prepareCmd.MarkFlagRequired("event-id")        //nolint: errcheck
-	prepareCmd.MarkFlagRequired("correlation-id")  //nolint: errcheck
 	prepareCmd.MarkFlagRequired("parent-event-id") //nolint: errcheck
 }

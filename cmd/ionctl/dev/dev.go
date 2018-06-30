@@ -47,9 +47,15 @@ func Register() {
 	moduleCmd.AddCommand(initCmd)
 	moduleCmd.AddCommand(commitCmd)
 	moduleCmd.AddCommand(prepareCmd)
+	moduleCmd.AddCommand(listModulesCmd)
+	moduleCmd.AddCommand(selectCmd)
+
+	// Add event sub commands
+	eventCmd.AddCommand(listEventsCmd)
 
 	// Add event sub commands
 	devCmd.AddCommand(moduleCmd)
+	devCmd.AddCommand(eventCmd)
 
 	// Add event command to root
 	root.RootCmd.AddCommand(devCmd)

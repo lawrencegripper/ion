@@ -42,6 +42,13 @@ func Init(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("error creating module blob directory %s: %+v", inputBlobDir, err)
 		}
 	}
+	inputEventDir := filepath.FromSlash(filepath.Join(moduleDir, "_events"))
+	_, err = os.Stat(inputEventDir)
+	if err != nil {
+		if err := os.MkdirAll(inputEventDir, 0777); err != nil {
+			return fmt.Errorf("error creating module event directory %s: %+v", inputEventDir, err)
+		}
+	}
 
 	for _, file := range initOpts.files {
 		filename := filepath.Base(file)
@@ -51,10 +58,7 @@ func Init(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	correlationID := fmt.Sprintf("%v", uuid.NewV4())
-
-	fmt.Printf("parent-event-id: %s\n", moduleID)
-	fmt.Printf("correlation-id: %s\n", correlationID)
+	fmt.Printf("new parent event id: %s\n", moduleID)
 
 	return nil
 }
