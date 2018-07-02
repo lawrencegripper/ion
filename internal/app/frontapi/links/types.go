@@ -2,8 +2,10 @@ package links
 
 import (
 	"context"
+	"time"
 
 	"github.com/lawrencegripper/ion/internal/pkg/servicebus"
+	log "github.com/sirupsen/logrus"
 	"pack.ag/amqp"
 
 	"github.com/lawrencegripper/ion/internal/pkg/types"
@@ -24,6 +26,23 @@ func InitAmqp(cfg *types.Configuration, eventToSend string) {
 		panic(err)
 	}
 	amqpSender = newSender
+	// workaround for issue: https://github.com/lawrencegripper/ion/issues/128
+	go func() {
+		for {
+			time.Sleep(time.Duration(time.Minute * 9))
+			contextDeadline, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*2))
+			defer cancel()
+			err := newSender.Close(contextDeadline)
+			if err != nil {
+				log.WithError(err).Error("failed to close connection to renew link")
+			}
+			newSender, err := amqpClt.CreateAmqpSender(eventToSend)
+			if err != nil {
+				log.WithError(err).Panic("failed to estabilish connection to amqp")
+			}
+			amqpSender = newSender
+		}
+	}()
 }
 
 type request struct {
