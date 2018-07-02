@@ -19,16 +19,14 @@ fi
 echo "Tagging builds using account:"
 echo $DOCKER_USER
 
-docker tag ion-dispatcher:latest $DOCKER_USER/ion-dispatcher:v0.1.$TRAVIS_BUILD_NUMBER
-docker tag ion-dispatcher:latest $DOCKER_USER/ion-dispatcher:latest
-docker tag ion-handler:latest $DOCKER_USER/ion-handler:v0.1.$TRAVIS_BUILD_NUMBER
-docker tag ion-handler:latest $DOCKER_USER/ion-handler:latest
-docker tag ion-management:latest $DOCKER_USER/ion-management:v0.1.$TRAVIS_BUILD_NUMBER
-docker tag ion-management:latest $DOCKER_USER/ion-management:latest
+IMAGES=$(docker image ls | grep ion | grep -v / | awk '{print $1}')
 
-docker push $DOCKER_USER/ion-handler:v0.1.$TRAVIS_BUILD_NUMBER
-docker push $DOCKER_USER/ion-handler
-docker push $DOCKER_USER/ion-dispatcher:v0.1.$TRAVIS_BUILD_NUMBER
-docker push $DOCKER_USER/ion-dispatcher
-docker push $DOCKER_USER/ion-management:v0.1.$TRAVIS_BUILD_NUMBER
-docker push $DOCKER_USER/ion-management
+echo "Tagging images"
+echo "$IMAGES" | xargs -I % echo "Tagged $DOCKER_USER/%:latest"
+echo "$IMAGES" | xargs -I % docker tag % $DOCKER_USER/%:latest
+echo "$IMAGES" | xargs -I % echo "Tagged $DOCKER_USER/%:v0.1.$TRAVIS_BUILD_NUMBER"
+echo "$IMAGES" | xargs -I % docker tag % $DOCKER_USER/%:v0.1.$TRAVIS_BUILD_NUMBER
+
+echo "Pushing images"
+echo "$IMAGES" | xargs -I % docker push $DOCKER_USER/%:latest 
+echo "$IMAGES" | xargs -I % docker push $DOCKER_USER/%:v0.1.$TRAVIS_BUILD_NUMBER

@@ -1,5 +1,3 @@
-.PHONY: dependencies checks test dispatcher handler frontapi management
-
 all: dependencies checks test dispatcher handler frontapi management
 
 dependencies:
@@ -31,3 +29,5 @@ plan-tf:
 
 checks:
 	gometalinter --vendor --exclude=modules/helpers/Go/* --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline=15m ./...
+
+.PHONY: dependencies checks test dispatcher handler frontapi management

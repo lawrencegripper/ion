@@ -19,3 +19,5 @@ internal/app/management/client/client
 **/*.tfstate.*
 **/terraform-provider-*
 client
+ionctl
+frontapi

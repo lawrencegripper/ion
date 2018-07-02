@@ -18,6 +18,16 @@ variable "resource_group_location" {
   type        = "string"
 }
 
+variable "docker_root" {
+  description = "The root url for docker images 'docker_root/ion-management'"
+  default     = "dotjson"
+}
+
+variable "docker_tag" {
+  description = "The docker tag to use for image, this is normally the ion version"
+  default     = "latest"
+}
+
 variable "batch_dedicated_node_count" {
   description = "Number of dedicated nodes to provision in the batch pool"
   default     = "1"

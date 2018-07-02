@@ -98,6 +98,10 @@ variable "managementapi_docker_image" {
   description = "The docker image for the ion management api"
 }
 
+variable "frontapi_docker_image" {
+  description = "The docker image for the ion front api"
+}
+
 variable "dispatcher_docker_image" {
   description = "The docker image for the ion dispatcher service"
 }

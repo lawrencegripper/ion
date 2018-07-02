@@ -103,6 +103,7 @@ module "ion" {
   acr_username = "${module.acr.username}"
   acr_password = "${module.acr.password}"
 
-  managementapi_docker_image = "lawrencegripper/ion-management"
-  dispatcher_docker_image    = "dotjson/ion-dispatcher"
+  managementapi_docker_image = "${var.docker_root}/ion-management:${var.docker_tag}"
+  dispatcher_docker_image    = "${var.docker_root}/ion-dispatcher:${var.docker_tag}"
+  frontapi_docker_image      = "${var.docker_root}/ion-frontapi:${var.docker_tag}"
 }

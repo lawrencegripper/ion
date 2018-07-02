@@ -7,6 +7,116 @@ provider "kubernetes" {
   cluster_ca_certificate = "${var.cluster_ca}"
 }
 
+resource "kubernetes_deployment" "ion-front-api" {
+  metadata {
+    name = "ion-front-api"
+  }
+
+  spec {
+    selector {
+      app = "ion-front-api"
+    }
+
+    template {
+      metadata {
+        labels {
+          app = "ion-front-api"
+        }
+      }
+
+      spec {
+        container {
+          name  = "frontapi"
+          image = "${var.frontapi_docker_image}"
+
+          args = [
+            "serve",
+            "--printconfig",
+            "--loglevel=debug",
+          ]
+
+          port {
+            container_port = 9001
+            protocol       = "TCP"
+            name           = "apiport"
+          }
+
+          env = [
+            {
+              name  = "PRINTCONFIG"
+              value = "true"
+            },
+            {
+              name  = "PORT"
+              value = "9001"
+            },
+            {
+              name  = "MODULENAME"
+              value = "frontapi"
+            },
+            {
+              name  = "SUBSCRIBESTOEVENT"
+              value = "none"
+            },
+            {
+              name  = "EVENTSPUBLISHED"
+              value = "frontapi.new_link"
+            },
+            {
+              name  = "CLIENTID"
+              value = "${var.client_id}"
+            },
+            {
+              name  = "CLIENTSECRET"
+              value = "${var.client_secret}"
+            },
+            {
+              name  = "SUBSCRIPTIONID"
+              value = "${var.subscription_id}"
+            },
+            {
+              name  = "TENANTID"
+              value = "${var.tenant_id}"
+            },
+            {
+              name  = "RESOURCEGROUP"
+              value = "${var.resource_group_name}"
+            },
+            {
+              name  = "MONGODB_COLLECTION"
+              value = "${var.cosmos_db_name}"
+            },
+            {
+              name  = "MONGODB_NAME"
+              value = "${var.cosmos_name}"
+            },
+            {
+              name  = "MONGODB_PASSWORD"
+              value = "${var.cosmos_key}"
+            },
+            {
+              name  = "MONGODB_PORT"
+              value = "10255"
+            },
+            {
+              name  = "MONGODB_USERNAME"
+              value = "${var.cosmos_name}"
+            },
+            {
+              name  = "SERVICEBUSNAMESPACE"
+              value = "${var.servicebus_name}"
+            },
+            {
+              name  = "LOGLEVEL"
+              value = "DEBUG"
+            },
+          ]
+        }
+      }
+    }
+  }
+}
+
 resource "kubernetes_deployment" "ion-management-api" {
   metadata {
     name = "ion-management-api"
