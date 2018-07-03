@@ -1,4 +1,5 @@
-all: dependencies checks test dispatcher handler frontapi management example-modules
+.PHONY: all
+all: dependencies checks test dispatcher handler frontapi management ioncli example-modules
 
 dependencies:
 	dep ensure -v --vendor-only
@@ -8,6 +9,9 @@ test:
 
 integration:
 	go test ./...
+
+ioncli:
+	make -f build/ion/Makefile.Docker
 
 dispatcher:
 	make -f build/dispatcher/Makefile.Docker
@@ -32,5 +36,3 @@ plan-tf:
 
 checks:
 	gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline=15m ./...
-
-.PHONY: dependencies checks test dispatcher handler frontapi management

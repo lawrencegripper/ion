@@ -1,7 +1,7 @@
 package event
 
 import (
-	"github.com/lawrencegripper/ion/cmd/ionctl/root"
+	"github.com/lawrencegripper/ion/cmd/ion/root"
 
 	"github.com/spf13/cobra"
 )

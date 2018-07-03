@@ -3,7 +3,7 @@ package module
 import (
 	"context"
 	"fmt"
-	"github.com/lawrencegripper/ion/cmd/ionctl/root"
+	"github.com/lawrencegripper/ion/cmd/ion/root"
 	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 
 	"github.com/spf13/cobra"
