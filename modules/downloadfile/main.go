@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -35,19 +34,31 @@ func downloadFile(url, filepath string) error {
 }
 
 func main() {
-	filename := env.OutputDataDir + "/file.raw"
+	env.MakeOutputDirs()
 
-	dat, _ := ioutil.ReadFile(env.InputDataDir + "/link.txt")
-	link := string(dat)
+	filename := env.OutputDataDir() + "/file.raw"
+
+	eventMeta, err := events.ReadEventMetaData()
+	if err != nil {
+		panic(err)
+	}
+
+	eventMetaMap := eventMeta.AsMap()
+	if _, exist := eventMetaMap["url"]; !exist {
+		log.Fatal("No link found")
+		return
+	}
+
+	link := eventMetaMap["url"]
 
 	if link == "" {
-		log.Fatal("No link found")
+		log.Fatal("Empty link found")
 		return
 	}
 
 	log.Debug("Downloading link: " + link)
 
-	err := downloadFile(link, filename)
+	err = downloadFile(link, filename)
 	if err != nil {
 		log.Info(err.Error())
 		return

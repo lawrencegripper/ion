@@ -250,7 +250,8 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		if eventType == "" {
 			return fmt.Errorf("all events must contain an 'eventType' field, error: '%+v'", err)
 		}
-		if err := keyValuePairs.Remove(eventTypeIndex); err != nil {
+		keyValuePairs, err = keyValuePairs.Remove(eventTypeIndex)
+		if err != nil {
 			return fmt.Errorf("error removing event type from metadata: '%+v'", err)
 		}
 		itemsRemoved++
@@ -264,7 +265,8 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		if len(includedFilesCSV) == 0 {
 			logger.Info(c.context, "Event contains no file references")
 		} else {
-			if err := keyValuePairs.Remove(filesIndex - itemsRemoved); err != nil {
+			keyValuePairs, err = keyValuePairs.Remove(filesIndex - itemsRemoved)
+			if err != nil {
 				return fmt.Errorf("error removing event type from metadata: '%+v'", err)
 			}
 			itemsRemoved++

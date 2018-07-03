@@ -17,7 +17,7 @@ func Fire(events []Event) {
 	i := 0
 	for _, ev := range events {
 		b, _ := json.Marshal(ev)
-		f, _ := os.Create(env.EventDir + "/event-" + strconv.Itoa(i) + ".json")
+		f, _ := os.Create(env.EventDir() + "/event-" + strconv.Itoa(i) + ".json")
 		defer f.Close()
 		f.Write(b)
 		i = i + 1
