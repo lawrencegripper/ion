@@ -1,4 +1,4 @@
-all: dependencies checks test dispatcher handler frontapi management
+all: dependencies checks test dispatcher handler frontapi management example-modules
 
 dependencies:
 	dep ensure -v --vendor-only
@@ -20,6 +20,9 @@ management:
 	
 frontapi:
 	make -f build/frontapi/Makefile.Docker
+
+example-modules:
+	 make -f modules/example/Makefile.Docker && make -f modules/downloadfile/Makefile.Docker
 
 check-tf:
 	terraform init ./deployment && terraform validate -var-file=./deployment/vars.example.tfvars ./deployment/

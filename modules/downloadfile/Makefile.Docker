@@ -1,0 +1,2 @@
+all:
+	docker build -f modules/downloadfile/Dockerfile -t ion-module-download-file .
