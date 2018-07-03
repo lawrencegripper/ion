@@ -32,7 +32,6 @@ type Kubernetes struct {
 	AzureServiceBusSecretRef  string
 	MongoDBSecretRef          string
 	DispatcherImageName       string
-	DispatcherImageTag        string
 	ID                        string
 }
 
@@ -53,7 +52,6 @@ func NewKubernetesManagementServer(config *types.Configuration) (*Kubernetes, er
 
 	k.ID = "management-api"
 	k.DispatcherImageName = config.DispatcherImage
-	k.DispatcherImageTag = config.DispatcherImageTag
 
 	var err error
 	k.client, err = getClientSet()
@@ -231,8 +229,8 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 		"--subscribestoevent=" + r.Eventsubscriptions,
 		"--eventspublished=" + r.Eventpublications,
 		"--azurebatch.enabled=" + strconv.FormatBool(useAzureBatchProvider),
-		"--job.workerimage=" + r.Moduleimage + ":" + r.Moduleimagetag,
-		"--job.handlerimage=" + r.Handlerimage + ":" + r.Handlerimagetag,
+		"--job.workerimage=" + r.Moduleimage,
+		"--job.handlerimage=" + r.Handlerimage,
 		"--job.retrycount=" + fmt.Sprintf("%d", r.Retrycount),
 		"--job.pullalways=false",
 		"--kubernetes.namespace=" + k.namespace,
@@ -273,7 +271,7 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 					Containers: []apiv1.Container{
 						{
 							Name:  "ion-dispatcher",
-							Image: fmt.Sprintf("%s:%s", k.DispatcherImageName, k.DispatcherImageTag),
+							Image: k.DispatcherImageName,
 							Args:  dispatcherArgs,
 							EnvFrom: []apiv1.EnvFromSource{
 								{

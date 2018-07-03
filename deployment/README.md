@@ -29,3 +29,10 @@ chmod +x ./terraform-provider-kubernetes
 6. Use `az aks get-credentials` to connect to your new AKS cluster
 7. In kubectl run `kubectl port-forward ion-management-api-*** 9000:9000` (replace *** with your api pods name)
 8. Connect to the API using the client and create modules!
+
+## Deploying a module
+
+The cli can be used to deploy modules into the cluster. 
+
+1. Forward the port 9000 to your management API instance `kubectl port-forward ion-management-api-**** 9000:9000`
+2. Deploy a module as follows: `docker run --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m ion-module-download-file -p kubernetes`

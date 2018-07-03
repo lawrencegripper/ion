@@ -3,11 +3,10 @@ package module
 import (
 	"context"
 	"fmt"
-	"github.com/lawrencegripper/ion/cmd/ion/root"
+
 	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var provider string
@@ -26,22 +25,14 @@ var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a module in ion",
 	Run: func(cmd *cobra.Command, args []string) {
-		conn, err := grpc.Dial(root.ManagementAPIEndpoint, grpc.WithInsecure())
-		if err != nil {
-			fmt.Println(fmt.Sprintf("failed to dial server: %+v", err))
-			return
-		}
-		cl := module.NewModuleServiceClient(conn)
-
+		cl := getConnection()
 		// Create new module
 		createRequest := &module.ModuleCreateRequest{
 			Modulename:         name,
 			Eventsubscriptions: eventSubscriptions,
 			Eventpublications:  eventPublications,
 			Moduleimage:        moduleImage,
-			Moduleimagetag:     "latest",
 			Handlerimage:       handlerImage,
-			Handlerimagetag:    "latest",
 			Instancecount:      instanceCount,
 			Retrycount:         retryCount,
 			Provider:           provider,

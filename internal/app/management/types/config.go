@@ -7,7 +7,6 @@ type Configuration struct {
 	Port                              int
 	Namespace                         string
 	DispatcherImage                   string
-	DispatcherImageTag                string
 	ContainerImageRegistryURL         string
 	ContainerImageRegistryUsername    string
 	ContainerImageRegistryPassword    string

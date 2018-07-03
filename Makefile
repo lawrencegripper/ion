@@ -1,5 +1,5 @@
 .PHONY: all
-all: dependencies checks test dispatcher handler frontapi management ioncli example-modules
+all: dependencies checks test compile-grpc dispatcher handler frontapi management ioncli example-modules
 
 dependencies:
 	dep ensure -v --vendor-only
@@ -31,8 +31,11 @@ example-modules:
 check-tf:
 	terraform init ./deployment && terraform validate -var-file=./deployment/vars.example.tfvars ./deployment/
 
+checks:
+	gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline=15m ./...
+
 plan-tf:
 	terraform plan -var-file=./deployment/vars.example.tfvars ./deployment
 
-checks:
-	gometalinter --vendor --disable-all --enable=errcheck --enable=vet --enable=gofmt --enable=golint --enable=deadcode --enable=varcheck --enable=structcheck --deadline=15m ./...
+compile-grpc:
+	cd ./internal/pkg/management/module && rm *.pb.go && protoc -I . module.proto --go_out=plugins=grpc:. && cd -

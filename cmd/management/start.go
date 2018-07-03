@@ -32,7 +32,6 @@ func NewStartCommand() *cobra.Command {
 			managementConfig.Port = viper.GetInt("management-port")
 			managementConfig.Namespace = viper.GetString("namespace")
 			managementConfig.DispatcherImage = viper.GetString("dispatcher-image-name")
-			managementConfig.DispatcherImageTag = viper.GetString("dispatcher-image-tag")
 			managementConfig.AzureClientID = viper.GetString("azure-client-id")
 			managementConfig.AzureClientSecret = viper.GetString("azure-client-secret")
 			managementConfig.AzureSubscriptionID = viper.GetString("azure-subscription-id")
@@ -55,9 +54,6 @@ func NewStartCommand() *cobra.Command {
 			}
 			if managementConfig.DispatcherImage == "" {
 				return fmt.Errorf("--dispatcher-image-name is required")
-			}
-			if managementConfig.DispatcherImageTag == "" {
-				return fmt.Errorf("--dispatcher-image-tag is required")
 			}
 			if managementConfig.AzureClientID == "" {
 				return fmt.Errorf("--azure-client-id is required")
@@ -130,10 +126,6 @@ func NewStartCommand() *cobra.Command {
 	flags.String("dispatcher-image-name", "", "The container image name for the dispatcher")
 	cmd.MarkFlagRequired("dispatcher-image-name")
 	viper.BindPFlag("dispatcher-image-name", flags.Lookup("dispatcher-image-name"))
-
-	flags.String("dispatcher-image-tag", "", "The container image tag")
-	cmd.MarkFlagRequired("dispatcher-image-tag")
-	viper.BindPFlag("dispatcher-image-tag", flags.Lookup("dispatcher-image-tag"))
 
 	flags.String("azure-client-id", "", "Azure Service Principal Client ID")
 	cmd.MarkFlagRequired("azure-client-id")

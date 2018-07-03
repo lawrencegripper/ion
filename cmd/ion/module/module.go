@@ -1,8 +1,11 @@
 package module
 
 import (
+	"fmt"
 	"github.com/lawrencegripper/ion/cmd/ion/root"
+	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 )
 
 // moduleCmd represents the module command
@@ -20,4 +23,12 @@ to quickly create a Cobra application.`,
 // Register adds to root command
 func Register() {
 	root.RootCmd.AddCommand(moduleCmd)
+}
+
+func getConnection() module.ModuleServiceClient {
+	conn, err := grpc.Dial(root.ManagementAPIEndpoint, grpc.WithInsecure())
+	if err != nil {
+		panic(fmt.Sprintf("failed to dial server: %+v", err))
+	}
+	return module.NewModuleServiceClient(conn)
 }
