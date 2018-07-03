@@ -3,8 +3,9 @@
 package env
 
 const (
-	InputDataDir       = "in/data"
-	OutputDataDir      = "out/data"
-	OutputMetadataFile = "out/meta.json"
-	EventDir           = "out/events"
+	InputDataDir       = "/ion/in/data"
+	OutputDataDir      = "/ion/out/data"
+	OutputMetadataFile = "/ion/in/eventmeta.json"
+	EventDir           = "/ion/out/events"
+	InsightFile        = "/ion/out/insights.json"
 )
