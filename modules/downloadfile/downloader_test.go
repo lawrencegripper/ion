@@ -12,6 +12,7 @@ import (
 func TestDownloaderModule(t *testing.T) {
 	tempdir := path.Join(os.TempDir(), uuid.NewV4().String())
 	os.MkdirAll(tempdir, 0777)
+	defer os.RemoveAll(tempdir)
 
 	eventMetaFileBytes, err := ioutil.ReadFile("./testdata/eventmeta.json")
 	if err != nil {
@@ -46,6 +47,26 @@ func TestDownloaderModule(t *testing.T) {
 				fileDownloaded = true
 			}
 		}
+	}
+
+	outEventsFilePath := path.Join(tempdir, "out", "events")
+	eventFiles, _ := ioutil.ReadDir(outEventsFilePath)
+	if len(eventFiles) != 1 {
+		t.Error("Events not raised as expected")
+		t.Error(eventFiles)
+		return
+	}
+
+	expectedEvenFileData, _ := ioutil.ReadFile("./testdata/expectedEventFile.json")
+	eventFileData, err := ioutil.ReadFile(path.Join(env.EventDir(), eventFiles[0].Name()))
+	if err != nil {
+		t.Error("Failed reading event file")
+		t.Error(err)
+	}
+
+	if string(expectedEvenFileData) != string(eventFileData) {
+		t.Error("Event file doesn't contain expected json")
+		t.Log(string(eventFileData))
 	}
 
 	if !fileDownloaded {

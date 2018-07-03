@@ -10,7 +10,7 @@ import (
 	"io/ioutil"
 )
 
-// ReadEvetMetaData return the event metadata for the event which triggered the module
+//ReadEventMetaData return the event metadata for the event which triggered the module
 // this will commonly contain useful information from the parent event
 func ReadEventMetaData() (*common.KeyValuePairs, error) {
 	dat, err := ioutil.ReadFile(env.InputEventMetaFile())

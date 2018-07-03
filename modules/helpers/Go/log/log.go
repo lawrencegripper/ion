@@ -1,3 +1,4 @@
+//nolint: golint
 package log
 
 import (
@@ -6,6 +7,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 )
 
+//DebugMode sets log level to debug
 var DebugMode = false
 
 func init() {

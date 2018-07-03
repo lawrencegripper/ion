@@ -1,5 +1,3 @@
-//nolint: golint
-
 package env
 
 import (
@@ -9,12 +7,19 @@ import (
 )
 
 var (
-	IonBaseDir         = "/ion"
-	InputDataDir       = func() string { return path.Join(IonBaseDir, "in", "data") }
+	//IonBaseDir The base directory for ion files
+	IonBaseDir = "/ion"
+	//InputDataDir holds blob data from the parent module
+	InputDataDir = func() string { return path.Join(IonBaseDir, "in", "data") }
+	//InputEventMetaFile holds meta data from the parent module
 	InputEventMetaFile = func() string { return path.Join(IonBaseDir, "in", "eventmeta.json") }
-	OutputDataDir      = func() string { return path.Join(IonBaseDir, "out", "data") }
-	EventDir           = func() string { return path.Join(IonBaseDir, "out", "events") }
-	InsightFile        = func() string { return path.Join(IonBaseDir, "out", "insights.json") }
+	//OutputDataDir is used to store blob data outputted by this module
+	OutputDataDir = func() string { return path.Join(IonBaseDir, "out", "data") }
+	//EventDir is used to store events this module will raise
+	EventDir = func() string { return path.Join(IonBaseDir, "out", "events") }
+	//InsightFile is used to track insights the module has identified, for example a person seen or a object identified.
+	// these are tracked against the correlationID and can be queried.
+	InsightFile = func() string { return path.Join(IonBaseDir, "out", "insights.json") }
 )
 
 func init() {
@@ -27,6 +32,7 @@ func init() {
 
 }
 
+//MakeOutputDirs creates all the output dirs that an ion module can use.
 func MakeOutputDirs() {
 	err := os.MkdirAll(OutputDataDir(), 0777)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/events"
@@ -36,7 +37,8 @@ func downloadFile(url, filepath string) error {
 func main() {
 	env.MakeOutputDirs()
 
-	filename := env.OutputDataDir() + "/file.raw"
+	downloadedFileName := "file.raw"
+	downloadedFilePath := path.Join(env.OutputDataDir(), downloadedFileName)
 
 	eventMeta, err := events.ReadEventMetaData()
 	if err != nil {
@@ -58,7 +60,7 @@ func main() {
 
 	log.Debug("Downloading link: " + link)
 
-	err = downloadFile(link, filename)
+	err = downloadFile(link, downloadedFilePath)
 	if err != nil {
 		log.Info(err.Error())
 		return
@@ -67,7 +69,7 @@ func main() {
 	events.Fire([]events.Event{
 		{
 			Event: "file_downloaded",
-			File:  filename,
+			File:  downloadedFileName,
 		},
 	})
 }
