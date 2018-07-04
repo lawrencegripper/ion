@@ -175,12 +175,6 @@ func (k *Kubernetes) Reconcile() error {
 			if condition.Type == batchv1.JobComplete {
 				contextualLogger.Info("job successfully to execute in k8s")
 
-				//Remove the job from k8s
-				err = k.removeJob(&j)
-				if err != nil {
-					contextualLogger.Error("Failed to remove COMPLETED job from k8s")
-				}
-
 				err := sourceMessage.Accept()
 
 				if err != nil {
