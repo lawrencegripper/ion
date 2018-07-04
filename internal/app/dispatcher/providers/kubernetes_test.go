@@ -419,8 +419,8 @@ func (m MockMessage) ID() string {
 }
 
 // Body get the body
-func (m MockMessage) Body() interface{} {
-	return "body"
+func (m MockMessage) Body() []byte {
+	return []byte("body")
 }
 
 // Accept mark the message as processed successfully (don't re-queue)

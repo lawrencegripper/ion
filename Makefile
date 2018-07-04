@@ -1,5 +1,5 @@
 .PHONY: all
-all: dependencies checks test compile-grpc dispatcher handler frontapi management ioncli example-modules
+all: dependencies checks test dispatcher handler frontapi management ioncli example-modules
 
 dependencies:
 	dep ensure -v --vendor-only
@@ -20,6 +20,7 @@ handler:
 	make -f build/handler/Makefile.Docker
 
 management:
+	cd ./internal/pkg/management/module && rm *.pb.go && protoc -I . module.proto --go_out=plugins=grpc:. && cd -
 	make -f build/management/Makefile.Docker
 	
 frontapi:
@@ -36,6 +37,3 @@ checks:
 
 plan-tf:
 	terraform plan -var-file=./deployment/vars.example.tfvars ./deployment
-
-compile-grpc:
-	cd ./internal/pkg/management/module && rm *.pb.go && protoc -I . module.proto --go_out=plugins=grpc:. && cd -

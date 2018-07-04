@@ -35,13 +35,13 @@ type AmqpConnection struct {
 }
 
 // GetQueueDepth returns the current length of the sb queue
-func (l *AmqpConnection) GetQueueDepth() (*int64, error) {
+func (l *AmqpConnection) GetQueueDepth() (int64, error) {
 	sub, err := l.getSubscription()
-	if err != nil {
-		return nil, err
+	if err != nil || sub.MessageCount == nil {
+		return -1, err
 	}
 
-	return sub.MessageCount, nil
+	return *sub.MessageCount, nil
 }
 
 // Todo: Reconsider approach to error handling in this code.

@@ -2,6 +2,7 @@ package env
 
 import (
 	"github.com/lawrencegripper/ion/modules/helpers/Go/log"
+	logrus "github.com/sirupsen/logrus"
 	"os"
 	"path"
 )
@@ -36,14 +37,10 @@ func init() {
 func MakeOutputDirs() {
 	err := os.MkdirAll(OutputDataDir(), 0777)
 	if err != nil {
-		panic("Failed making output data dir")
+		logrus.WithError(err).Panic("Failed making output data dir")
 	}
 	err = os.MkdirAll(EventDir(), 0777)
 	if err != nil {
-		panic("Failed making output event dir")
-	}
-	err = os.MkdirAll(InsightFile(), 0777)
-	if err != nil {
-		panic("Failed making output insights dir")
+		logrus.WithError(err).Panic("Failed making output event dir")
 	}
 }

@@ -30,9 +30,10 @@ chmod +x ./terraform-provider-kubernetes
 7. In kubectl run `kubectl port-forward ion-management-api-*** 9000:9000` (replace *** with your api pods name)
 8. Connect to the API using the client and create modules!
 
-## Deploying a module
+## Deploying and running module
 
 The cli can be used to deploy modules into the cluster. 
 
-1. Forward the port 9000 to your management API instance `kubectl port-forward ion-management-api-**** 9000:9000`
+1. Forward the port 9000 to your management API instance `kubectl port-forward ion-management-api-**** 9000:9000` and `kubectl port-forward ion-front-api**** 9001:9001` (replace `****`'s with the name show in your cluster)
 2. Deploy a module as follows: `docker run --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m ion-module-download-file -p kubernetes`
+3. Run `curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://google.co.uk"}'   http://localhost:9001/`

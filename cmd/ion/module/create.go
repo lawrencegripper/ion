@@ -18,7 +18,6 @@ var retryCount int32
 var configMapFilepath string
 var moduleImage string
 var handlerImage string
-var handlerTag string
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
@@ -67,7 +66,6 @@ func init() {
 	createCmd.Flags().StringVar(&configMapFilepath, "config-map-file", "", "A .env file defining environment variables required by the module")
 
 	createCmd.Flags().StringVar(&handlerImage, "handler-image", "dotjson/ion-handler", "The docker image for your module")
-	createCmd.Flags().StringVar(&handlerTag, "handler-tag", "latest", "The tag to use for the handler docker image")
 	createCmd.Flags().StringVarP(&provider, "provider", "p", "kubernetes", "Provider for modules compute resouces (Kubernetes, AzureBatch)")
 	createCmd.Flags().Int32Var(&instanceCount, "instance-count", 1, "The number of dispatcher instance to create")
 	createCmd.Flags().Int32Var(&retryCount, "retry-count", 1, "The number of dispatcher instance to create")

@@ -14,7 +14,7 @@ import (
 type Message interface {
 	ID() string
 	DeliveryCount() int
-	Body() interface{}
+	Body() []byte
 	Accept() error
 	Reject() error
 	EventData() (common.Event, error)
@@ -48,8 +48,8 @@ func (m *AmqpMessage) ID() string {
 }
 
 // Body get the body
-func (m *AmqpMessage) Body() interface{} {
-	return m.OriginalMessage.Value
+func (m *AmqpMessage) Body() []byte {
+	return m.OriginalMessage.GetData()
 }
 
 // Accept mark the message as processed successfully (don't re-queue)
