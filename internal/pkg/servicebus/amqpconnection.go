@@ -34,14 +34,32 @@ type AmqpConnection struct {
 	getSubscription      func() (servicebus.SBSubscription, error)
 }
 
+// MessageCountDetails is a mirror of the SB SDK object but without pointers and things we don't need so logrus can
+// log the numbers correctly
+type MessageCountDetails struct {
+	// ActiveMessageCount - Number of active messages in the queue, topic, or subscription.
+	ActiveMessageCount int64
+	// DeadLetterMessageCount - Number of messages that are dead lettered.
+	DeadLetterMessageCount int64
+}
+
 // GetQueueDepth returns the current length of the sb queue
-func (l *AmqpConnection) GetQueueDepth() (int64, error) {
+func (l *AmqpConnection) GetQueueDepth() (MessageCountDetails, error) {
 	sub, err := l.getSubscription()
 	if err != nil || sub.MessageCount == nil {
-		return -1, err
+		return MessageCountDetails{}, err
 	}
 
-	return *sub.MessageCount, nil
+	details := sub.CountDetails
+	detailsPointerless := MessageCountDetails{}
+	if details.ActiveMessageCount != nil {
+		detailsPointerless.ActiveMessageCount = *details.ActiveMessageCount
+	}
+	if details.DeadLetterMessageCount != nil {
+		detailsPointerless.DeadLetterMessageCount = *details.DeadLetterMessageCount
+	}
+
+	return detailsPointerless, nil
 }
 
 // Todo: Reconsider approach to error handling in this code.

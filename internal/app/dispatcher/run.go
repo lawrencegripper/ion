@@ -72,11 +72,11 @@ func Run(cfg *types.Configuration) {
 			}
 
 			contextualLogger.Debug("message dispatched")
-			queueDepth, err := amqpConnection.GetQueueDepth()
+			queueStats, err := amqpConnection.GetQueueDepth()
 			if err != nil {
 				log.WithError(err).Error("failed getting queue depth from listener")
 			}
-			log.WithField("queueCount", queueDepth).Info("listenerStats")
+			log.WithField("activeMessageCount", queueStats.ActiveMessageCount).WithField("deadLetteredMessageCount", queueStats.DeadLetterMessageCount).Info("listenerStats")
 		}
 	}()
 

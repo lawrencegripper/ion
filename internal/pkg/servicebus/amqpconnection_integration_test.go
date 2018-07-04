@@ -55,14 +55,13 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = sender.Send(ctx, &amqp.Message{
-		Value: nonce,
-	})
+	err = sender.Send(ctx, amqp.NewMessage([]byte(nonce)))
 	if err != nil {
 		t.Error(err)
 	}
 
-	depth, err := listener.GetQueueDepth()
+	stats, err := listener.GetQueueDepth()
+	depth := stats.ActiveMessageCount
 	if err != nil || depth == -1 {
 		t.Error("Failed to get queue depth")
 		t.Error(err)
@@ -85,7 +84,8 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Body())
 	}
 
-	depth, err = listener.GetQueueDepth()
+	stats, err = listener.GetQueueDepth()
+	depth = stats.ActiveMessageCount
 	if err != nil || depth == -1 {
 		t.Error("Failed to get queue depth")
 		t.Error(err)
