@@ -81,7 +81,7 @@ func main() {
 	handler.WriteEvents([]handler.Event{
 		{
 			Event: "file_downloaded",
-			File:  downloadedFileName,
+			Files: []string{downloadedFileName},
 		},
 	})
 }

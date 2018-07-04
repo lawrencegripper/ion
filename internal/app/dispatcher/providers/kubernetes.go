@@ -122,7 +122,6 @@ func (k *Kubernetes) Reconcile() error {
 		}
 
 		sourceMessage, ok := k.inflightJobStore[messageID]
-		contextualLogger = GetLoggerForMessage(sourceMessage, contextualLogger)
 		// If we don't have a message in flight for this job check some error cases
 		if !ok {
 			dipatcherName, ok := j.Labels[dispatcherNameLabel]
@@ -156,6 +155,7 @@ func (k *Kubernetes) Reconcile() error {
 			continue
 		}
 
+		contextualLogger = GetLoggerForMessage(sourceMessage, contextualLogger)
 		for _, condition := range j.Status.Conditions {
 			// Job failed - reject the message so it goes back on the queue to be retried
 			if condition.Type == batchv1.JobFailed {

@@ -2,18 +2,18 @@ package handler
 
 import (
 	"encoding/json"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
+	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
-
-	"github.com/lawrencegripper/ion/internal/pkg/common"
-	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
+	"strings"
 )
 
 //Event is an event to be raised by the module
 type Event struct {
-	Event string `json:"event_type"`
-	File  string `json:"file"`
+	Event string   `json:"event_type"`
+	Files []string `json:"file"`
 }
 
 //Insights an array of keyValuePair
@@ -22,19 +22,19 @@ type Insights []Insight
 //Insight wrapper for common.KeyValuePair
 type Insight common.KeyValuePair
 
-//Fire creates an event file in the ion event dir which will be raise when
+//WriteEvents creates an event file in the ion event dir which will be raise when
 // the module exits with a non-zero exit code
 func WriteEvents(events []Event) {
 	i := 0
 	for _, ev := range events {
 		b, err := json.Marshal(common.KeyValuePairs{
 			common.KeyValuePair{
-				Key:   "event_type",
+				Key:   "eventType",
 				Value: ev.Event,
 			},
 			common.KeyValuePair{
-				Key:   "file",
-				Value: ev.File,
+				Key:   "files",
+				Value: strings.Join(ev.Files, ","),
 			},
 		})
 		if err != nil {

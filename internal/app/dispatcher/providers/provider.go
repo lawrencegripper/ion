@@ -14,5 +14,8 @@ type Provider interface {
 
 //GetLoggerForMessage Adds context fields to the logger for the message
 func GetLoggerForMessage(message messaging.Message, l *log.Entry) *log.Entry {
+	if message == nil {
+		return l.WithField("inputError", "nil message provided to 'getloggerformessage' func")
+	}
 	return l.WithField("messagebody", string(message.Body())).WithField("messageID", message.ID())
 }
