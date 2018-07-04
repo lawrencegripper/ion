@@ -63,15 +63,13 @@ func TestIntegrationNewListener(t *testing.T) {
 	}
 
 	depth, err := listener.GetQueueDepth()
-	if err != nil || depth == nil {
+	if err != nil || depth == -1 {
 		t.Error("Failed to get queue depth")
 		t.Error(err)
 	}
 
-	derefDepth := *depth
-
-	if derefDepth != 1 {
-		t.Errorf("Expected queue depth of 1 Got:%v", derefDepth)
+	if depth != 1 {
+		t.Errorf("Expected queue depth of 1 Got:%v", depth)
 		t.Fail()
 	}
 
@@ -83,20 +81,18 @@ func TestIntegrationNewListener(t *testing.T) {
 	message := messaging.NewAmqpMessageWrapper(amqpMessage)
 
 	message.Accept()
-	if message.Body().(string) != nonce {
+	if string(message.Body()) != nonce {
 		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Body())
 	}
 
 	depth, err = listener.GetQueueDepth()
-	if err != nil || depth == nil {
+	if err != nil || depth == -1 {
 		t.Error("Failed to get queue depth")
 		t.Error(err)
 	}
 
-	derefDepth = *depth
-
-	if derefDepth != 0 {
-		t.Errorf("Expected queue depth of 0 Got:%v", derefDepth)
+	if depth != 0 {
+		t.Errorf("Expected queue depth of 0 Got:%v", depth)
 		t.Fail()
 	}
 }
