@@ -32,8 +32,7 @@ func Process(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	event := common.Event{
-		PreviousStages: []string{},
-		Type:           eventType,
+		Type: eventType,
 		Context: &common.Context{
 			CorrelationID: uuid.Must(uuid.NewV4(), nil).String(),
 			ParentEventID: "",

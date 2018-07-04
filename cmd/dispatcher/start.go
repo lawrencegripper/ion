@@ -10,6 +10,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 // NewCmdStart return cobra.Command to run ion-disptacher start command
@@ -18,6 +19,9 @@ func NewCmdStart() *cobra.Command {
 		Use:   "start",
 		Short: "Instanciate the dispatcher to process events",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			viper.AutomaticEnv()
+
 			// Fill config with command settings
 			cfg.ClientID = viper.GetString("clientid")
 			cfg.ClientSecret = viper.GetString("clientsecret")

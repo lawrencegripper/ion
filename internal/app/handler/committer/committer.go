@@ -3,6 +3,7 @@ package committer
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"io/ioutil"
 	"os"
 	"path"
@@ -34,19 +35,23 @@ type Committer struct {
 	executionID     string
 	validEventTypes []string
 
-	baseDir         string
-	developmentFlag bool
+	baseDir   string
+	devConfig *development.Configuration
 }
 
 // NewCommitter creates a new committer instance
-func NewCommitter(baseDir string, developmentFlag bool) *Committer {
+func NewCommitter(baseDir string, devCfg *development.Configuration) *Committer {
 	if baseDir == "" {
 		baseDir = "/ion/"
 	}
 
+	if devCfg == nil {
+		devCfg = &development.Configuration{}
+	}
+
 	committer := &Committer{
-		baseDir:         baseDir,
-		developmentFlag: developmentFlag,
+		baseDir:   baseDir,
+		devConfig: devCfg,
 	}
 
 	return committer
@@ -80,7 +85,7 @@ func (c *Committer) Commit(context *common.Context, dataPlane *dataplane.DataPla
 
 // Close cleans up any external resources
 func (c *Committer) Close() {
-	logger.Info(c.context, "Cleaning up handler")
+	logger.Info(c.context, "cleaning up handler")
 
 	_ = c.environment.Clear()
 	defer c.dataPlane.Close()
@@ -88,34 +93,34 @@ func (c *Committer) Close() {
 
 // Commit is called when the module is finished and wishes to commit their state to an external provider
 func (c *Committer) doCommit() error {
-	logger.Info(c.context, "Committing module's environment to the data plane")
+	logger.Info(c.context, "committing module's environment to the data plane")
 
 	// Commit blob data to an external blob store
 	blobURIs, err := c.commitBlob(c.environment.OutputBlobDirPath)
 	if err != nil {
-		return fmt.Errorf("Error committing blob data: %+v", err)
+		return fmt.Errorf("error committing blob data: %+v", err)
 	}
 
 	// Commit metadata to an external document store
 	err = c.commitInsights(c.environment.OutputMetaFilePath)
 	if err != nil {
-		return fmt.Errorf("Error committing meta data: %+v", err)
+		return fmt.Errorf("error committing meta data: %+v", err)
 	}
 
 	// Commit events to an external messaging system
 	err = c.commitEvents(c.environment.OutputEventsDirPath, blobURIs)
 	if err != nil {
-		return fmt.Errorf("Error committing events: %+v", err)
+		return fmt.Errorf("error committing events: %+v", err)
 	}
 
 	// If developmentFlag enabled, dump out an empty
 	// file to indicate environment committed.
-	if c.developmentFlag {
+	if c.devConfig.Enabled {
 		var empty struct{}
-		_ = helpers.WriteDevFile("committed", c.context.EventID, empty)
+		_ = c.devConfig.WriteOutput("committed", empty)
 	}
 
-	logger.Info(c.context, "Successfully committed module's environment to the data plane")
+	logger.Info(c.context, "successfully committed module's environment to the data plane")
 	return nil
 }
 
@@ -140,7 +145,7 @@ func (c *Committer) commitBlob(blobsPath string) (map[string]string, error) {
 		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
 
-	logger.Info(c.context, "Committed blob data")
+	logger.Info(c.context, "committed blob data")
 	return blobURIs, nil
 }
 
@@ -173,11 +178,11 @@ func (c *Committer) commitInsights(insightsPath string) error {
 		return fmt.Errorf("failed to add insights document '%+v' with error: '%+v'", m, err)
 	}
 
-	if c.developmentFlag {
-		_ = helpers.WriteDevFile("insights.json", c.context.EventID, insight)
+	if c.devConfig.Enabled {
+		_ = c.devConfig.WriteInsight("insights.json", insight)
 	}
 
-	logger.Info(c.context, "Committed insights data")
+	logger.Info(c.context, "committed insights data")
 	return nil
 }
 
@@ -263,7 +268,7 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		// blob uri for each of the files to the event context.
 		var fileSlice []string
 		if len(includedFilesCSV) == 0 {
-			logger.Info(c.context, "Event contains no file references")
+			logger.Info(c.context, "event contains no file references")
 		} else {
 			keyValuePairs, err = keyValuePairs.Remove(filesIndex - itemsRemoved)
 			if err != nil {
@@ -298,9 +303,8 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		// This will embed the context
 		// created above.
 		event := common.Event{
-			Context:        context,
-			PreviousStages: []string{},
-			Type:           eventType,
+			Context: context,
+			Type:    eventType,
 		}
 
 		// Create event metadata that
@@ -323,12 +327,12 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		if err != nil {
 			return fmt.Errorf("failed to publish event '%+v' with error '%+v'", event, err)
 		}
-		if c.developmentFlag {
-			_ = helpers.WriteDevFile("context_"+fileName, c.context.EventID, eventMeta)
-			_ = helpers.WriteDevFile("event_"+fileName, c.context.EventID, event)
+		if c.devConfig.Enabled {
+			_ = c.devConfig.WriteMetadata(fileName, eventMeta)
+			_ = c.devConfig.WriteEvent(fileName, event)
 		}
 	}
 
-	logger.Info(c.context, "Committed events")
+	logger.Info(c.context, "committed events")
 	return nil
 }

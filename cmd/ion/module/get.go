@@ -3,28 +3,48 @@ package module
 import (
 	"fmt"
 
+	"context"
+	"encoding/json"
+	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"github.com/spf13/cobra"
 )
+
+type getOptions struct {
+	name string
+}
+
+var getOpts getOptions
 
 // getCmd represents the get command
 var getCmd = &cobra.Command{
 	Use:   "get",
-	Short: "Get a module from ion",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("get called")
-	},
+	Short: "get a module from ion",
+	RunE:  Get,
+}
+
+// Get an ion module
+func Get(cmd *cobra.Command, args []string) error {
+
+	getRequest := &module.ModuleGetRequest{
+		Name: getOpts.name,
+	}
+	getResponse, err := Client.Get(context.Background(), getRequest)
+	if err != nil {
+		return fmt.Errorf("failed to get module %s with error %+v", getOpts.name, err)
+	}
+	b, err := json.Marshal(getResponse)
+	if err != nil {
+		return fmt.Errorf("error parsing response from server %+v", err)
+	}
+	fmt.Println(string(b))
+	return nil
 }
 
 func init() {
-	moduleCmd.AddCommand(getCmd)
 
-	// Here you will define your flags and configuration settings.
+	// Local flags for the get command
+	getCmd.Flags().StringVarP(&getOpts.name, "name", "n", "", "the module name")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// getCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// getCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Mark required flags
+	getCmd.MarkFlagRequired("name") //nolint: errcheck
 }

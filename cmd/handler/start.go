@@ -8,6 +8,7 @@ import (
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 // NewStartCommand create the start command with its flags
@@ -16,7 +17,10 @@ func NewStartCommand() *cobra.Command {
 		Use:   "start",
 		Short: "ion-handler to embed in the processing",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			handlerConfig.BaseDir = handlerCmdConfig.GetString("base-dir")
+			handlerCmdConfig.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+			handlerCmdConfig.AutomaticEnv()
+
+			handlerConfig.BaseDir = handlerCmdConfig.GetString("basedir")
 			handlerConfig.Action = handlerCmdConfig.GetString("action")
 			handlerConfig.ValidEventTypes = handlerCmdConfig.GetString("valideventtypes")
 
@@ -62,9 +66,9 @@ func NewStartCommand() *cobra.Command {
 	}
 
 	flags := cmd.PersistentFlags()
-	flags.StringP("base-dir", "b", "./", "This base directory to use to store local files")
-	cmd.MarkFlagRequired("base-dir")
-	handlerCmdConfig.BindPFlag("base-dir", flags.Lookup("base-dir"))
+	flags.StringP("basedir", "b", "./", "This base directory to use to store local files")
+	cmd.MarkFlagRequired("basedir")
+	handlerCmdConfig.BindPFlag("basedir", flags.Lookup("basedir"))
 
 	flags.StringP("action", "a", "", "The action for the handler to perform (prepare or commit)")
 	cmd.MarkFlagRequired("action")

@@ -7,9 +7,6 @@ const (
 	// Commit indicates a commit action
 	Commit = "commit"
 
-	// DevBaseDir is the base directory for dev output
-	DevBaseDir = ".dev"
-
 	// InputBlobDir is the input blob data directory
 	InputBlobDir = "in/data"
 

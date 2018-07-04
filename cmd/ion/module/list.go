@@ -3,28 +3,31 @@ package module
 import (
 	"fmt"
 
+	"context"
+	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"github.com/spf13/cobra"
 )
 
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List currently running modules in ion",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("list called")
-	},
+	Short: "list currently running modules in ion",
+	RunE:  List,
 }
 
-func init() {
-	moduleCmd.AddCommand(listCmd)
+// List all the current ion modules managed by this client
+func List(cmd *cobra.Command, args []string) error {
+	listRequest := &module.ModuleListRequest{}
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// listCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	fmt.Println("listing all modules")
+	listResponse, err := Client.List(context.Background(), listRequest)
+	if err != nil {
+		return fmt.Errorf("failed to list module: %+v", err)
+	}
+	for _, name := range listResponse.Names {
+		fmt.Printf("%s\n", name)
+	}
+	return nil
 }
+
+func init() {}

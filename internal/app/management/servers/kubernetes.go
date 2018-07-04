@@ -35,6 +35,10 @@ type Kubernetes struct {
 	ID                        string
 }
 
+const createdByLabel = "ion/createdBy"
+const moduleNameLabel = "ion/moduleName"
+const idLabel = "ion/id"
+
 var sharedServicesSecretName string
 var sharedImagePullSecretName string
 var logLevel string
@@ -83,7 +87,7 @@ func (k *Kubernetes) createSharedServicesSecret(config *types.Configuration) err
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sharedServicesSecretName,
 			Labels: map[string]string{
-				"createdBy": k.ID,
+				createdByLabel: k.ID,
 			},
 		},
 		StringData: map[string]string{
@@ -140,7 +144,7 @@ func (k *Kubernetes) createSharedImagePullSecret(config *types.Configuration) er
 			ObjectMeta: metav1.ObjectMeta{
 				Name: sharedImagePullSecretName,
 				Labels: map[string]string{
-					"createdBy": k.ID,
+					createdByLabel: k.ID,
 				},
 			},
 			Data: map[string][]byte{
@@ -198,9 +202,9 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: moduleConfigMapName,
 			Labels: map[string]string{
-				"createdBy":  k.ID,
-				"id":         id,
-				"moduleName": r.Modulename,
+				createdByLabel:  k.ID,
+				idLabel:         id,
+				moduleNameLabel: r.Modulename,
 			},
 		},
 		Data: map[string]string{
@@ -248,9 +252,9 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dispatcherDeploymentName,
 			Labels: map[string]string{
-				"createdBy":  k.ID,
-				"id":         dispatcherDeploymentName,
-				"moduleName": r.Modulename,
+				createdByLabel:  k.ID,
+				idLabel:         dispatcherDeploymentName,
+				moduleNameLabel: r.Modulename,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -327,7 +331,7 @@ func (k *Kubernetes) Delete(ctx context.Context, r *module.ModuleDeleteRequest) 
 	// Find deployments with matching label and delete them
 	deploymentsClient := k.client.AppsV1().Deployments(k.namespace)
 	deployments, err := deploymentsClient.List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("id=%s", r.Name),
+		LabelSelector: fmt.Sprintf("%s=%s", idLabel, r.Name),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing deployments with name %s", r.Name)
@@ -341,7 +345,7 @@ func (k *Kubernetes) Delete(ctx context.Context, r *module.ModuleDeleteRequest) 
 	// Find configmaps with matching label and delete them
 	configMapClient := k.client.CoreV1().ConfigMaps(k.namespace)
 	configmaps, err := configMapClient.List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("id=%s", r.Name),
+		LabelSelector: fmt.Sprintf("%s=%s", idLabel, r.Name),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing configmaps with name %s", r.Name)
@@ -365,7 +369,7 @@ func (k *Kubernetes) List(ctx context.Context, r *module.ModuleListRequest) (*mo
 	// Find deployments with matching label
 	deploymentsClient := k.client.AppsV1().Deployments(k.namespace)
 	deployments, err := deploymentsClient.List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("createdBy=%s", k.ID),
+		LabelSelector: fmt.Sprintf("%s=%s", createdByLabel, k.ID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing deployments with label %s", k.ID)

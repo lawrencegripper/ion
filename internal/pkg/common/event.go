@@ -38,10 +38,9 @@ func (kvps KeyValuePairs) Remove(index int) (KeyValuePairs, error) {
 
 //Event the basic event data format
 type Event struct {
-	Context        *Context      `json:"context"`
-	Type           string        `json:"type"`
-	PreviousStages []string      `json:"previousStages"`
-	Data           KeyValuePairs `json:"data"`
+	Context *Context      `json:"context"`
+	Type    string        `json:"type"`
+	Data    KeyValuePairs `json:"data,omitempty"`
 }
 
 //Context carries the data for configuring the module

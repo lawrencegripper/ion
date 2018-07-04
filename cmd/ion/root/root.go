@@ -11,13 +11,12 @@ import (
 
 var cfgFile string
 
-//ManagementAPIEndpoint GRPC Endpoint for the management api
-var ManagementAPIEndpoint string
-
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "ionclt",
-	Short: "ionctl lets you easily work with the ion system",
+	Use:     "ion",
+	Short:   "ion cli lets you easily work with the ion system",
+	PreRunE: Setup,
+	RunE:    Root,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -29,18 +28,21 @@ func Execute() {
 	}
 }
 
+// Root will run when no sub command is provided
+func Root(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
+}
+
+// Setup runs before the commands to initialise any global data
+func Setup(cmd *cobra.Command, args []string) error {
+	return nil
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	// Persistent flags shared by all subcommands
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ioncli.yaml)")
-	RootCmd.PersistentFlags().StringVar(&ManagementAPIEndpoint, "endpoint", "localhost:9000", "The Mangement api endpoint to use")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -65,6 +67,6 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		fmt.Println("using config file:", viper.ConfigFileUsed())
 	}
 }
