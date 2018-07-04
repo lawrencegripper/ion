@@ -21,3 +21,4 @@ internal/app/management/client/client
 client
 ionctl
 frontapi
+imagetag.temp

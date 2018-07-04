@@ -18,3 +18,7 @@ batch_low_priority_node_count = "2"
 
 // The number of nodes to create in the AKS cluster
 aks_node_count = "2"
+
+docker_root = "dotjson"
+
+docker_tag = "latest"

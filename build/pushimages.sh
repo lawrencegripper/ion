@@ -30,3 +30,8 @@ echo "$IMAGES" | xargs -I % docker tag % $DOCKER_USER/%:v0.1.$TRAVIS_BUILD_NUMBE
 echo "Pushing images"
 echo "$IMAGES" | xargs -I % docker push $DOCKER_USER/%:latest 
 echo "$IMAGES" | xargs -I % docker push $DOCKER_USER/%:v0.1.$TRAVIS_BUILD_NUMBER
+
+export ION_IMAGE_TAG=v0.1.$TRAVIS_BUILD_NUMBER
+
+echo "Tag for images exported to $ION_IMAGE_TAG"
+echo $ION_IMAGE_TAG > imagetag.temp
