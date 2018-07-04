@@ -122,7 +122,7 @@ func (k *Kubernetes) Reconcile() error {
 		}
 
 		sourceMessage, ok := k.inflightJobStore[messageID]
-		contextualLogger = getLoggerForMessage(sourceMessage, contextualLogger)
+		contextualLogger = GetLoggerForMessage(sourceMessage, contextualLogger)
 		// If we don't have a message in flight for this job check some error cases
 		if !ok {
 			dipatcherName, ok := j.Labels[dispatcherNameLabel]
@@ -360,10 +360,6 @@ func getLoggerForJob(job *batchv1.Job) *log.Entry {
 		entity = entity.WithField(messageIDLabel, m)
 	}
 	return entity
-}
-
-func getLoggerForMessage(message messaging.Message, l *log.Entry) *log.Entry {
-	return l.WithField("messagebody", string(message.Body())).WithField("messageID", message.ID())
 }
 
 func getClientSet() (*kubernetes.Clientset, error) {
