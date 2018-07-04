@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
+	"github.com/lawrencegripper/ion/modules/helpers/Go/handler"
 	"github.com/satori/go.uuid"
 	"io/ioutil"
 	"os"
@@ -67,6 +70,20 @@ func TestDownloaderModule(t *testing.T) {
 	if string(expectedEvenFileData) != string(eventFileData) {
 		t.Error("Event file doesn't contain expected json")
 		t.Log(string(eventFileData))
+	}
+
+	fmt.Println(path.Join(env.EventDir(), "out", "insights.json"))
+	insightsFileData, err := ioutil.ReadFile(path.Join(env.IonBaseDir, "out", "insights.json"))
+	insightsDeserialised := handler.Insights{}
+	err = json.Unmarshal(insightsFileData, &insightsDeserialised)
+	if err != nil {
+		t.Error("Failed deserialising insights file")
+		t.Error(err)
+		t.Log(string(insightsFileData))
+	}
+	if insightsDeserialised[0].Key != "downloadTimeSec" {
+		t.Error("Insights missing expected key")
+		t.Log(insightsDeserialised)
 	}
 
 	if !fileDownloaded {

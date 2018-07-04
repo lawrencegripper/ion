@@ -1,13 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path"
+	"time"
 
 	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
-	"github.com/lawrencegripper/ion/modules/helpers/Go/events"
+	"github.com/lawrencegripper/ion/modules/helpers/Go/handler"
 	"github.com/lawrencegripper/ion/modules/helpers/Go/log"
 )
 
@@ -40,7 +42,7 @@ func main() {
 	downloadedFileName := "file.raw"
 	downloadedFilePath := path.Join(env.OutputDataDir(), downloadedFileName)
 
-	eventMeta, err := events.ReadEventMetaData()
+	eventMeta, err := handler.ReadEventMetaData()
 	if err != nil {
 		panic(err)
 	}
@@ -60,13 +62,23 @@ func main() {
 
 	log.Debug("Downloading link: " + link)
 
+	start := time.Now()
+
 	err = downloadFile(link, downloadedFilePath)
+	elapsed := time.Since(start)
 	if err != nil {
 		log.Info(err.Error())
 		return
 	}
 
-	events.Fire([]events.Event{
+	handler.WriteInsights(handler.Insights{
+		handler.Insight{
+			Key:   "downloadTimeSec",
+			Value: fmt.Sprintf("%.6f", elapsed.Seconds()),
+		},
+	})
+
+	handler.WriteEvents([]handler.Event{
 		{
 			Event: "file_downloaded",
 			File:  downloadedFileName,
