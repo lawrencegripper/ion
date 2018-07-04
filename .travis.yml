@@ -24,7 +24,7 @@ before_install:
   - ssh-keygen -b 2048 -t rsa -f ~/.ssh/id_rsa -q -N ""
   # Install tooling GRPC files
   - go get -u google.golang.org/grpc
-  - chmod +x ./tools/install-protoc.sh && ./tools/install-protoc.sh $PROTOC_VERSION
+  - chmod +x ./tools/install-protoc.sh && sudo ./tools/install-protoc.sh $PROTOC_VERSION
   - go get -u github.com/golang/protobuf/protoc-gen-go
 
 script:
