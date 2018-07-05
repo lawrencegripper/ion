@@ -3,14 +3,14 @@ package trace
 import (
 	"fmt"
 	"github.com/lawrencegripper/ion/cmd/ion/root"
-	"github.com/lawrencegripper/ion/internal/pkg/management/module"
+	"github.com/lawrencegripper/ion/internal/pkg/management/trace"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"time"
 )
 
 //Client A shared GRPC module server client
-var Client module.ModuleServiceClient
+var Client trace.TraceServiceClient
 var managementEndpoint string
 var timeoutSec int
 
@@ -38,7 +38,7 @@ func Setup(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to server %s: %+v", managementEndpoint, err)
 	}
-	Client = module.NewModuleServiceClient(conn)
+	Client = trace.NewTraceServiceClient(conn)
 	return nil
 }
 

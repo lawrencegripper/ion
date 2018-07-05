@@ -33,7 +33,7 @@ type MongoDB struct {
 func NewMongoDB(config *Config) (*MongoDB, error) {
 	dialInfo := &mongo.DialInfo{
 		Addrs:    []string{fmt.Sprintf("%s.documents.azure.com:%d", config.Name, config.Port)},
-		Timeout:  30 * time.Second,
+		Timeout:  10 * time.Second,
 		Database: config.Name,
 		Username: config.Name,
 		Password: config.Password,
@@ -67,6 +67,28 @@ func (db *MongoDB) GetEventMetaByID(id string) (*documentstorage.EventMeta, erro
 		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", id, err)
 	}
 	return &eventMeta, nil
+}
+
+//GetJSONDataByCorrelationID returns all documents associated with the correlationid
+// returns the json from the resulting
+func (db *MongoDB) GetJSONDataByCorrelationID(id string) (*string, error) {
+	result := bson.Raw{}
+	err := db.Collection.Find(bson.M{"context.correlationId": id}).All(&result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", id, err)
+	}
+
+	var i interface{}
+	if err = result.Unmarshal(&i); err != nil {
+		return nil, fmt.Errorf("failed to deserialize bson results for correlationID %s, error: %+v", id, err)
+	}
+	data, err := json.Marshal(i)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get json for results for correlationID %s, error: %+v", id, err)
+	}
+	json := string(data)
+
+	return &json, nil
 }
 
 //CreateEventMeta creates a new event context document

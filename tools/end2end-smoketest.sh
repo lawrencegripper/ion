@@ -4,12 +4,14 @@ SKIP_BUILD=$1
 SKIP_TERRAFORM=$2
 
 echo "--------------------------------------------------------"
-echo "WARNING: This script will deploy into your currently selected Azure Subscription and Kubernetes clusters"
-echo "WARNING: This script will deploy into your currently selected Azure Subscription and Kubernetes clusters"
-echo "WARNING: This script will deploy into your currently selected Azure Subscription and Kubernetes clusters"
-echo "WARNING: This script will deploy into your currently selected Azure Subscription and Kubernetes clusters"
+echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
+echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
+echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
+echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
+echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
 echo "It expects you to have already run terraform to deploy ion and connected kubectl to the deployed cluster"
-echo "It also expected you to be logged into Azure CLI and have the right subscription set as your default"
+echo " Must: Be logged into Azure CLI and have the right subscription set as your default"
+echo " Must: Be logged into docker cli and have set $DOCKER_USER to your username"
 echo "--------------------------------------------------------"
 
 sleep 5

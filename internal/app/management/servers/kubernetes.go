@@ -23,6 +23,9 @@ import (
 	"path/filepath"
 )
 
+//Check at compile time if we implement the interface
+var _ module.ModuleServiceServer = (*Kubernetes)(nil)
+
 // Kubernetes management server
 type Kubernetes struct {
 	client                    *kubernetes.Clientset

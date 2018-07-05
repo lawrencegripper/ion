@@ -21,6 +21,7 @@ handler:
 
 management:
 	cd ./internal/pkg/management/module && rm -f *.pb.go && protoc -I . module.proto --go_out=plugins=grpc:. && cd -
+	cd ./internal/pkg/management/trace && rm -f *.pb.go && protoc -I . trace.proto --go_out=plugins=grpc:. && cd -
 	make -f build/management/Makefile.Docker
 	
 frontapi:

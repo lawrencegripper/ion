@@ -1,6 +1,11 @@
 #!/bin/bash
 echo "Pushing to dockerhub"
 
+if [ -z "$DOCKER_USER" ]
+then
+      echo "Failed: must have $DOCKER_USER set to a docker user you have push rights for.... eg: 'export DOCKER_USER=lawrencegripper'"
+fi
+
 if [ -z "$DOCKER_PASSWORD" ]
 then
       echo "Skipping docker login as DOCKER_PASSWORD not specified"

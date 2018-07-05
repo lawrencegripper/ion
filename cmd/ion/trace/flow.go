@@ -1,6 +1,9 @@
 package trace
 
 import (
+	"context"
+	"fmt"
+	"github.com/lawrencegripper/ion/internal/pkg/management/trace"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +18,14 @@ var flowCmd = &cobra.Command{
 
 // flow a new ion module
 func flow(cmd *cobra.Command, args []string) error {
+	response, err := Client.GetFlow(context.Background(), &trace.GetFlowRequest{
+		CorrelationID: correlationID,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(response.FlowJSON)
 	return nil
 }
 
