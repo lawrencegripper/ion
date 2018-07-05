@@ -5,6 +5,7 @@ import (
 	"github.com/lawrencegripper/ion/cmd/ion/event"
 	"github.com/lawrencegripper/ion/cmd/ion/module"
 	"github.com/lawrencegripper/ion/cmd/ion/root"
+	"github.com/lawrencegripper/ion/cmd/ion/trace"
 )
 
 func main() {
@@ -13,6 +14,7 @@ func main() {
 	module.Register()
 	event.Register()
 	dev.Register()
+	trace.Register()
 
 	// Execute root
 	root.Execute()
