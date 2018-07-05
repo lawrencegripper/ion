@@ -12,21 +12,26 @@ import (
 	"testing"
 )
 
-func TestDownloaderModule(t *testing.T) {
+func TestBasicTranscode(t *testing.T) {
+	fmt.Println("WARNING: This test requires FFMPEG to be installed and on the PATH")
+
 	tempdir := path.Join(os.TempDir(), uuid.NewV4().String())
 	os.MkdirAll(tempdir, 0777)
 	defer os.RemoveAll(tempdir)
 
-	eventMetaFileBytes, err := ioutil.ReadFile("./testdata/eventmeta.json")
+	eventMetaFileBytes, err := ioutil.ReadFile("./testdata/bird.avi")
 	if err != nil {
+		t.Error(err)
 		t.FailNow()
 	}
-	os.Mkdir(path.Join(tempdir, "in"), 0777)
-	err = ioutil.WriteFile(path.Join(tempdir, "in", "eventmeta.json"), eventMetaFileBytes, 0777)
+	os.MkdirAll(path.Join(tempdir, "in", "data"), 0777)
+	err = ioutil.WriteFile(path.Join(tempdir, "in", "data", "file.raw"), eventMetaFileBytes, 0777)
 	if err != nil {
+		t.Error(err)
 		t.FailNow()
 	}
 
+	os.Setenv("FFMPEG_USE_GPU", "false")
 	env.IonBaseDir = tempdir
 
 	main()
@@ -39,21 +44,13 @@ func TestDownloaderModule(t *testing.T) {
 
 	fileDownloaded := false
 	for _, f := range files {
-		if f.Name() == "file.raw" {
-			downloadedFileBytes, err := ioutil.ReadFile(path.Join(outDataFilePath, f.Name()))
-			if err != nil {
-				t.Error("Failed to read in  downloaded file")
-			}
-			if string(downloadedFileBytes) != "Microsoft NCSI" {
-				t.Errorf("Failed, download content not as expected got: %s", string(downloadedFileBytes))
-			} else {
-				fileDownloaded = true
-			}
+		if f.Name() == "file.raw-1280x720-h264.mp4" {
+			fileDownloaded = true
 		}
 	}
 
 	if !fileDownloaded {
-		t.Fail()
+		t.Error("transcoded file missing")
 	}
 
 	outEventsFilePath := path.Join(tempdir, "out", "events")
@@ -85,9 +82,8 @@ func TestDownloaderModule(t *testing.T) {
 		t.Error(err)
 		t.Log(string(insightsFileData))
 	}
-	if insightsDeserialised[0].Key != "downloadTimeSec" {
+	if insightsDeserialised[0].Key != "transcodeTimeSec" {
 		t.Error("Insights missing expected key")
 		t.Log(insightsDeserialised)
 	}
-
 }

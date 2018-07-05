@@ -142,5 +142,5 @@ DEPLOY
 }
 
 output "name" {
-  value = "${random_string.batchname.result}"
+  value = "ionbatch${random_string.batchname.result}"
 }

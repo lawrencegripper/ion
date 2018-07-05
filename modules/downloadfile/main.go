@@ -76,6 +76,10 @@ func main() {
 			Key:   "downloadTimeSec",
 			Value: fmt.Sprintf("%.6f", elapsed.Seconds()),
 		},
+		handler.Insight{
+			Key:   "sourceUrl",
+			Value: link,
+		},
 	})
 
 	handler.WriteEvents([]handler.Event{
