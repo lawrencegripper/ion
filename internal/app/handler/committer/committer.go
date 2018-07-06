@@ -146,6 +146,9 @@ func (c *Committer) commitBlob(blobsPath string) (map[string]string, error) {
 	}
 
 	logger.Info(c.context, "committed blob data")
+	logger.DebugWithFields(c.context, "blob file names", map[string]interface{}{
+		"files": fileNames,
+	})
 	return blobURIs, nil
 }
 
@@ -183,6 +186,9 @@ func (c *Committer) commitInsights(insightsPath string) error {
 	}
 
 	logger.Info(c.context, "committed insights data")
+	logger.DebugWithFields(c.context, "insights data", map[string]interface{}{
+		"insight": insight,
+	})
 	return nil
 }
 
@@ -220,6 +226,9 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", fileName, err)
 		}
+		logger.DebugWithFields(c.context, "event data", map[string]interface{}{
+			"event": keyValuePairs,
+		})
 
 		var eventType string
 		var includedFilesCSV string

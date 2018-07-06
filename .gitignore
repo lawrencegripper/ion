@@ -22,4 +22,4 @@ client
 ionctl
 frontapi
 imagetag.temp
-cmd/management/debug
+**/debug

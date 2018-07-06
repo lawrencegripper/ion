@@ -92,8 +92,15 @@ echo "Deploying downloader and transcoder module with tag $ION_IMAGE_TAG"
 echo "--------------------------------------------------------"
 
 docker run --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
-docker run --network host ion-cli module create -i file_downloaded -o file_transcoded -n transcodegpu -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+docker run --network host ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+sleep 30
+
+
+echo "--------------------------------------------------------"
+echo "Submitting a video for processing to the frontapi"
+echo "--------------------------------------------------------"
+
+curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://www.engr.colostate.edu/me/facil/dynamics/files/bird.avi"}'   http://localhost:9001/
 
 read -p "Press enter to to stop forwarding ports to management api and front api and exit..." key
-kill $FORWARD_PID1
-kill $FORWARD_PID2
+ps aux | grep [k]ubectl | awk '{print $2}' | xargs kill || true
