@@ -171,7 +171,6 @@ func (c *Committer) commitInsights(insightsPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal insights '%s' with error: '%+v'", insightsPath, err)
 	}
-
 	insight := documentstorage.Insight{
 		Context:     c.context,
 		ExecutionID: c.executionID,
