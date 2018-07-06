@@ -43,10 +43,17 @@ type Event struct {
 	Data    KeyValuePairs `json:"data,omitempty"`
 }
 
+//EventMetaDocType sets the document type in Context
+const EventMetaDocType = "eventMeta"
+
+//InsightDocType sets the document type in Context
+const InsightDocType = "insight"
+
 //Context carries the data for configuring the module
 type Context struct {
 	Name          string `description:"module name" bson:"name" json:"name"`
 	EventID       string `description:"event identifier" bson:"eventId" json:"eventId"`
 	CorrelationID string `description:"correlation identifier" bson:"correlationId" json:"correlationId"`
 	ParentEventID string `description:"parent event identifier" bson:"parentEventId" json:"parentEventId"`
+	DocumentType  string `description:"the type of document this item represents" bson:"documentType" json:"documentType"`
 }

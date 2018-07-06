@@ -102,5 +102,14 @@ echo "--------------------------------------------------------"
 
 curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://www.engr.colostate.edu/me/facil/dynamics/files/bird.avi"}'   http://localhost:9001/
 
+if [ -x "$(command -v beep)" ]; then
+    beep
+fi
+
+if [ -x "$(command -v notify-send)" ]; then
+    notify-send -u critical ion-end2end "Ion ready for testing"
+fi
+
 read -p "Press enter to to stop forwarding ports to management api and front api and exit..." key
 ps aux | grep [k]ubectl | awk '{print $2}' | xargs kill || true
+

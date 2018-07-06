@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
 	mongo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -93,6 +94,7 @@ func (db *MongoDB) GetJSONDataByCorrelationID(id string) (*string, error) {
 
 //CreateEventMeta creates a new event context document
 func (db *MongoDB) CreateEventMeta(eventMeta *documentstorage.EventMeta) error {
+	eventMeta.Context.DocumentType = common.EventMetaDocType
 	b, err := json.Marshal(*eventMeta)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
@@ -113,6 +115,7 @@ func (db *MongoDB) CreateEventMeta(eventMeta *documentstorage.EventMeta) error {
 
 //CreateInsight creates an insights document
 func (db *MongoDB) CreateInsight(insight *documentstorage.Insight) error {
+	insight.Context.DocumentType = common.InsightDocType
 	b, err := json.Marshal(*insight)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)

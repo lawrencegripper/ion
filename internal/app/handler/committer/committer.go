@@ -171,6 +171,7 @@ func (c *Committer) commitInsights(insightsPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal insights '%s' with error: '%+v'", insightsPath, err)
 	}
+
 	insight := documentstorage.Insight{
 		Context:     c.context,
 		ExecutionID: c.executionID,
@@ -305,6 +306,7 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 			CorrelationID: c.context.CorrelationID,
 			ParentEventID: c.context.EventID,
 			EventID:       eventID,
+			Name:          c.context.Name,
 		}
 
 		// Create a new event to publish
