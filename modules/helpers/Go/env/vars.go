@@ -37,10 +37,12 @@ func init() {
 func MakeOutputDirs() {
 	err := os.MkdirAll(OutputDataDir(), 0777)
 	if err != nil {
-		logrus.WithError(err).Panic("Failed making output data dir")
+		logrus.WithError(err).Fatal("Failed making output data dir")
+		os.Exit(13)
 	}
 	err = os.MkdirAll(EventDir(), 0777)
 	if err != nil {
-		logrus.WithError(err).Panic("Failed making output event dir")
+		logrus.WithError(err).Fatal("Failed making output event dir")
+		os.Exit(13)
 	}
 }

@@ -40,6 +40,7 @@ func NewStartCommand() *cobra.Command {
 			managementConfig.AzureBatchPoolID = viper.GetString("azure-batch-pool-id")
 			managementConfig.AzureBatchAccountName = viper.GetString("azure-batch-account-name")
 			managementConfig.AzureBatchAccountLocation = viper.GetString("azure-batch-account-location")
+			managementConfig.AzureBatchRequiresGPU = viper.GetBool("azure-batch-requires-gpu")
 			managementConfig.MongoDBName = viper.GetString("mongodb-name")
 			managementConfig.MongoDBPort = viper.GetInt("mongodb-port")
 			managementConfig.MongoDBCollection = viper.GetString("mongodb-collection")
@@ -153,6 +154,9 @@ func NewStartCommand() *cobra.Command {
 
 	flags.String("azure-batch-account-location", "", "Azure Batch Account Location")
 	viper.BindPFlag("azure-batch-account-location", flags.Lookup("azure-batch-account-location"))
+
+	flags.Bool("azure-batch-requires-gpu", true, "Azure Batch should use nvidia GPU")
+	viper.BindPFlag("azure-batch-requires-gpu", flags.Lookup("azure-batch-requires-gpu"))
 
 	flags.String("mongodb-name", "", "MongoDB Name")
 	viper.BindPFlag("mongodb-name", flags.Lookup("mongodb-name"))

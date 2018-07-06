@@ -15,6 +15,9 @@ import (
 )
 
 func main() {
+	exitCode := 0
+	defer func() { os.Exit(exitCode) }()
+
 	env.MakeOutputDirs()
 
 	log.Debug("Transcoding with FFMPEG")
@@ -23,26 +26,26 @@ func main() {
 
 	files, err := ioutil.ReadDir(env.InputDataDir())
 	if err != nil {
-		log.Fatal("Failed to read input directory")
-		log.Fatal(err.Error())
+		exitCode = 13
+		log.Info("Failed to read input directory")
+		log.Info(err.Error())
+		return
 	}
 
 	results := []string{}
 	for _, inputFile := range files {
 		transcodedFileName, err := transcode(filepath.Join(env.InputDataDir(), inputFile.Name()))
 		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed transcoding file: %s", inputFile.Name()))
-			log.Fatal(err.Error())
+			exitCode = 14
+			log.Info(fmt.Sprintf("Failed transcoding file: %s", inputFile.Name()))
+			log.Info(err.Error())
+			return
 		}
 
 		results = append(results, transcodedFileName)
 	}
 
 	elapsed := time.Since(start)
-	if err != nil {
-		log.Info(err.Error())
-		return
-	}
 
 	handler.WriteInsights(handler.Insights{
 		handler.Insight{
@@ -68,7 +71,7 @@ func transcode(inputFilePath string) (string, error) {
 	if useGPU == "false" {
 		args = fmt.Sprintf(`-i %s -vcodec h264_nvenc %s`, inputFilePath, outputFilePath)
 	} else {
-		args = fmt.Sprintf(`-hwaccel cuvid -c:v h264_cuvid -i %s -vf scale_npp=1280:720 -c:v h264_nvenc %s`, inputFilePath, outputFilePath)
+		args = fmt.Sprintf(`-hwaccel cuvid -i %s -vf scale_npp=1280:720 -c:v h264_nvenc %s`, inputFilePath, outputFilePath)
 	}
 	log.Info("Running ffmpeg with args:")
 	log.Info(args)

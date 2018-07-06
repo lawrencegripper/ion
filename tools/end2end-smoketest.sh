@@ -48,6 +48,7 @@ then
     kubectl delete deployments --all || true
     kubectl delete jobs --all || true
     kubectl delete pods --all || true
+    kubectl delete secrets --all || true
 
     echo "--------------------------------------------------------"
     echo "Deploying terraform"
@@ -95,8 +96,7 @@ echo "Deploying downloader and transcoder module with tag $ION_IMAGE_TAG"
 echo "--------------------------------------------------------"
 
 docker run --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
-docker run --network host ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file ./tools/transcoder.env
-# docker run --network host ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+docker run --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
 sleep 30
 
 
@@ -104,7 +104,7 @@ echo "--------------------------------------------------------"
 echo "Submitting a video for processing to the frontapi"
 echo "--------------------------------------------------------"
 
-curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://www.engr.colostate.edu/me/facil/dynamics/files/bird.avi"}'   http://localhost:9001/
+curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4"}'   http://localhost:9001/
 
 if [ -x "$(command -v beep)" ]; then
     beep

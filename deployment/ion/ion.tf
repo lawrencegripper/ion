@@ -163,6 +163,10 @@ resource "kubernetes_deployment" "ion-management-api" {
               value = "${var.azure_batch_pool_id}"
             },
             {
+              name  = "AZURE_BATCH_REQUIRES_GPU"
+              value = "true"
+            },
+            {
               name  = "AZURE_CLIENT_ID"
               value = "${var.client_id}"
             },
