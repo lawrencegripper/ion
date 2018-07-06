@@ -70,9 +70,9 @@ func TestMain(m *testing.M) {
 	// Create mock context
 	context = &common.Context{
 		Name:          "testModule",
-		EventID:       "01010101",
+		EventID:       "eventid",
 		CorrelationID: "frank",
-		ParentEventID: "10101010",
+		ParentEventID: "parentid",
 	}
 
 	environment = module.GetModuleEnvironment(testdata)

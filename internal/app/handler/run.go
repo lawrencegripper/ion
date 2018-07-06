@@ -147,8 +147,8 @@ func getBlobProvider(config *Configuration) dataplane.BlobStorageProvider {
 		log.Info("using azure blob storage provider")
 		c := config.AzureBlobStorageProvider
 		azureBlob, err := azure.NewBlobStorage(c,
-			helpers.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
-			helpers.JoinBlobPath(config.Context.EventID, config.Context.Name))
+			helpers.JoinBlobPath(config.Context.ParentEventID),
+			helpers.JoinBlobPath(config.Context.EventID))
 		if err != nil {
 			panic(fmt.Errorf("failed to establish blob storage with provider '%s', error: %+v", blobProviderAzureStorage, err))
 		}

@@ -102,7 +102,7 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 		blobRef := container.GetBlobReference(blobPath)
 		blob, err := blobRef.Get(&storage.GetBlobOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to get blob '%s' with error '%+v'", blobPath, err)
+			return fmt.Errorf("failed to get blob '%s' from path '%s' with error '%+v'", blobPath, filePath, err)
 		}
 		var bytes []byte
 		_, err = blob.Read(bytes)
