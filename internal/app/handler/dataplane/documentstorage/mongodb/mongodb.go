@@ -1,6 +1,7 @@
 package mongodb
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -95,7 +96,7 @@ func (db *MongoDB) GetJSONDataByCorrelationID(id string) (*string, error) {
 //CreateEventMeta creates a new event context document
 func (db *MongoDB) CreateEventMeta(eventMeta *documentstorage.EventMeta) error {
 	eventMeta.Context.DocumentType = common.EventMetaDocType
-	b, err := json.Marshal(*eventMeta)
+	b, err := JSONMarshal(*eventMeta)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
 	}
@@ -116,7 +117,7 @@ func (db *MongoDB) CreateEventMeta(eventMeta *documentstorage.EventMeta) error {
 //CreateInsight creates an insights document
 func (db *MongoDB) CreateInsight(insight *documentstorage.Insight) error {
 	insight.Context.DocumentType = common.InsightDocType
-	b, err := json.Marshal(*insight)
+	b, err := JSONMarshal(*insight)
 	if err != nil {
 		return fmt.Errorf("error serializing JSON document: %+v", err)
 	}
@@ -137,4 +138,13 @@ func (db *MongoDB) CreateInsight(insight *documentstorage.Insight) error {
 //Close cleans up the connection to Mongo
 func (db *MongoDB) Close() {
 	defer db.Session.Close()
+}
+
+//JSONMarshal encode to json without escaping html
+func JSONMarshal(t interface{}) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(t)
+	return buffer.Bytes(), err
 }

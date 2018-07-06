@@ -9,7 +9,9 @@ echo "WARNING: This script will deploy into your currently selected Azure Subscr
 echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
 echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
 echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
-echo "It expects you to have already run terraform to deploy ion and connected kubectl to the deployed cluster"
+echo "You must have already:"
+echo " MUST: Run terraform to deploy ion (k8s cluster, batch, cosmos, sb and storage)"
+echo " MUST: have kubectl connected to the deployed k8s cluster"
 echo " Must: Be logged into Azure CLI and have the right subscription set as your default"
 echo " Must: Be logged into docker cli and have set $DOCKER_USER to your username"
 echo "--------------------------------------------------------"
@@ -45,6 +47,7 @@ then
 
     kubectl delete deployments --all || true
     kubectl delete jobs --all || true
+    kubectl delete pods --all || true
 
     echo "--------------------------------------------------------"
     echo "Deploying terraform"
