@@ -66,11 +66,9 @@ func transcode(inputFilePath string) (string, error) {
 	useGPU := os.Getenv("FFMPEG_USE_GPU")
 	var args string
 	if useGPU == "false" {
-		// NOTE: Space required at start of args for some reason. Don't remove
 		args = fmt.Sprintf(`-i %s -vcodec h264_nvenc %s`, inputFilePath, outputFilePath)
 	} else {
-		// NOTE: Space required at start of args for some reason. Don't remove
-		args = fmt.Sprintf(`-hwaccel cuvid -c:v h264_cuvid -i %s -vf scale_npp=1280:720 -vcodec h264_nvenc %s`, inputFilePath, outputFilePath)
+		args = fmt.Sprintf(`-hwaccel cuvid -c:v h264_cuvid -i %s -vf scale_npp=1280:720 -c:v h264_nvenc %s`, inputFilePath, outputFilePath)
 	}
 	log.Info("Running ffmpeg with args:")
 	log.Info(args)
