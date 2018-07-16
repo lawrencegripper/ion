@@ -50,6 +50,15 @@ func NewStartCommand() *cobra.Command {
 			managementConfig.AzureServiceBusNamespace = viper.GetString("azure-servicebus-namespace")
 			managementConfig.LogLevel = viper.GetString("loglevel")
 
+			//Quick fix for https://github.com/lawrencegripper/ion/issues/142
+			managementConfig.ContainerImageRegistryURL = viper.GetString("image-registry-url")
+			managementConfig.ContainerImageRegistryUsername = viper.GetString("image-registry-username")
+			managementConfig.ContainerImageRegistryPassword = viper.GetString("image-registry-password")
+
+			managementConfig.AzureBatchImageRepositoryServer = viper.GetString("image-registry-url")
+			managementConfig.AzureBatchImageRepositoryUsername = viper.GetString("image-registry-username")
+			managementConfig.AzureBatchImageRepositoryPassword = viper.GetString("image-registry-password")
+
 			if managementConfig.Provider == "" {
 				return fmt.Errorf("--provider is required")
 			}
@@ -181,6 +190,15 @@ func NewStartCommand() *cobra.Command {
 
 	flags.String("azure_servicebus_namespace", "", "Azure Service Bus namespace")
 	viper.BindPFlag("azure_servicebus_namespace", flags.Lookup("azure_servicebus_namespace"))
+
+	flags.String("image-registry-url", "", "The url of the image registry")
+	viper.BindPFlag("image-registry-url", flags.Lookup("image-registry-url"))
+
+	flags.String("image-registry-username", "", "The username for the image registry")
+	viper.BindPFlag("image-registry-username", flags.Lookup("image-registry-url"))
+
+	flags.String("image-registry-password", "", "The passworkd for the image registry")
+	viper.BindPFlag("image-registry-password", flags.Lookup("image-registry-url"))
 
 	return cmd
 }
