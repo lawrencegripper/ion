@@ -119,6 +119,8 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 		}
 
 		bytes, err := ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close() //nolint: errcheck
+
 		if err != nil {
 			return fmt.Errorf("failed to read blob '%s' with error '%+v'", fileSASURL, err)
 		}

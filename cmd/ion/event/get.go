@@ -51,6 +51,10 @@ func Get(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error reading event: %+v", err)
 	}
 
+	if msg == nil {
+		return fmt.Errorf("nil message returned by receiver")
+	}
+
 	var event common.Event
 	b := msg.GetData()
 	if err := json.Unmarshal(b, &event); err != nil {

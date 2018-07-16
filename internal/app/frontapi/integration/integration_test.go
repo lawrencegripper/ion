@@ -81,6 +81,7 @@ func TestHttpServer(t *testing.T) {
 		}
 
 		resBytes, _ := ioutil.ReadAll(res.Body)
+		defer res.Body.Close() //nolint: errcheck
 		if res.StatusCode == 200 {
 			event := &common.Event{}
 			json.Unmarshal(resBytes, event)
