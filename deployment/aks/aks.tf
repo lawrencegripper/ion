@@ -28,8 +28,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   agent_pool_profile {
     name    = "agentpool"
-    count   = "2"
-    vm_size = "Standard_DS2_v2"
+    count   = "${var.node_count}"
+    vm_size = "${var.node_sku}"
     os_type = "Linux"
   }
 
@@ -57,4 +57,12 @@ output "cluster_ca" {
 
 output "host" {
   value = "${azurerm_kubernetes_cluster.aks.kube_config.0.host}"
+}
+
+output "kubeconfig" {
+  value = "${azurerm_kubernetes_cluster.aks.kube_config_raw}"
+}
+
+output "cluster_name" {
+  value = "ionaks-${random_string.batchname.result}"
 }

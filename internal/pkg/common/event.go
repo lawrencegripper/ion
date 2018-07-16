@@ -13,27 +13,41 @@ type KeyValuePair struct {
 //KeyValuePairs is a named type for a slice of key value pairs
 type KeyValuePairs []KeyValuePair
 
+//AsMap returns the key value pairs as a map
+func (kvps KeyValuePairs) AsMap() map[string]string {
+	result := make(map[string]string, len(kvps))
+	for _, k := range kvps {
+		result[k.Key] = k.Value
+	}
+	return result
+}
+
 //Append adds a new key value pair to the end of the slice
-func (kvps KeyValuePairs) Append(kvp KeyValuePair) {
-	kvps = append(kvps, kvp)
+func (kvps KeyValuePairs) Append(kvp KeyValuePair) KeyValuePairs {
+	return append(kvps, kvp)
 }
 
 //Remove a key value pair at an index by shifting the slice
-func (kvps KeyValuePairs) Remove(index int) error {
-	if (index > len(kvps)+1) || (index < 0) {
-		return fmt.Errorf("Invalid index provided")
+func (kvps KeyValuePairs) Remove(index int) (KeyValuePairs, error) {
+	if (index > len(kvps)-1) || (index < 0) {
+		return KeyValuePairs{}, fmt.Errorf("Invalid index provided")
 	}
 	kvps = append(kvps[:index], kvps[index+1:]...)
-	return nil
+	return kvps, nil
 }
 
 //Event the basic event data format
 type Event struct {
-	Context        *Context      `json:"context"`
-	Type           string        `json:"type"`
-	PreviousStages []string      `json:"previousStages"`
-	Data           KeyValuePairs `json:"data"`
+	Context *Context      `json:"context"`
+	Type    string        `json:"type"`
+	Data    KeyValuePairs `json:"data,omitempty"`
 }
+
+//EventMetaDocType sets the document type in Context
+const EventMetaDocType = "eventMeta"
+
+//InsightDocType sets the document type in Context
+const InsightDocType = "insight"
 
 //Context carries the data for configuring the module
 type Context struct {
@@ -41,4 +55,5 @@ type Context struct {
 	EventID       string `description:"event identifier" bson:"eventId" json:"eventId"`
 	CorrelationID string `description:"correlation identifier" bson:"correlationId" json:"correlationId"`
 	ParentEventID string `description:"parent event identifier" bson:"parentEventId" json:"parentEventId"`
+	DocumentType  string `description:"the type of document this item represents" bson:"documentType" json:"documentType"`
 }

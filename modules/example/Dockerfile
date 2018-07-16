@@ -1,6 +1,6 @@
 FROM python:3
 
 WORKDIR /app/
-COPY src/example.py .
+COPY ./src/ .
 
 CMD ["python", "example.py"]

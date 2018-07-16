@@ -9,9 +9,10 @@
         "--enable=deadcode",
         "--enable=varcheck",
         "--enable=structcheck",
-        "--deadline=15m"
+        "--deadline=15m",
+        "--enable-gc"
     ],
-    "go.lintOnSave": "workspace",
+    "go.lintOnSave": "package",
     "go.testFlags": [
         "-v"
     ],

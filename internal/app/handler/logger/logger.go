@@ -16,6 +16,16 @@ func Info(c *common.Context, message string) {
 	}).Info(message)
 }
 
+// InfoWithFields logs an info message with context
+func InfoWithFields(c *common.Context, message string, fields map[string]interface{}) {
+	log.WithFields(log.Fields{
+		"eventID":       c.EventID,
+		"correlationID": c.CorrelationID,
+		"name":          c.Name,
+		"timestamp":     time.Now(),
+	}).WithFields(fields).Info(message)
+}
+
 // Debug logs a debug message with context
 func Debug(c *common.Context, message string) {
 	log.WithFields(log.Fields{
@@ -24,6 +34,16 @@ func Debug(c *common.Context, message string) {
 		"name":          c.Name,
 		"timestamp":     time.Now(),
 	}).Debug(message)
+}
+
+// DebugWithFields logs an info message with context
+func DebugWithFields(c *common.Context, message string, fields map[string]interface{}) {
+	log.WithFields(log.Fields{
+		"eventID":       c.EventID,
+		"correlationID": c.CorrelationID,
+		"name":          c.Name,
+		"timestamp":     time.Now(),
+	}).WithFields(fields).Debug(message)
 }
 
 // Error logs an error message with context

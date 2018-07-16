@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lawrencegripper/ion/internal/pkg/common"
@@ -28,9 +29,9 @@ type Config struct {
 
 //ServiceBus handles the connection to an external Service Bus
 type ServiceBus struct {
-	URL string
-	Key string
-	SKN string
+	PartialURL string `description:"This is the SB url without the topic name set. Replace %%TOPIC_PLACEHOLDER%% with the required topic before using"`
+	Key        string
+	SKN        string
 }
 
 /* not currently needed - leaving for future use
@@ -41,12 +42,14 @@ type brokerProperties struct {
 }
 */
 
+const topicPlaceholderText = "%%TOPIC_PLACEHOLDER%%"
+
 //NewServiceBus creates a new Service Bus object
 func NewServiceBus(config *Config) (*ServiceBus, error) {
 	sb := &ServiceBus{
-		URL: fmt.Sprintf("https://%s.servicebus.windows.net/%s/messages", config.Namespace, config.Topic),
-		Key: config.Key,
-		SKN: config.AuthorizationRuleName,
+		PartialURL: fmt.Sprintf("https://%s.servicebus.windows.net/%s/messages", config.Namespace, topicPlaceholderText),
+		Key:        config.Key,
+		SKN:        config.AuthorizationRuleName,
 	}
 	//TODO: validate connection for fast failure
 	return sb, nil
@@ -54,13 +57,17 @@ func NewServiceBus(config *Config) (*ServiceBus, error) {
 
 //Publish publishes an event onto a Service Bus topic
 func (s *ServiceBus) Publish(e common.Event) error {
+
+	// generate a url for the correct topic for this event
+	sbURL := strings.Replace(s.PartialURL, topicPlaceholderText, e.Type, -1)
+
 	b, err := json.Marshal(e)
 	if err != nil {
 		return fmt.Errorf("error publishing event %+v", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, s.URL, bytes.NewBuffer(b))
+	req, err := http.NewRequest(http.MethodPost, sbURL, bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", generateSAS(s.URL, s.SKN, s.Key))
+	req.Header.Set("Authorization", generateSAS(sbURL, s.SKN, s.Key))
 
 	/* not currently needed - leaving for future use
 	var props brokerProperties

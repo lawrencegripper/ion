@@ -14,6 +14,16 @@
             ]
         },
         {
+            "label": "K8s Provider Tests",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "command": "export $(cat ./.vscode/private.env | xargs) && go test -timeout 15m -v ./internal/app/dispatcher/providers -run ^TestIntegrationKub*$",
+            "problemMatcher": [
+            ]
+        },
+        {
             "label": "ServiceBus Tests",
             "type": "shell",
             "options": {

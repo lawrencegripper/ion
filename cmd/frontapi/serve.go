@@ -16,26 +16,38 @@ import (
 func init() {
 	rootCmd.AddCommand(serveCmd)
 
-	serveCmd.PersistentFlags().Int("port", 8080, "Listenning port")
-
+	flags := serveCmd.PersistentFlags()
+	flags.Int("port", 8080, "Listenning port")
 	// Add 'dispatcher' flags
-	serveCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "../../configs/dispatcher.yaml", "Config file path")
-	serveCmd.PersistentFlags().StringP("loglevel", "l", "warn", "Log level (debug|info|warn|error)")
-	serveCmd.PersistentFlags().String("modulename", "", "Name of the module")
-	serveCmd.PersistentFlags().String("subscribestoevent", "", "Event this modules subscribes to")
-	serveCmd.PersistentFlags().String("eventspublished", "", "Events this modules can publish")
-	serveCmd.PersistentFlags().String("servicebusnamespace", "", "Namespace to use for ServiceBus")
-	serveCmd.PersistentFlags().String("resourcegroup", "", "Azure ResourceGroup to use")
-	serveCmd.PersistentFlags().Bool("logsensitiveconfig", false, "Print out sensitive config when logging")
-	serveCmd.PersistentFlags().String("moduleconfigpath", "", "Path to environment variables file for module")
-	serveCmd.PersistentFlags().BoolP("printconfig", "P", false, "Print out config when starting")
+	flags.StringVarP(&cfgFile, "config", "c", "../../configs/frontapi.yaml", "Config file path")
+	flags.StringP("loglevel", "l", "warn", "Log level (debug|info|warn|error)")
+	flags.String("modulename", "", "Name of the module")
+	flags.String("subscribestoevent", "", "Event this modules subscribes to")
+	flags.String("eventspublished", "", "Events this modules can publish")
+	flags.String("servicebusnamespace", "", "Namespace to use for ServiceBus")
+	flags.String("resourcegroup", "", "Azure ResourceGroup to use")
+	flags.BoolP("printconfig", "P", false, "Print out config when starting")
+
 	// job.*
-	serveCmd.PersistentFlags().Int("job.retrycount", 0, "Max number of times a job can be retried")
+	flags.Int("job.retrycount", 0, "Max number of times a job can be retried")
+
+	// document store flags
+	flags.String("mongodb-name", "", "MongoDB Name")
+	flags.String("mongodb-collection", "", "MongoDB Database Collection")
+	flags.String("mongodb-password", "", "MongoDB server password")
+	flags.Int("mongodb-port", 27017, "MongoDB server port")
+
+	// Add 'dispatcher start' flags
+	flags.String("clientid", "", "ClientID of Service Principal for Azure access")
+	flags.String("clientsecret", "", "Client Secrete of Service Principal for Azure access")
+	flags.String("subscriptionid", "", "SubscriptionID for Azure")
+	flags.String("tenantid", "", "TentantID for Azure")
+
+	// Mark required flags (won't mark required setting, onyl CLI flag)
+	//cmdStart.MarkPersistentFlagRequired("")
 
 	_ = viper.BindPFlag("port", serveCmd.PersistentFlags().Lookup("port"))
 
-	viper.SetEnvPrefix("frontapi")
-	viper.AutomaticEnv()
 }
 
 var serveCmd = &cobra.Command{
@@ -43,12 +55,16 @@ var serveCmd = &cobra.Command{
 	Short: "Serve the HTTP handlers of frontapi",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		viper.SetConfigFile(cfgFile)
-		viper.SetConfigFile(cfgFile)
 		if err := viper.ReadInConfig(); err != nil {
-			log.WithError(err).Errorln("Can't read config")
-			os.Exit(1)
+			log.WithError(err).Warningln("Can't read management config from file %s", cfgFile)
 		}
+		viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 		viper.AutomaticEnv()
+
+		cfg.ClientID = viper.GetString("clientid")
+		cfg.ClientSecret = viper.GetString("clientsecret")
+		cfg.SubscriptionID = viper.GetString("subscriptionid")
+		cfg.TenantID = viper.GetString("tenantid")
 
 		// Fill config with global settings
 		cfg.LogLevel = viper.GetString("loglevel")
@@ -58,6 +74,11 @@ var serveCmd = &cobra.Command{
 		cfg.ServiceBusNamespace = viper.GetString("servicebusnamespace")
 		cfg.ResourceGroup = viper.GetString("resourcegroup")
 		cfg.PrintConfig = viper.GetBool("printconfig")
+
+		cfg.Handler.MongoDBDocumentStorageProvider.Name = viper.GetString("mongodb-name")
+		cfg.Handler.MongoDBDocumentStorageProvider.Collection = viper.GetString("mongodb-collection")
+		cfg.Handler.MongoDBDocumentStorageProvider.Password = viper.GetString("mongodb-password")
+		cfg.Handler.MongoDBDocumentStorageProvider.Port = viper.GetInt("mongodb-port")
 
 		// job.*
 		cfg.Job.RetryCount = viper.GetInt("job.retrycount")

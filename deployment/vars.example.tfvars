@@ -9,3 +9,16 @@ resource_group_name = "temp-iontf"
 
 // The location of all resources
 resource_group_location = "westeurope"
+
+// The number of dedicated AzureBatch Compute nodes to use
+batch_dedicated_node_count = "1"
+
+// The number of low priority AzureBatch Compute nodes to use
+batch_low_priority_node_count = "2"
+
+// The number of nodes to create in the AKS cluster
+aks_node_count = "2"
+
+docker_root = "dotjson"
+
+docker_tag = "latest"

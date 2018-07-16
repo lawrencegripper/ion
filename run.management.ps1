@@ -1,0 +1,22 @@
+.\management.exe `
+--dispatcher-provider="" `
+--azure-ad-resource="" `              
+--azure-batch-account-location="" ` 
+--azure-batch-account-name="" ` 
+--azure-batch-pool-id="" ` 
+--azure-client-id="" `        
+--azure-client-secret="" `
+--azure-resource-group=""  `
+--azure-storage-account-key="" `
+--azure-storage-account-name="" `
+--azure-subscription-id="" `
+--azure-tenant-id="" `
+--dispatcher-image-name="" `
+--dispatcher-image-tag="" `         
+--management-port 9000 `
+--mongodb-collection="" `
+--mongodb-name="" `
+--mongodb-password="" `
+--mongodb-port 10255 `
+--mongodb-username="" `
+--namespace==""

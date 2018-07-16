@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error), list func() (*batchv1.JobList, error)) (*Kubernetes, error) {
@@ -97,7 +99,20 @@ func TestDispatchCleansupJobs(t *testing.T) {
 	}
 
 	list := func() (*batchv1.JobList, error) {
-		array := []batchv1.Job{}
+		array := []batchv1.Job{
+			{
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{
+						{
+							Status: "Failed",
+							LastTransitionTime: metav1.Time{
+								Time: time.Now().Add(-2 * time.Hour),
+							},
+						},
+					},
+				},
+			},
+		}
 		for _, v := range inMemMockJobStore {
 			array = append(array, *v)
 		}
@@ -114,32 +129,8 @@ func TestDispatchCleansupJobs(t *testing.T) {
 	k, _ := NewMockKubernetesProvider(create, list)
 	k.removeJob = remove
 
-	// Send two messages
-	messageToSend0 := newNoOpMockMessage(mockMessageID)
-	err := k.Dispatch(messageToSend0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	messageToSend1 := newNoOpMockMessage(mockMessageID + "1")
-	err = k.Dispatch(messageToSend1)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Set one job as failed and one completed
-	job := inMemMockJobStore[getJobName(messageToSend0)]
-	log.WithField("j", inMemMockJobStore).Info("job")
-	job.Status.Conditions = append(job.Status.Conditions, batchv1.JobCondition{
-		Type: batchv1.JobComplete,
-	})
-	job1 := inMemMockJobStore[getJobName(messageToSend1)]
-	job1.Status.Conditions = append(job1.Status.Conditions, batchv1.JobCondition{
-		Type: batchv1.JobFailed,
-	})
-
 	// Reconcile the jobs
-	err = k.Reconcile()
+	err := k.Reconcile()
 	if err != nil {
 		t.Error(err)
 	}
@@ -419,8 +410,8 @@ func (m MockMessage) ID() string {
 }
 
 // Body get the body
-func (m MockMessage) Body() interface{} {
-	return "body"
+func (m MockMessage) Body() []byte {
+	return []byte("body")
 }
 
 // Accept mark the message as processed successfully (don't re-queue)

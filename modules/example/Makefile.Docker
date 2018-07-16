@@ -1,0 +1,2 @@
+all:
+	docker build -f modules/example/Dockerfile -t ion-module-python-example ./modules/example/.

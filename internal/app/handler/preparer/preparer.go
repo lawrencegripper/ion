@@ -3,11 +3,10 @@ package preparer
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"io/ioutil"
 	"os"
-	"path"
 
-	"github.com/lawrencegripper/ion/internal/app/handler/constants"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/app/handler/helpers"
@@ -25,19 +24,23 @@ type Preparer struct {
 	context     *common.Context
 	environment *module.Environment
 
-	baseDir         string
-	developmentFlag bool
+	baseDir   string
+	devConfig *development.Configuration
 }
 
 // NewPreparer constructs a new preprarer
-func NewPreparer(baseDir string, developmentFlag bool) *Preparer {
+func NewPreparer(baseDir string, devCfg *development.Configuration) *Preparer {
 	if baseDir == "" {
 		baseDir = "/ion/"
 	}
 
+	if devCfg == nil {
+		devCfg = &development.Configuration{}
+	}
+
 	preparer := &Preparer{
-		baseDir:         baseDir,
-		developmentFlag: developmentFlag,
+		baseDir:   baseDir,
+		devConfig: devCfg,
 	}
 
 	return preparer
@@ -72,7 +75,7 @@ func (p *Preparer) Prepare(
 
 // Close cleans up the preparer
 func (p *Preparer) Close() {
-	logger.Info(p.context, "Closing Preparer")
+	logger.Info(p.context, "closing Preparer")
 
 	defer p.dataPlane.Close()
 }
@@ -81,7 +84,7 @@ func (p *Preparer) Close() {
 // This includes; creating the required directory structure and
 // populating it with any input data.
 func (p *Preparer) doPrepare() error {
-	logger.Info(p.context, "Preparing module environment")
+	logger.Info(p.context, "preparing module environment")
 
 	if err := p.prepareEnv(); err != nil {
 		return err
@@ -90,14 +93,14 @@ func (p *Preparer) doPrepare() error {
 		return err
 	}
 
-	// If developmentFlag enabled, dump out an empty
+	// If development enabled, dump out an empty
 	// file to indicate environment prepared.
-	if p.developmentFlag {
+	if p.devConfig.Enabled {
 		var empty struct{}
-		_ = helpers.WriteDevFile("prepared", p.context.EventID, empty)
+		_ = p.devConfig.WriteOutput("prepared", empty)
 	}
 
-	logger.Info(p.context, "Successfully prepared module environment")
+	logger.Info(p.context, "successfully prepared module environment")
 	return nil
 }
 
@@ -108,13 +111,11 @@ func (p *Preparer) prepareEnv() error {
 		return err
 	}
 
-	// If in developmentFlag mode, create the developmentFlag directories
-	if p.developmentFlag {
-		if _, err := os.Stat(constants.DevBaseDir); os.IsNotExist(err) {
-			_ = os.Mkdir(constants.DevBaseDir, 0777)
+	// If in development enabled, make sure the development directories exist
+	if p.devConfig.Enabled {
+		if _, err := os.Stat(p.devConfig.ModuleDir); os.IsNotExist(err) {
+			_ = os.MkdirAll(p.devConfig.ModuleDir, 0777)
 		}
-		devPath := path.Join(constants.DevBaseDir, p.context.EventID)
-		_ = os.Mkdir(devPath, 0777)
 	}
 	return nil
 }
@@ -130,6 +131,10 @@ func (p *Preparer) prepareData() error {
 	// Assume those that don't have a context are the
 	// first event in the graph or orphaned.
 	if eventMeta != nil {
+		logger.InfoWithFields(p.context, "getting blobs for files", map[string]interface{}{
+			"files": eventMeta.Files,
+			"data":  eventMeta.Data,
+		})
 		err = p.dataPlane.GetBlobs(p.environment.InputBlobDirPath, eventMeta.Files)
 		if err != nil {
 			return err

@@ -31,18 +31,35 @@ type AmqpConnection struct {
 	AMQPConnectionString string
 	Session              *amqp.Session
 	Receiver             *amqp.Receiver
-	Sender               *amqp.Sender
 	getSubscription      func() (servicebus.SBSubscription, error)
 }
 
+// MessageCountDetails is a mirror of the SB SDK object but without pointers and things we don't need so logrus can
+// log the numbers correctly
+type MessageCountDetails struct {
+	// ActiveMessageCount - Number of active messages in the queue, topic, or subscription.
+	ActiveMessageCount int64
+	// DeadLetterMessageCount - Number of messages that are dead lettered.
+	DeadLetterMessageCount int64
+}
+
 // GetQueueDepth returns the current length of the sb queue
-func (l *AmqpConnection) GetQueueDepth() (*int64, error) {
+func (l *AmqpConnection) GetQueueDepth() (MessageCountDetails, error) {
 	sub, err := l.getSubscription()
-	if err != nil {
-		return nil, err
+	if err != nil || sub.MessageCount == nil {
+		return MessageCountDetails{}, err
 	}
 
-	return sub.MessageCount, nil
+	details := sub.CountDetails
+	detailsPointerless := MessageCountDetails{}
+	if details.ActiveMessageCount != nil {
+		detailsPointerless.ActiveMessageCount = *details.ActiveMessageCount
+	}
+	if details.DeadLetterMessageCount != nil {
+		detailsPointerless.DeadLetterMessageCount = *details.DeadLetterMessageCount
+	}
+
+	return detailsPointerless, nil
 }
 
 // Todo: Reconsider approach to error handling in this code.
@@ -58,9 +75,6 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 	}
 	if config.ModuleName == "" {
 		log.Panic("Empty module name not allowed")
-	}
-	if config.SubscribesToEvent == "" {
-		log.Panic("Empty subscribesToEvent not allowed")
 	}
 	if config.Job == nil {
 		log.Panic("Job config required")
@@ -166,7 +180,6 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 
 	listener.Session = createAmqpSession(&listener)
 	listener.Receiver = createAmqpListener(&listener)
-	listener.Sender = createAmqpSender(&listener)
 
 	return &listener
 }
@@ -189,20 +202,21 @@ func createAmqpListener(listener *AmqpConnection) *amqp.Receiver {
 	return receiver
 }
 
-// createAmqpSender exists for e2e testing.
-func createAmqpSender(listener *AmqpConnection) *amqp.Sender {
-	if listener.Session == nil {
-		log.WithField("currentListener", listener).Panic("Cannot create amqp listener without a session already configured")
+// CreateAmqpSender exists for e2e testing.
+func (l *AmqpConnection) CreateAmqpSender(topic string) (*amqp.Sender, error) {
+	if l.Session == nil {
+		log.WithField("currentListener", l).Panic("Cannot create amqp listener without a session already configured")
 	}
 
-	sender, err := listener.Session.NewSender(
-		amqp.LinkTargetAddress("/" + listener.TopicName),
+	sender, err := l.Session.NewSender(
+		amqp.LinkTargetAddress("/" + topic),
 	)
 	if err != nil {
 		log.Fatal("Creating receiver:", err)
+		return nil, err
 	}
 
-	return sender
+	return sender, nil
 }
 
 func createTopic(ctx context.Context, topicsClient servicebus.TopicsClient, config *types.Configuration, topicName string) servicebus.SBTopic {

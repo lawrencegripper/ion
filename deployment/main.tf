@@ -15,6 +15,8 @@ module "aks" {
 
   resource_group_name     = "${azurerm_resource_group.batchrg.name}"
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
+
+  node_count = "${var.aks_node_count}"
 }
 
 module "storage" {
@@ -34,8 +36,8 @@ module "azurebatch" {
   resource_group_name     = "${azurerm_resource_group.batchrg.name}"
   resource_group_location = "${azurerm_resource_group.batchrg.location}"
 
-  dedicated_node_count    = 0
-  low_priority_node_count = 1
+  dedicated_node_count    = "${var.batch_dedicated_node_count}"
+  low_priority_node_count = "${var.batch_low_priority_node_count}"
 }
 
 module "servicebus" {
@@ -85,8 +87,6 @@ module "ion" {
   client_id     = "${var.client_id}"
   client_secret = "${var.client_secret}"
 
-  managementapi_docker_image = "ion-management"
-
   batch_account_name = "${module.azurebatch.name}"
 
   servicebus_key  = "${module.servicebus.key}"
@@ -103,5 +103,33 @@ module "ion" {
   acr_username = "${module.acr.username}"
   acr_password = "${module.acr.password}"
 
-  dispatcher_docker_image = "dotjson/ion-dispatcher:latest"
+  managementapi_docker_image = "${var.docker_root}/ion-management:${var.docker_tag}"
+  dispatcher_docker_image    = "${var.docker_root}/ion-dispatcher:${var.docker_tag}"
+  frontapi_docker_image      = "${var.docker_root}/ion-frontapi:${var.docker_tag}"
+}
+
+output "kubeconfig" {
+  value     = "${module.aks.kubeconfig}"
+  sensitive = true
+}
+
+output "cluster_name" {
+  value = "${module.aks.cluster_name}"
+}
+
+output "resource_group_name" {
+  value = "${var.resource_group_name}"
+}
+
+output "acr_url" {
+  value = "${module.acr.login_server}"
+}
+
+output "acr_username" {
+  value = "${module.acr.username}"
+}
+
+output "acr_password" {
+  sensitive = true
+  value     = "${module.acr.password}"
 }

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 
@@ -22,7 +23,7 @@ import (
 )
 
 const (
-	dispatcherNameLabel = "dispatchername"
+	dispatcherNameLabel = "ion/createdBy"
 	messageIDLabel      = "messageid"
 	correlationIDLabel  = "correlationid"
 	deliverycountlabel  = "deliverycount"
@@ -114,8 +115,9 @@ func (k *Kubernetes) Reconcile() error {
 
 	for _, j := range jobs.Items {
 		messageID, ok := j.ObjectMeta.Labels[messageIDLabel]
+		contextualLogger := getLoggerForJob(&j)
 		if !ok {
-			log.WithField("job", j).Error("job seen without messageid present in labels... skipping")
+			contextualLogger.Error("job seen without messageid present in labels... skipping")
 			continue
 		}
 
@@ -125,47 +127,43 @@ func (k *Kubernetes) Reconcile() error {
 			dipatcherName, ok := j.Labels[dispatcherNameLabel]
 			// Is it malformed?
 			if !ok {
-				log.WithField("job", j).Error("job seen without dispatcher present in labels... skipping")
+				contextualLogger.Error("job seen without dispatcher present in labels... skipping")
 				continue
 			}
 			// Is it someone elses?
 			if dipatcherName != k.dispatcherName {
-				log.WithField("job", j).Debug("job seen with different dispatcher name present in labels... skipping")
+				contextualLogger.Debug("job seen with different dispatcher name present in labels... skipping")
 				continue
 			}
 			// Is it ours and we've forgotten
 			if dipatcherName == k.dispatcherName {
-				//log.WithField("job", j).Info("job seen which dispatcher stared but doesn't have source message... likely following a dispatcher restart")
-				// Todo: Should we clean these up at some point. Maybe after a wait time?
-				// We want to leave them for a bit as they may be the result of a crash
-				// in which case we can use them to recover
+				for _, condition := range j.Status.Conditions {
+					if jobIsFinishedAndOlderThanAnHour(condition) {
+						//Cleanup stuff that's been around a while
+						err = k.removeJob(&j)
+						if err != nil {
+							contextualLogger.Error("cleanup: failed to remove old job job from k8s")
+						}
+					}
+				}
+
 				continue
 			}
 
 			//Unknown case?!
-			log.WithField("job", j).Info("unknown case when reconciling job")
+			contextualLogger.Info("unknown case when reconciling job")
 			continue
 		}
 
+		contextualLogger = GetLoggerForMessage(sourceMessage, contextualLogger)
 		for _, condition := range j.Status.Conditions {
 			// Job failed - reject the message so it goes back on the queue to be retried
 			if condition.Type == batchv1.JobFailed {
-				getStatsFromJob(&j).WithFields(log.Fields{
-					"message": sourceMessage,
-				}).Warning("job failed to execute in k8s")
-
-				//Remove the job from k8s
-				err = k.removeJob(&j)
-				if err != nil {
-					log.WithError(err).WithField("job", j).WithField("messageID", messageID).Error("Failed to remove FAILED job from k8s")
-				}
+				contextualLogger.Warning("job failed to execute in k8s")
 
 				err := sourceMessage.Reject()
 				if err != nil {
-					log.WithFields(log.Fields{
-						"message": sourceMessage,
-						"job":     j,
-					}).Error("failed to reject message")
+					contextualLogger.Error("failed to reject message")
 					return err
 				}
 
@@ -175,23 +173,12 @@ func (k *Kubernetes) Reconcile() error {
 
 			// Job succeeded - accept the message so it is removed from the queue
 			if condition.Type == batchv1.JobComplete {
-				getStatsFromJob(&j).WithFields(log.Fields{
-					"message": sourceMessage,
-				}).Info("job successfully to execute in k8s")
-
-				//Remove the job from k8s
-				err = k.removeJob(&j)
-				if err != nil {
-					log.WithError(err).WithField("job", j).WithField("messageID", messageID).Error("Failed to remove COMPLETED job from k8s")
-				}
+				contextualLogger.Info("job successfully to execute in k8s")
 
 				err := sourceMessage.Accept()
 
 				if err != nil {
-					log.WithFields(log.Fields{
-						"message": sourceMessage,
-						"job":     j,
-					}).Error("failed to accept message")
+					contextualLogger.Error("failed to accept message")
 					return err
 				}
 
@@ -343,6 +330,12 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	return nil
 }
 
+func jobIsFinishedAndOlderThanAnHour(condition batchv1.JobCondition) bool {
+	return condition.Type == batchv1.JobFailed ||
+		condition.Type == batchv1.JobComplete &&
+			condition.LastTransitionTime.Time.Before(time.Now().Add(-time.Hour))
+}
+
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
@@ -350,14 +343,14 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
-func getStatsFromJob(job *batchv1.Job) *log.Entry {
+func getLoggerForJob(job *batchv1.Job) *log.Entry {
 	if job == nil {
 		return log.WithField("niljob", true)
 	}
 
 	entity := log.WithField("job", job)
 	if job.Status.CompletionTime != nil && job.Status.StartTime != nil {
-		log.WithField("taskDurationSec", job.Status.CompletionTime.Sub(job.Status.StartTime.Time).Seconds)
+		entity = log.WithField("taskDurationSec", job.Status.CompletionTime.Sub(job.Status.StartTime.Time).Seconds)
 	}
 
 	if c, ok := job.Annotations[correlationIDLabel]; ok {
