@@ -120,7 +120,7 @@ func NewStartCommand() *cobra.Command {
 	flags.Int("management-port", 9000, "The management API port")
 	viper.BindPFlag("management-port", flags.Lookup("management-port"))
 
-	flags.String("namespace", "ion", "Namespace to deploy Ion into")
+	flags.String("namespace", "default", "Namespace to deploy Ion into")
 	cmd.MarkFlagRequired("namespace")
 	viper.BindPFlag("namespace", flags.Lookup("namespace"))
 

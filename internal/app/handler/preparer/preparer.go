@@ -131,6 +131,10 @@ func (p *Preparer) prepareData() error {
 	// Assume those that don't have a context are the
 	// first event in the graph or orphaned.
 	if eventMeta != nil {
+		logger.InfoWithFields(p.context, "getting blobs for files", map[string]interface{}{
+			"files": eventMeta.Files,
+			"data":  eventMeta.Data,
+		})
 		err = p.dataPlane.GetBlobs(p.environment.InputBlobDirPath, eventMeta.Files)
 		if err != nil {
 			return err

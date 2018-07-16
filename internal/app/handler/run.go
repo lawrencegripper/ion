@@ -64,7 +64,7 @@ func Run(config Configuration) {
 	}
 
 	metaProvider := getMetaProvider(&config)
-	blobProvider := getBlobProvider(&config)
+	blobProvider := getBlobProvider(&config, metaProvider)
 	eventProvider := getEventProvider(&config)
 
 	dataPlane := &dataplane.DataPlane{
@@ -142,13 +142,20 @@ func getMetaProvider(config *Configuration) dataplane.DocumentStorageProvider {
 	return inMemDB
 }
 
-func getBlobProvider(config *Configuration) dataplane.BlobStorageProvider {
+func getBlobProvider(config *Configuration, meta dataplane.DocumentStorageProvider) dataplane.BlobStorageProvider {
 	if config.AzureBlobStorageProvider.Enabled {
 		log.Info("using azure blob storage provider")
 		c := config.AzureBlobStorageProvider
+		log.Info("getting event meta as the blob provider requires the SAS urls")
+		eventMeta, err := meta.GetEventMetaByID(config.Context.EventID)
+		if err != nil {
+			log.WithError(err).Panic("failed while getting eventmeta for blob provider to use sas urls")
+		}
 		azureBlob, err := azure.NewBlobStorage(c,
 			helpers.JoinBlobPath(config.Context.ParentEventID),
-			helpers.JoinBlobPath(config.Context.EventID))
+			helpers.JoinBlobPath(config.Context.EventID),
+			eventMeta,
+		)
 		if err != nil {
 			panic(fmt.Errorf("failed to establish blob storage with provider '%s', error: %+v", blobProviderAzureStorage, err))
 		}

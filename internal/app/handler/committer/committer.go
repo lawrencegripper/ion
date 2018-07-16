@@ -74,17 +74,7 @@ func (c *Committer) Commit(context *common.Context, dataPlane *dataplane.DataPla
 	c.validEventTypes = validEventTypes
 	c.dataPlane = dataPlane
 	c.environment = module.GetModuleEnvironment(c.baseDir)
-	// Create a new context for this event.
-	// We can only build a partial context
-	// as we don't know which modules will
-	// process the message.
-	// The context will be completed later.
-	c.context = &common.Context{
-		CorrelationID: context.CorrelationID,
-		ParentEventID: context.EventID,
-		EventID:       helpers.NewGUID(),
-		Name:          context.Name,
-	}
+	c.context = context
 
 	if err := c.doCommit(); err != nil {
 		return err
@@ -304,12 +294,26 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 			}
 		}
 
+		eventID := helpers.NewGUID()
+
+		// Create a new context for this event.
+		// We can only build a partial context
+		// as we don't know which modules will
+		// process the message.
+		// The context will be completed later.
+		context := &common.Context{
+			CorrelationID: c.context.CorrelationID,
+			ParentEventID: c.context.EventID,
+			EventID:       eventID,
+			Name:          c.context.Name,
+		}
+
 		// Create a new event to publish
 		// via the messaging system.
 		// This will embed the context
 		// created above.
 		event := common.Event{
-			Context: c.context,
+			Context: context,
 			Type:    eventType,
 		}
 
@@ -321,7 +325,7 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		// the processing modules using the
 		// event id.
 		eventMeta := documentstorage.EventMeta{
-			Context: c.context,
+			Context: context,
 			Files:   fileSlice,
 			Data:    keyValuePairs,
 		}

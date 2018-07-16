@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
@@ -74,22 +75,39 @@ func (db *MongoDB) GetEventMetaByID(id string) (*documentstorage.EventMeta, erro
 //GetJSONDataByCorrelationID returns all documents associated with the correlationid
 // returns the json from the resulting
 func (db *MongoDB) GetJSONDataByCorrelationID(id string) (*string, error) {
-	result := bson.Raw{}
-	err := db.Collection.Find(bson.M{"context.correlationId": id}).All(&result)
+	results := []bson.Raw{}
+	err := db.Collection.Find(bson.M{"context.correlationId": id}).All(&results)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", id, err)
 	}
 
-	var i interface{}
-	if err = result.Unmarshal(&i); err != nil {
-		return nil, fmt.Errorf("failed to deserialize bson results for correlationID %s, error: %+v", id, err)
-	}
-	data, err := json.Marshal(i)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get json for results for correlationID %s, error: %+v", id, err)
-	}
-	json := string(data)
+	//Build the result into a json array so users can parse them with something like jq
+	stringBuilder := strings.Builder{}
+	stringBuilder.WriteString("[") //nolint: errcheck
+	for i, item := range results {
+		var bsonData interface{}
+		err = item.Unmarshal(&bsonData)
+		if err != nil {
+			return nil, err
+		}
 
+		jsonString, err := JSONMarshal(&bsonData)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = stringBuilder.Write(jsonString)
+		if err != nil {
+			return nil, err
+		}
+
+		if i != len(results)-1 {
+			stringBuilder.WriteString(", \n") //nolint: errcheck
+		}
+	}
+	stringBuilder.WriteString("]") //nolint: errcheck
+
+	json := stringBuilder.String()
 	return &json, nil
 }
 
@@ -145,6 +163,7 @@ func JSONMarshal(t interface{}) ([]byte, error) {
 	buffer := &bytes.Buffer{}
 	encoder := json.NewEncoder(buffer)
 	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "    ")
 	err := encoder.Encode(t)
 	return buffer.Bytes(), err
 }
