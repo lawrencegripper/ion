@@ -1,4 +1,6 @@
 #!/bin/sh -e
+cd "$(dirname "$0")"
+cd ..
 
 SKIP_BUILD=$1
 SKIP_TERRAFORM=$2
@@ -10,8 +12,8 @@ echo "WARNING: This script will deploy into your currently selected Azure Subscr
 echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
 echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
 echo "You must have already:"
-echo " MUST: Run terraform to deploy ion (k8s cluster, batch, cosmos, sb and storage)"
-echo " MUST: have kubectl connected to the deployed k8s cluster"
+echo " MUST: Run terraform init in the ./deployment folder"
+echo " MUST: have kubectl installed and available in your path"
 echo " Must: Be logged into Azure CLI and have the right subscription set as your default"
 echo " Must: Be logged into docker cli and have set $DOCKER_USER to your username"
 echo "--------------------------------------------------------"
@@ -45,10 +47,18 @@ then
     echo "Cleaning up k8s, removing all deployments"
     echo "--------------------------------------------------------"
 
-    kubectl delete deployments --all || true
-    kubectl delete jobs --all || true
-    kubectl delete pods --all || true
-    kubectl delete secrets --all || true
+    if [ -f "./kubeconfig.private.yaml" ]
+    then
+        echo "Kubeconfig found cleaning up cluster."
+        export KUBECONFIG=./kubeconfig.private.yaml
+        kubectl delete deployments --all || true
+        kubectl delete jobs --all || true
+        kubectl delete pods --all || true
+        kubectl delete secrets --all || true
+    else
+        echo "Kubeconfig not found, no cluster created skipping cleanup..."
+    fi
+
 
     echo "--------------------------------------------------------"
     echo "Deploying terraform"
@@ -63,14 +73,25 @@ then
 
     sed -i "s/docker_root.*/docker_root=\"$DOCKER_USER\"/g" vars.private.tfvars
     sed -i "s/docker_user.*/docker_user=\"$ION_IMAGE_TAG\"/g" vars.private.tfvars
+    terraform init
     terraform apply -var-file ./vars.private.tfvars -auto-approve
+    terraform output kubeconfig > ../kubeconfig.private.yaml
+
+    echo "--------------------------------------------------------"
+    echo "Setting kubectl context to new cluster"
+    echo "--------------------------------------------------------"
+    az aks get-credentials -n $(terraform output cluster_name) -g $(terraform output resource_group_name)
     cd -
+    
     echo "--------------------------------------------------------"
     echo "Wait for the pods to start"
     echo "--------------------------------------------------------"
 
     sleep 15
+
+    export KUBECONFIG=./kubeconfig.private.yaml
     kubectl get pods || true
+
 else
     echo "--------------------------------------------------------"
     echo "Cleaning up k8s, removing all jobs and pods"
@@ -96,7 +117,7 @@ echo "Deploying downloader and transcoder module with tag $ION_IMAGE_TAG"
 echo "--------------------------------------------------------"
 
 docker run --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
-docker run --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
+docker run --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
 sleep 30
 
 

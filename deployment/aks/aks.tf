@@ -58,3 +58,11 @@ output "cluster_ca" {
 output "host" {
   value = "${azurerm_kubernetes_cluster.aks.kube_config.0.host}"
 }
+
+output "kubeconfig" {
+  value = "${azurerm_kubernetes_cluster.aks.kube_config_raw}"
+}
+
+output "cluster_name" {
+  value = "ionaks-${random_string.batchname.result}"
+}

@@ -107,3 +107,16 @@ module "ion" {
   dispatcher_docker_image    = "${var.docker_root}/ion-dispatcher:${var.docker_tag}"
   frontapi_docker_image      = "${var.docker_root}/ion-frontapi:${var.docker_tag}"
 }
+
+output "kubeconfig" {
+  value     = "${module.aks.kubeconfig}"
+  sensitive = true
+}
+
+output "cluster_name" {
+  value = "${module.aks.cluster_name}"
+}
+
+output "resource_group_name" {
+  value = "${var.resource_group_name}"
+}
