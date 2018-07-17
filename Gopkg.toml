@@ -6,14 +6,13 @@
   name = "github.com/Azure/go-autorest"
   version = "10.1.0"
 
-
 [[constraint]]
   name = "github.com/joho/godotenv"
   version = "1.2.0"
 
 [[constraint]]
   name = "github.com/lawrencegripper/pod2docker"
-  version = "0.5.1"
+  version = "0.5.2"
 
 [[constraint]]
   name = "github.com/sirupsen/logrus"

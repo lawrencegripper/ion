@@ -70,9 +70,9 @@ func TestMain(m *testing.M) {
 	// Create mock context
 	context = &common.Context{
 		Name:          "testModule",
-		EventID:       "01010101",
+		EventID:       "eventid",
 		CorrelationID: "frank",
-		ParentEventID: "10101010",
+		ParentEventID: "parentid",
 	}
 
 	environment = module.GetModuleEnvironment(testdata)
@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 	// Create committer
 	log.SetOutput(os.Stdout)
-	c = committer.NewCommitter(testdata, false)
+	c = committer.NewCommitter(testdata, nil)
 
 	exitCode := m.Run()
 

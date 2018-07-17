@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -15,22 +13,15 @@ var cfgFile string
 
 var cfg = types.Configuration{
 	Job: &types.JobConfig{},
+	Handler: &types.HandlerConfig{
+		MongoDBDocumentStorageProvider: &types.MongoDBConfig{},
+	},
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "../../configs/frontapi.yaml", "Config file path")
 	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 	_ = viper.BindPFlag("useViper", rootCmd.PersistentFlags().Lookup("viper"))
-}
-
-func initConfig() {
-	viper.SetConfigFile(cfgFile)
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Errorln("Can't read config:", err)
-		os.Exit(1)
-	}
 }
 
 var rootCmd = &cobra.Command{

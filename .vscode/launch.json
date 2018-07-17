@@ -5,6 +5,38 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug Ion CLI",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceRoot}/cmd/ion",
+            "showLog": true,
+            "args": [
+                "module"
+            ]
+        },
+        {
+            "name": "Debug Handler",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceRoot}/cmd/handler",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
+            "showLog": true,
+            "args": [
+                "start",
+            ]
+        },
+        {
+            "name": "Debug Handler Azure Integration Tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceRoot}/internal/app/handler/integration/azure_intergration_test.go",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
+            "showLog": true
+        },
+        {
             "name": "Debug Dispatcher",
             "type": "go",
             "request": "launch",
@@ -14,6 +46,18 @@
             "host": "127.0.0.1",
             "program": "${workspaceRoot}/cmd/dispatcher",
             "envFile": "${workspaceRoot}/.vscode/private.env",
+            "showLog": true,
+            "args": [
+                "start",
+            ]
+        },
+        {
+            "name": "Debug Management Server",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceRoot}/cmd/management",
+            "envFile": "${workspaceRoot}/.vscode/management.private.env",
             "showLog": true,
             "args": [
                 "start",
@@ -30,7 +74,7 @@
             "program": "${workspaceRoot}/internal/app/dispatcher/providers",
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "args": [
-                "-test.v",  
+                "-test.v",
                 "-test.timeout",
                 "15m"
             ],
@@ -47,9 +91,41 @@
             "program": "${workspaceRoot}/internal/pkg/servicebus",
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "args": [
-                "-test.v",  
+                "-test.v",
                 "-test.timeout",
                 "5m"
+            ],
+            "showLog": true
+        },
+        {
+            "name": "Frontapi integration Tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}/internal/app/frontapi/integration/integration_test.go",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
+            "args": [
+                "-test.v",
+                "-test.timeout",
+                "5m"
+            ],
+            "showLog": true
+        },
+        {
+            "name": "Debug Frontapi",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}/cmd/frontapi",
+            "envFile": "${workspaceRoot}/.vscode/frontapi.private.env",
+            "args": [
+                "serve"
             ],
             "showLog": true
         }

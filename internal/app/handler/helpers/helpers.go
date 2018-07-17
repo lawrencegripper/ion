@@ -1,14 +1,11 @@
 package helpers
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"path"
 	"path/filepath"
 	"strings"
 
-	"github.com/lawrencegripper/ion/internal/app/handler/constants"
 	"github.com/twinj/uuid"
 	"os"
 )
@@ -109,19 +106,4 @@ func CreateFileClean(filePath string) error {
 // GetPath creates an OS specific filepath including the base directory
 func GetPath(basePath, relativePath string) string {
 	return filepath.FromSlash(path.Join(basePath, relativePath))
-}
-
-// WriteDevFile writes out a development file
-func WriteDevFile(fileName, dir string, obj interface{}) error {
-	// TODO: Handle errors here?
-	path := path.Join(constants.DevBaseDir, dir, "dev."+fileName)
-	b, err := json.Marshal(&obj)
-	if err != nil {
-		return fmt.Errorf("error generating development logs, '%+v'", err)
-	}
-	err = ioutil.WriteFile(path, b, 0777)
-	if err != nil {
-		return fmt.Errorf("error writing development logs, '%+v'", err)
-	}
-	return nil
 }

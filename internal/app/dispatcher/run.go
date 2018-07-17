@@ -55,27 +55,28 @@ func Run(cfg *types.Configuration) {
 				log.WithError(err).Panic("Error received dequeuing message - nil message")
 			}
 
-			log.WithField("message", message).Debug("message received")
-
 			wrapper := messaging.NewAmqpMessageWrapper(message)
+			contextualLogger := providers.GetLoggerForMessage(wrapper, log.NewEntry(log.StandardLogger()))
+			contextualLogger.Debug("message received")
+
 			if wrapper.DeliveryCount() > cfg.Job.RetryCount+1 {
-				log.WithField("message", message).Error("message re-received when above retryCount. AMQP provider wrongly redelivered message.")
+				contextualLogger.Error("message re-received when above retryCount. AMQP provider wrongly redelivered message.")
 				err := wrapper.Reject()
 				if err != nil {
-					log.WithField("message", message).Error("error rejecting message")
+					contextualLogger.Error("error rejecting message")
 				}
 			}
 			err = provider.Dispatch(wrapper)
 			if err != nil {
-				log.WithError(err).Error("Couldn't dispatch message to kubernetes provider")
+				contextualLogger.WithError(err).Error("Couldn't dispatch message to kubernetes provider")
 			}
 
-			log.WithField("message", message).Debug("message dispatched")
-			queueDepth, err := amqpConnection.GetQueueDepth()
+			contextualLogger.Debug("message dispatched")
+			queueStats, err := amqpConnection.GetQueueDepth()
 			if err != nil {
-				log.WithError(err).Error("failed getting queue depth from listener")
+				contextualLogger.WithError(err).Error("failed getting queue depth from listener")
 			}
-			log.WithField("queueCount", queueDepth).Info("listenerStats")
+			contextualLogger.WithField("activeMessageCount", queueStats.ActiveMessageCount).WithField("deadLetteredMessageCount", queueStats.DeadLetterMessageCount).Info("listenerStats")
 		}
 	}()
 
@@ -89,7 +90,7 @@ func Run(cfg *types.Configuration) {
 				// Todo: Should this panic here? Should we tolerate a few failures (k8s upgade causing masters not to be vailable for example?)
 				log.WithError(err).Panic("Failed to reconcile ....")
 			}
-			log.WithField("inProgress", provider.InProgressCount).Info("providerStats")
+			log.WithField("inProgress", provider.InProgressCount()).Info("providerStats")
 
 			time.Sleep(time.Second * 15)
 

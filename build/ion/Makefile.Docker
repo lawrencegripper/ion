@@ -1,0 +1,2 @@
+all:
+	docker build -f build/ion/Dockerfile -t ion-cli .

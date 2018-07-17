@@ -3,12 +3,15 @@ package azure
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/app/handler/helpers"
+	log "github.com/sirupsen/logrus"
 )
 
 // cSpell:ignore nolint, golint, sasuris, sasuri
@@ -28,10 +31,11 @@ type BlobStorage struct {
 	containerName    string
 	outputBlobPrefix string
 	inputBlobPrefix  string
+	eventMeta        *documentstorage.EventMeta
 }
 
 //NewBlobStorage creates a new Azure Blob Storage object
-func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string) (*BlobStorage, error) {
+func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string, eventMeta *documentstorage.EventMeta) (*BlobStorage, error) {
 	blobClient, err := storage.NewBasicClient(config.BlobAccountName, config.BlobAccountKey)
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage blobClient: %+v", err)
@@ -42,6 +46,7 @@ func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string) (*
 		containerName:    config.ContainerName,
 		outputBlobPrefix: outputBlobPrefix,
 		inputBlobPrefix:  inputBlobPrefix,
+		eventMeta:        eventMeta,
 	}
 	return asb, nil
 }
@@ -95,21 +100,30 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 
 //GetBlobs gets each of the provided blobs from Azure Blob Storage
 func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
-	containerName := a.containerName
-	container := a.blobClient.GetContainerReference(containerName)
+	if a.eventMeta == nil {
+		log.Info("skipping getblob as eventmeta is nil meaning this is an orphaned event or the first in a workflow")
+		return nil
+	}
+	dataAsMap := a.eventMeta.Data.AsMap()
 	for _, filePath := range filePaths {
-		blobPath := helpers.JoinBlobPath(a.inputBlobPrefix, filePath)
-		blobRef := container.GetBlobReference(blobPath)
-		blob, err := blobRef.Get(&storage.GetBlobOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to get blob '%s' with error '%+v'", blobPath, err)
+		fileSASURL, ok := dataAsMap[filePath]
+		if !ok {
+			log.WithField("filepath", filePath).WithField("eventMeta", a.eventMeta).Error("couldn't find SAS url for azure blob data")
+			return fmt.Errorf("failed to find sas url for azure blob data in event meta: %+v", a.eventMeta)
 		}
-		var bytes []byte
-		_, err = blob.Read(bytes)
+
+		resp, err := http.Get(fileSASURL)
 		if err != nil {
-			return fmt.Errorf("failed to read blob '%s' with error '%+v'", blobPath, err)
+			log.WithField("filepath", filePath).WithField("eventMeta", a.eventMeta).Error("couldn't download data from SAS url for azure blob data")
+			return fmt.Errorf("Couldn't download data from SAS url for azure blob url: %+v data: %+v", fileSASURL, a.eventMeta)
 		}
-		defer blob.Close() // nolint: errcheck
+
+		bytes, err := ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close() //nolint: errcheck
+
+		if err != nil {
+			return fmt.Errorf("failed to read blob '%s' with error '%+v'", fileSASURL, err)
+		}
 		outputFilePath := path.Join(outputDir, filePath)
 		err = ioutil.WriteFile(outputFilePath, bytes, 0777)
 		if err != nil {

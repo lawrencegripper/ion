@@ -95,7 +95,7 @@ docker run --network container:{{$podName}} --ipc container:{{$podName}} \
     --runtime nvidia \
     {{- end}}
     {{- range $index, $envs := $container.Env}}
--e "{{$envs.Name}}:{{$envs.Value}}" \
+-e "{{$envs.Name}}={{$envs.Value}}" \
     {{- end}}
     {{- range $index, $mount := getValidVolumeMounts $container $volumes}}
 -v {{$podName}}_{{$mount.Name}}:{{$mount.MountPath}} \
@@ -114,7 +114,7 @@ docker run -d --network container:{{$podName}} --ipc container:{{$podName}} \
     --runtime nvidia \
     {{- end}}
     {{- range $index, $envs := $container.Env}}
--e "{{$envs.Name}}:{{$envs.Value}}" \
+-e "{{$envs.Name}}={{$envs.Value}}" \
     {{- end}}
     {{- range $index, $mount := getValidVolumeMounts $container $volumes}}
 -v {{$podName}}_{{$mount.Name}}:{{$mount.MountPath}} \

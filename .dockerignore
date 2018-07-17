@@ -2,6 +2,10 @@
 .dockerignore
 .gitignore
 .travis.yml
-build
 Makefile
-**/vendor/
+
+build
+.vscode
+deployment
+docs
+build

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+
+option go_package = "trace";
+
+service TraceService {
+  rpc GetFlow (GetFlowRequest) returns (GetFlowResponse) {}
+}
+
+message GetFlowRequest {
+    string correlationID = 1;
+}
+
+message GetFlowResponse {
+    string flowJSON = 1;
+}

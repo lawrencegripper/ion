@@ -16,7 +16,7 @@ resource "azurerm_template_deployment" "test" {
 
   # these key-value pairs are passed into the ARM Template's `parameters` block
   parameters {
-    "batchAccountName"      = "ionbatch-${random_string.batchname.result}"
+    "batchAccountName"      = "ionbatch${random_string.batchname.result}"
     "storageAccountID"      = "${var.storage_account_id}"
     "poolBoostrapScriptUrl" = "${var.pool_bootstrap_script_url}"
     "location"              = "${var.resource_group_location}"
@@ -142,5 +142,5 @@ DEPLOY
 }
 
 output "name" {
-  value = "${random_string.batchname.result}"
+  value = "ionbatch${random_string.batchname.result}"
 }

@@ -1,0 +1,2 @@
+all:
+	docker build -f modules/transcode/Dockerfile -t ion-module-transcode .

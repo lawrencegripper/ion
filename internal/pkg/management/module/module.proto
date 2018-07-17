@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+option go_package = "module";
+
+service ModuleService {
+  rpc Create (ModuleCreateRequest) returns (ModuleCreateResponse) {}
+  rpc Delete (ModuleDeleteRequest) returns (ModuleDeleteResponse) {}
+  rpc Get (ModuleGetRequest) returns (ModuleGetResponse) {}
+  rpc List (ModuleListRequest) returns (ModuleListResponse) {}
+}
+
+message ModuleCreateRequest {
+  string modulename = 1;
+  string eventsubscriptions = 2;
+  string eventpublications = 3;
+  string moduleimage = 4;
+  string handlerimage = 5;
+  int32 instancecount = 6;
+  int32 retrycount = 7;
+  string provider = 8;
+  map<string, string> configmap = 9;
+}
+
+message ModuleCreateResponse {
+  string name = 1;
+}
+
+message ModuleDeleteRequest {
+  string name = 1;
+}
+
+message ModuleDeleteResponse {
+  string name = 1;
+}
+
+message ModuleGetRequest {
+  string name = 1;
+}
+
+//TODO: add more fields
+message ModuleGetResponse {
+  string name = 1;
+  string status = 2;
+  string statusMessage = 3;
+}
+
+message ModuleListRequest {
+
+}
+
+message ModuleListResponse {
+  repeated string names = 1;
+}
+
+message Empty {}
+

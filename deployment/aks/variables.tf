@@ -3,6 +3,15 @@ variable "client_id" {
   description = "Client ID"
 }
 
+variable "node_count" {
+  description = "Number of nodes to provision in the cluster"
+}
+
+variable "node_sku" {
+  description = "Virtual machine SKU of the nodes"
+  default     = "Standard_DS2_v2"
+}
+
 variable "client_secret" {
   type        = "string"
   description = "Client secret."

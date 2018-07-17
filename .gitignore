@@ -12,5 +12,14 @@ dispatcher
 servicebus-publisher
 servicebus-subscriber
 cmd/dispatcher/debug
-terraform-provider-kubernetes
-.terraform/*
+internal/app/management/client/client
+
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/terraform-provider-*
+client
+ionctl
+frontapi
+imagetag.temp
+**/debug
