@@ -62,7 +62,7 @@ func Setup(cmd *cobra.Command, args []string) error {
 			panic(fmt.Errorf("failed to append client certs"))
 		}
 		creds := credentials.NewTLS(&tls.Config{
-			ServerName:   strings.Split(managementEndpoint, ':')[0],
+			ServerName:   strings.Split(managementEndpoint, ":")[0],
 			Certificates: []tls.Certificate{certificate},
 			RootCAs:      certPool,
 		})
