@@ -3,6 +3,8 @@ package types
 // Configuration reprsents all the config values
 // needed to run the management server
 type Configuration struct {
+	CertFile                          string
+	KeyFile                           string
 	Provider                          string
 	Port                              int
 	Namespace                         string

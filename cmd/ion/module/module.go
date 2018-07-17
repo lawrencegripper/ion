@@ -6,12 +6,13 @@ import (
 	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"time"
 )
 
 //Client A shared GRPC module server client
 var Client module.ModuleServiceClient
-var managementEndpoint string
+var managementEndpoint, certFile string
 var timeoutSec int
 
 // moduleCmd represents the module command
@@ -35,14 +36,23 @@ func Setup(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("using management endpoint %s\n", managementEndpoint)
+	var options []grpc.DialOption
+
+	if certFile != "" {
+		creds, err := credentials.NewClientTLSFromFile(certFile, "")
+		if err != nil {
+			return fmt.Errorf("failed to load TLS configuraton from certificate file '%s': %+v", certFile, err)
+		}
+		options = append(options, grpc.WithTransportCredentials(creds))
+	} else {
+		options = append(options, grpc.WithInsecure())
+	}
+
+	options = append(options, grpc.WithBlock())
+	options = append(options, grpc.WithTimeout(time.Duration(timeoutSec)*time.Second))
 
 	// Initialize a global GRPC connection to the management server
-	conn, err := grpc.Dial(managementEndpoint,
-		grpc.WithInsecure(),
-		grpc.WithBlock(),
-		grpc.WithTimeout(time.Duration(timeoutSec)*time.Second))
-
+	conn, err := grpc.Dial(managementEndpoint, options...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to server %s: %+v", managementEndpoint, err)
 	}
@@ -68,4 +78,5 @@ func init() {
 	// Local flags for the root command
 	moduleCmd.PersistentFlags().StringVar(&managementEndpoint, "endpoint", "localhost:9000", "management server endpoint")
 	moduleCmd.PersistentFlags().IntVar(&timeoutSec, "timeout", 30, "timeout in seconds for cli to connect to management server")
+	moduleCmd.PersistentFlags().StringVar(&certFile, "certfile", "", "PEM formatted certificate file for mutual authentication")
 }

@@ -31,6 +31,8 @@ func NewStartCommand() *cobra.Command {
 			viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 			viper.AutomaticEnv()
 
+			managementConfig.CertFile = viper.GetString("certfile")
+			managementConfig.KeyFile = viper.GetString("keyfile")
 			managementConfig.Provider = viper.GetString("provider")
 			managementConfig.Port = viper.GetInt("management-port")
 			managementConfig.Namespace = viper.GetString("namespace")
