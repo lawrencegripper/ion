@@ -1,18 +1,23 @@
 package module
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
+	"strings"
+	"time"
+
 	"github.com/lawrencegripper/ion/cmd/ion/root"
 	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"time"
 )
 
 //Client A shared GRPC module server client
 var Client module.ModuleServiceClient
-var managementEndpoint, certFile string
+var managementEndpoint, certFile, keyFile, caCertFile string
 var timeoutSec int
 
 // moduleCmd represents the module command
@@ -38,11 +43,29 @@ func Setup(cmd *cobra.Command, args []string) error {
 
 	var options []grpc.DialOption
 
-	if certFile != "" {
-		creds, err := credentials.NewClientTLSFromFile(certFile, "")
+	if certFile != "" && keyFile != "" && caCertFile != "" {
+		certificate, err := tls.LoadX509KeyPair(
+			certFile,
+			keyFile,
+		)
 		if err != nil {
-			return fmt.Errorf("failed to load TLS configuraton from certificate file '%s': %+v", certFile, err)
+			panic(fmt.Errorf("failed to read server certificate file '%s' and key file '%s': %+v", certFile, keyFile, err))
 		}
+
+		certPool := x509.NewCertPool()
+		bs, err := ioutil.ReadFile(caCertFile)
+		if err != nil {
+			panic(fmt.Errorf("failed to read client ca cert: %s", err))
+		}
+		ok := certPool.AppendCertsFromPEM(bs)
+		if !ok {
+			panic(fmt.Errorf("failed to append client certs"))
+		}
+		creds := credentials.NewTLS(&tls.Config{
+			ServerName:   strings.Split(managementEndpoint, ':')[0],
+			Certificates: []tls.Certificate{certificate},
+			RootCAs:      certPool,
+		})
 		options = append(options, grpc.WithTransportCredentials(creds))
 	} else {
 		options = append(options, grpc.WithInsecure())
@@ -57,6 +80,7 @@ func Setup(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to connect to server %s: %+v", managementEndpoint, err)
 	}
 	Client = module.NewModuleServiceClient(conn)
+
 	return nil
 }
 
@@ -78,5 +102,7 @@ func init() {
 	// Local flags for the root command
 	moduleCmd.PersistentFlags().StringVar(&managementEndpoint, "endpoint", "localhost:9000", "management server endpoint")
 	moduleCmd.PersistentFlags().IntVar(&timeoutSec, "timeout", 30, "timeout in seconds for cli to connect to management server")
-	moduleCmd.PersistentFlags().StringVar(&certFile, "certfile", "", "PEM formatted certificate file for mutual authentication")
+	moduleCmd.PersistentFlags().StringVar(&certFile, "certfile", "", "x509 PEM formatted client certificate")
+	moduleCmd.PersistentFlags().StringVar(&keyFile, "keyfile", "", "x509 PEM formatted client key")
+	moduleCmd.PersistentFlags().StringVar(&caCertFile, "cacertfile", "", "Root CA certificate file")
 }

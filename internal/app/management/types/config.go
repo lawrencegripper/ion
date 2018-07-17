@@ -5,6 +5,7 @@ package types
 type Configuration struct {
 	CertFile                          string
 	KeyFile                           string
+	CACertFile                        string
 	Provider                          string
 	Port                              int
 	Namespace                         string

@@ -33,6 +33,7 @@ func NewStartCommand() *cobra.Command {
 
 			managementConfig.CertFile = viper.GetString("certfile")
 			managementConfig.KeyFile = viper.GetString("keyfile")
+			managementConfig.CACertFile = viper.GetString("cacertfile")
 			managementConfig.Provider = viper.GetString("provider")
 			managementConfig.Port = viper.GetInt("management-port")
 			managementConfig.Namespace = viper.GetString("namespace")

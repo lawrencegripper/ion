@@ -1,7 +1,10 @@
 package management
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"strconv"
 	"strings"
@@ -38,12 +41,31 @@ func Run(config *types.Configuration) {
 
 	var options []grpc.ServerOption
 
-	if config.CertFile != "" && config.KeyFile != "" {
-		creds, err := credentials.NewServerTLSFromFile(config.CertFile, config.KeyFile)
+	if config.CertFile != "" && config.KeyFile != "" && config.CACertFile != "" {
+		certificate, err := tls.LoadX509KeyPair(
+			config.CertFile,
+			config.KeyFile,
+		)
 		if err != nil {
-			panic(fmt.Errorf("Failed to load TLS configuration from certificate file '%s' and key file '%s': %v", config.CertFile, config.KeyFile, err))
+			panic(fmt.Errorf("failed to read server certificate file '%s' and key file '%s': %+v", config.CertFile, config.KeyFile, err))
 		}
-		options = append(options, grpc.Creds(creds))
+
+		certPool := x509.NewCertPool()
+		bs, err := ioutil.ReadFile(config.CACertFile)
+		if err != nil {
+			panic(fmt.Errorf("failed to read client ca cert: %s", err))
+		}
+		ok := certPool.AppendCertsFromPEM(bs)
+		if !ok {
+			panic(fmt.Errorf("failed to append client certs"))
+		}
+		tlsConfig := &tls.Config{
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			Certificates: []tls.Certificate{certificate},
+			ClientCAs:    certPool,
+		}
+
+		options = append(options, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
