@@ -107,6 +107,18 @@ resource "kubernetes_deployment" "ion-front-api" {
               value = "${var.servicebus_name}"
             },
             {
+              name  = "IMAGE_REGISTRY_URL"
+              value = "${var.acr_url}"
+            },
+            {
+              name  = "IMAGE_REGISTRY_USERNAME"
+              value = "${var.acr_username}"
+            },
+            {
+              name  = "IMAGE_REGISTRY_PASSWORD"
+              value = "${var.acr_password}"
+            },
+            {
               name  = "LOGLEVEL"
               value = "DEBUG"
             },
@@ -243,15 +255,15 @@ resource "kubernetes_deployment" "ion-management-api" {
               value = "kubernetes"
             },
             {
-              name  = "CONTAINER_IMAGE_REGISTRY_URL"
+              name  = "IMAGE_REGISTRY_URL"
               value = "${var.acr_url}"
             },
             {
-              name  = "CONTAINER_IMAGE_REGISTRY_USERNAME"
+              name  = "IMAGE_REGISTRY_USERNAME"
               value = "${var.acr_username}"
             },
             {
-              name  = "CONTAINER_IMAGE_REGISTRY_PASSWORD"
+              name  = "IMAGE_REGISTRY_PASSWORD"
               value = "${var.acr_password}"
             },
           ]

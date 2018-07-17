@@ -29,7 +29,7 @@ func (kvps KeyValuePairs) Append(kvp KeyValuePair) KeyValuePairs {
 
 //Remove a key value pair at an index by shifting the slice
 func (kvps KeyValuePairs) Remove(index int) (KeyValuePairs, error) {
-	if (index > len(kvps)+1) || (index < 0) {
+	if (index > len(kvps)-1) || (index < 0) {
 		return KeyValuePairs{}, fmt.Errorf("Invalid index provided")
 	}
 	kvps = append(kvps[:index], kvps[index+1:]...)

@@ -27,8 +27,6 @@ func Setup(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("using management endpoint %s\n", managementEndpoint)
-
 	// Initialize a global GRPC connection to the management server
 	conn, err := grpc.Dial(managementEndpoint,
 		grpc.WithInsecure(),

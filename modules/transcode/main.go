@@ -33,6 +33,7 @@ func main() {
 	}
 
 	results := []string{}
+	log.Info(fmt.Sprintf("Found %v files to transcode", len(results)))
 	for _, inputFile := range files {
 		transcodedFileName, err := transcode(filepath.Join(env.InputDataDir(), inputFile.Name()))
 		if err != nil {

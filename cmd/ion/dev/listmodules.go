@@ -51,7 +51,7 @@ func ListModules(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, file := range files {
-		file := strings.Replace(file, ionModulesDir, "", -1)
+		file := strings.TrimPrefix(file, ionModulesDir)
 		fmt.Println(file)
 	}
 

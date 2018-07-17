@@ -120,3 +120,16 @@ output "cluster_name" {
 output "resource_group_name" {
   value = "${var.resource_group_name}"
 }
+
+output "acr_url" {
+  value = "${module.acr.login_server}"
+}
+
+output "acr_username" {
+  value = "${module.acr.username}"
+}
+
+output "acr_password" {
+  sensitive = true
+  value     = "${module.acr.password}"
+}

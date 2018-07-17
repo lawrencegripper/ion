@@ -350,7 +350,7 @@ func getLoggerForJob(job *batchv1.Job) *log.Entry {
 
 	entity := log.WithField("job", job)
 	if job.Status.CompletionTime != nil && job.Status.StartTime != nil {
-		log.WithField("taskDurationSec", job.Status.CompletionTime.Sub(job.Status.StartTime.Time).Seconds)
+		entity = log.WithField("taskDurationSec", job.Status.CompletionTime.Sub(job.Status.StartTime.Time).Seconds)
 	}
 
 	if c, ok := job.Annotations[correlationIDLabel]; ok {

@@ -174,13 +174,11 @@ func TestAzureIntegration(t *testing.T) {
 	}
 
 	// The first key, value pair should be as expected
-	for _, kvp := range kvps {
-		if kvp.Key != "abc" {
-			t.Fatalf("expected key 'abc' in key value pairs: '%+v'", kvp)
-		}
-		if kvp.Value != "123" {
-			t.Fatalf("expected key 'abc' to have value '123' in key value pairs: '%+v'", kvp)
-		}
-		break
+	kvp := kvps[0]
+	if kvp.Key != "abc" {
+		t.Fatalf("expected key 'abc' in key value pairs: '%+v'", kvp)
+	}
+	if kvp.Value != "123" {
+		t.Fatalf("expected key 'abc' to have value '123' in key value pairs: '%+v'", kvp)
 	}
 }

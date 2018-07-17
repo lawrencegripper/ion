@@ -26,8 +26,6 @@ func init() {
 	flags.String("eventspublished", "", "Events this modules can publish")
 	flags.String("servicebusnamespace", "", "Namespace to use for ServiceBus")
 	flags.String("resourcegroup", "", "Azure ResourceGroup to use")
-	flags.Bool("logsensitiveconfig", false, "Print out sensitive config when logging")
-	flags.String("moduleconfigpath", "", "Path to environment variables file for module")
 	flags.BoolP("printconfig", "P", false, "Print out config when starting")
 
 	// job.*
@@ -36,7 +34,6 @@ func init() {
 	// document store flags
 	flags.String("mongodb-name", "", "MongoDB Name")
 	flags.String("mongodb-collection", "", "MongoDB Database Collection")
-	flags.String("mongodb-username", "", "MongoDB server username")
 	flags.String("mongodb-password", "", "MongoDB server password")
 	flags.Int("mongodb-port", 27017, "MongoDB server port")
 
