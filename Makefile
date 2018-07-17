@@ -1,4 +1,4 @@
-.PHONY: dependencies checks test dispatcher handler frontapi management ioncli example-modules
+.PHONY: dependencies management checks test dispatcher handler frontapi ioncli example-modules
 all: dependencies checks test dispatcher handler frontapi management ioncli example-modules
 
 dependencies:
