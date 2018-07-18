@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,6 +38,7 @@ type Kubernetes struct {
 	createJob        func(*batchv1.Job) (*batchv1.Job, error)
 	listAllJobs      func() (*batchv1.JobList, error)
 	removeJob        func(*batchv1.Job) error
+	getLogs          func(b *batchv1.Job) (string, error)
 	client           *kubernetes.Clientset
 	jobConfig        *types.JobConfig
 	inflightJobStore map[string]messaging.Message
@@ -91,6 +93,9 @@ func NewKubernetesProvider(config *types.Configuration, sharedHandlerArgs []stri
 	}
 	k.removeJob = func(j *batchv1.Job) error {
 		return k.client.BatchV1().Jobs(k.Namespace).Delete(j.Name, &metav1.DeleteOptions{})
+	}
+	k.getLogs = func(b *batchv1.Job) (string, error) {
+		return getLogsForJob(b.Namespace, b, k.client)
 	}
 
 	return &k, nil
@@ -395,4 +400,66 @@ func getClientSet() (*kubernetes.Clientset, error) {
 
 func getJobName(m messaging.Message) string {
 	return strings.ToLower(m.ID()) + "-v" + strconv.Itoa(m.DeliveryCount())
+}
+
+func getLogsForJob(namespace string, job *batchv1.Job, clientset *kubernetes.Clientset) (string, error) {
+
+	pods, err := clientset.Core().Pods(namespace).List(metav1.ListOptions{
+		LabelSelector: job.Spec.Selector.String(),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed gettings pods for job: %+v", err)
+	}
+
+	if pods == nil {
+		return "", fmt.Errorf("pods nil")
+	}
+
+	stringBuilder := strings.Builder{}
+	for _, pod := range pods.Items {
+
+		stringBuilder.WriteString("\n\n ------ Preparer logs ------ \n\n")
+
+		logs, err := getLogsForContainer("prepare", pod.Name, namespace, clientset)
+		if err != nil {
+			stringBuilder.WriteString("Failed getting logs for 'prepare' container /n") //nolint: errcheck
+		}
+		stringBuilder.WriteString(logs)
+
+		stringBuilder.WriteString("\n\n ------ Worker logs ------ \n\n")
+
+		logs, err = getLogsForContainer("worker", pod.Name, namespace, clientset)
+		if err != nil {
+			stringBuilder.WriteString("Failed getting logs for 'prepare' container /n") //nolint: errcheck
+		}
+		stringBuilder.WriteString(logs)
+
+		stringBuilder.WriteString("\n\n ------ Committer logs ------ \n\n")
+
+		logs, err = getLogsForContainer("commit", pod.Name, namespace, clientset)
+		if err != nil {
+			stringBuilder.WriteString("Failed getting logs for 'prepare' container /n") //nolint: errcheck
+		}
+		stringBuilder.WriteString(logs)
+
+	}
+
+	return stringBuilder.String(), nil
+}
+
+func getLogsForContainer(containerName, podName, namespace string, clientset *kubernetes.Clientset) (string, error) {
+	logsRes, err := clientset.Core().Pods(namespace).GetLogs(podName, &apiv1.PodLogOptions{
+		Container: containerName,
+		Follow:    false,
+	}).Stream()
+
+	if err != nil {
+		return "", err
+	}
+
+	prepareBytes, err := ioutil.ReadAll(logsRes)
+	if err != nil {
+		return "", err
+	}
+	return string(prepareBytes), nil
 }
