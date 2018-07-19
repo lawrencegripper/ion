@@ -18,3 +18,11 @@ type EventMeta struct {
 	Files         []string             `bson:"files" json:"files"`
 	Data          common.KeyValuePairs `bson:"data" json:"data"`
 }
+
+//ModuleLogs is a single entry in a document
+type ModuleLogs struct {
+	*common.Context
+	Description string `bson:"desc" json:"desc"`
+	Logs        string `bson:"logs" json:"logs"`
+	Succeeded   bool   `bson:"succeeded" json:"succeeded"`
+}

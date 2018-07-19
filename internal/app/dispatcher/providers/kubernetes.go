@@ -13,6 +13,9 @@ import (
 
 	"github.com/Azure/go-autorest/autorest/to"
 
+	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
+	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/mongodb"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -25,9 +28,12 @@ import (
 
 const (
 	dispatcherNameLabel = "ion/createdBy"
-	messageIDLabel      = "messageid"
-	correlationIDLabel  = "correlationid"
-	deliverycountlabel  = "deliverycount"
+	messageIDLabel      = "ion/messageid"
+	correlationIDLabel  = "ion/correlationid"
+	deliverycountlabel  = "ion/deliverycount"
+	moduleName          = "ion/modulename"
+	parentEventID       = "ion/parenteventid"
+	eventID             = "ion/eventid"
 )
 
 //Check providers match interface at compile time
@@ -47,6 +53,7 @@ type Kubernetes struct {
 	pullSecret       string
 	handlerArgs      []string
 	workerEnvVars    map[string]interface{}
+	mongoStore       *mongodb.MongoDB
 }
 
 // NewKubernetesProvider Creates an instance and does basic setup
@@ -96,6 +103,18 @@ func NewKubernetesProvider(config *types.Configuration, sharedHandlerArgs []stri
 	}
 	k.getLogs = func(b *batchv1.Job) (string, error) {
 		return getLogsForJob(b.Namespace, b, k.client)
+	}
+
+	k.mongoStore, err = mongodb.NewMongoDB(&mongodb.Config{
+		Enabled:    true,
+		Name:       config.Handler.MongoDBDocumentStorageProvider.Name,
+		Collection: config.Handler.MongoDBDocumentStorageProvider.Collection,
+		Password:   config.Handler.MongoDBDocumentStorageProvider.Password,
+		Port:       config.Handler.MongoDBDocumentStorageProvider.Port,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed initialising mongo connection: %+v", err)
 	}
 
 	return &k, nil
@@ -166,7 +185,27 @@ func (k *Kubernetes) Reconcile() error {
 			if condition.Type == batchv1.JobFailed {
 				contextualLogger.Warning("job failed to execute in k8s")
 
-				err := sourceMessage.Reject()
+				logs, err := k.getLogs(&j)
+				if err != nil {
+					contextualLogger.Error("failed to get logs for job")
+				} else {
+					err = k.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
+						Context: &common.Context{ //nolint:errcheck
+							CorrelationID: j.Annotations[correlationIDLabel], //nolint:errcheck
+							Name:          j.Annotations[moduleName],         //nolint:errcheck
+							EventID:       j.Annotations[eventID],            //nolint:errcheck
+							ParentEventID: j.Annotations[parentEventID],      //nolint:errcheck
+						},
+						Succeeded:   true,
+						Logs:        logs,
+						Description: fmt.Sprintf("module:%s-event:%s-attempt:%s", j.Annotations[moduleName], j.Annotations[eventID], j.Annotations[deliverycountlabel]),
+					})
+					if err != nil {
+						contextualLogger.Error("failed to store logs for job in mongo")
+					}
+				}
+
+				err = sourceMessage.Reject()
 				if err != nil {
 					contextualLogger.Error("failed to reject message")
 					return err
@@ -180,7 +219,26 @@ func (k *Kubernetes) Reconcile() error {
 			if condition.Type == batchv1.JobComplete {
 				contextualLogger.Info("job successfully to execute in k8s")
 
-				err := sourceMessage.Accept()
+				logs, err := k.getLogs(&j)
+				if err != nil {
+					contextualLogger.Error("failed to get logs for job")
+				} else {
+					err = k.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
+						Context: &common.Context{ //nolint:errcheck
+							CorrelationID: j.Annotations[correlationIDLabel], //nolint:errcheck
+							Name:          j.Annotations[moduleName],         //nolint:errcheck
+							EventID:       j.Annotations[eventID],            //nolint:errcheck
+							ParentEventID: j.Annotations[parentEventID],      //nolint:errcheck
+						},
+						Succeeded:   true,
+						Logs:        logs,
+						Description: fmt.Sprintf("module:%s-event:%s-attempt:%s", j.Annotations[moduleName], j.Annotations[eventID], j.Annotations[deliverycountlabel]),
+					})
+					if err != nil {
+						contextualLogger.Error("failed to store logs for job in mongo")
+					}
+				}
+				err = sourceMessage.Accept()
 
 				if err != nil {
 					contextualLogger.Error("failed to accept message")
@@ -213,10 +271,14 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	//Prevent later append calls overwriting original backing array: https://stackoverflow.com/a/40036950/3437018
 	fullHandlerArgs = fullHandlerArgs[:len(fullHandlerArgs):len(fullHandlerArgs)]
 
+	eventData, err := message.EventData()
 	labels := map[string]string{
 		dispatcherNameLabel: k.dispatcherName,
 		messageIDLabel:      message.ID(),
 		deliverycountlabel:  strconv.Itoa(message.DeliveryCount()),
+		parentEventID:       eventData.Context.ParentEventID,
+		eventID:             eventData.Context.EventID,
+		moduleName:          eventData.Context.Name,
 	}
 
 	workerEnvVars := []apiv1.EnvVar{
