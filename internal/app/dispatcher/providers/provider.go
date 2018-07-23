@@ -10,6 +10,7 @@ type Provider interface {
 	Reconcile() error
 	Dispatch(message messaging.Message) error
 	InProgressCount() int
+	GetActiveMessages() []messaging.Message
 }
 
 //GetLoggerForMessage Adds context fields to the logger for the message

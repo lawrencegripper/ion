@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"context"
+	"pack.ag/amqp"
 	"sync"
 	"time"
 
@@ -77,6 +78,20 @@ func Run(cfg *types.Configuration) {
 				contextualLogger.WithError(err).Error("failed getting queue depth from listener")
 			}
 			contextualLogger.WithField("activeMessageCount", queueStats.ActiveMessageCount).WithField("deadLetteredMessageCount", queueStats.DeadLetterMessageCount).Info("listenerStats")
+
+			// Renew message locks with ServiceBus
+			//https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-amqp-request-response#message-renew-lock
+			activeMessages := provider.GetActiveMessages()
+			messagesAMQP := make([]*amqp.Message, 0, len(activeMessages))
+			for _, m := range activeMessages {
+				originalMessage := m.GetAMQPMessage()
+				messagesAMQP = append(messagesAMQP, originalMessage)
+			}
+
+			err = amqpConnection.RenewLocks(ctx, messagesAMQP)
+			if err != nil {
+				contextualLogger.WithError(err).Error("failed to renew locks")
+			}
 		}
 	}()
 

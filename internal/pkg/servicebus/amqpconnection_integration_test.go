@@ -42,7 +42,7 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
 	listener := NewAmqpConnection(ctx, config)
@@ -79,10 +79,24 @@ func TestIntegrationNewListener(t *testing.T) {
 
 	message := messaging.NewAmqpMessageWrapper(amqpMessage)
 
-	message.Accept()
+	go func() {
+		time.Sleep(time.Duration(30) * time.Second)
+		err := listener.RenewLocks(ctx, []*amqp.Message{
+			amqpMessage,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	//Added to ensure that locks are renewed
+	time.Sleep(time.Duration(90) * time.Second)
+
+	err = message.Accept()
 	if string(message.Body()) != nonce {
 		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Body())
 	}
+	t.Error(err)
 
 	stats, err = listener.GetQueueDepth()
 	depth = stats.ActiveMessageCount
@@ -150,6 +164,7 @@ func TestIntegrationRequeueReleasedMessages(t *testing.T) {
 		t.Error("message delivered a 6th time - after 5 should be deadlettered")
 	}
 }
+
 func deleteSubscription(listener *AmqpConnection, config *types.Configuration) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*45)
 	defer cancel()

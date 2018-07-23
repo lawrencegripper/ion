@@ -31,6 +31,7 @@ type AmqpConnection struct {
 	AMQPConnectionString string
 	Session              *amqp.Session
 	Receiver             *amqp.Receiver
+	ManagementSender     *amqp.Sender
 	getSubscription      func() (servicebus.SBSubscription, error)
 }
 
@@ -180,8 +181,35 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 
 	listener.Session = createAmqpSession(&listener)
 	listener.Receiver = createAmqpListener(&listener)
+	listener.ManagementSender, err = listener.CreateAmqpSender(listener.TopicName + "/$management")
+	if err != nil {
+		log.WithError(err).Error("failed to create management sender, without this renewal of message locks will fail")
+	}
 
 	return &listener
+}
+
+//RenewLocks renews the locks on messages provided
+func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Message) error {
+	lockTokens := make([]interface{}, 0, len(messages))
+	for _, m := range messages {
+		lockTokens = append(lockTokens, m.DeliveryAnnotations["x-opt-lock-token"])
+	}
+
+	err := l.ManagementSender.Send(ctx, &amqp.Message{
+		ApplicationProperties: map[string]interface{}{
+			"operation": "com.microsoft:renew-lock",
+		},
+		Value: map[string]interface{}{
+			"lock-token": &lockTokens,
+		},
+	})
+	if err != nil {
+		log.WithError(err).Error("failed to renew locks on active messages")
+		return err
+	}
+
+	return nil
 }
 
 func createAmqpListener(listener *AmqpConnection) *amqp.Receiver {
