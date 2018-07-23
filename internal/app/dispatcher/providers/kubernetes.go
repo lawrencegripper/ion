@@ -15,7 +15,6 @@ import (
 
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/mongodb"
-	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -49,6 +48,7 @@ type Kubernetes struct {
 	jobConfig        *types.JobConfig
 	inflightJobStore map[string]messaging.Message
 	dispatcherName   string
+	moduleName       string
 	Namespace        string
 	pullSecret       string
 	handlerArgs      []string
@@ -70,6 +70,7 @@ func NewKubernetesProvider(config *types.Configuration, sharedHandlerArgs []stri
 	k.workerEnvVars = map[string]interface{}{
 		"HANDLER_PORT": config.Handler.ServerPort,
 	}
+	k.moduleName = config.ModuleName
 
 	// Add module specific config
 	envs, err := getModuleEnvironmentVars(config.ModuleConfigPath)
@@ -96,7 +97,9 @@ func NewKubernetesProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return k.client.BatchV1().Jobs(k.Namespace).Create(b)
 	}
 	k.listAllJobs = func() (*batchv1.JobList, error) {
-		return k.client.BatchV1().Jobs(k.Namespace).List(metav1.ListOptions{})
+		return k.client.BatchV1().Jobs(k.Namespace).List(metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", dispatcherNameLabel, k.dispatcherName),
+		})
 	}
 	k.removeJob = func(j *batchv1.Job) error {
 		return k.client.BatchV1().Jobs(k.Namespace).Delete(j.Name, &metav1.DeleteOptions{})
@@ -105,19 +108,31 @@ func NewKubernetesProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return getLogsForJob(b.Namespace, b, k.client)
 	}
 
-	k.mongoStore, err = mongodb.NewMongoDB(&mongodb.Config{
-		Enabled:    true,
-		Name:       config.Handler.MongoDBDocumentStorageProvider.Name,
-		Collection: config.Handler.MongoDBDocumentStorageProvider.Collection,
-		Password:   config.Handler.MongoDBDocumentStorageProvider.Password,
-		Port:       config.Handler.MongoDBDocumentStorageProvider.Port,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed initialising mongo connection: %+v", err)
+	if config.Handler != nil && config.Handler.MongoDBDocumentStorageProvider != nil {
+		k.mongoStore, err = mongodb.NewMongoDB(&mongodb.Config{
+			Enabled:    true,
+			Name:       config.Handler.MongoDBDocumentStorageProvider.Name,
+			Collection: config.Handler.MongoDBDocumentStorageProvider.Collection,
+			Password:   config.Handler.MongoDBDocumentStorageProvider.Password,
+			Port:       config.Handler.MongoDBDocumentStorageProvider.Port,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed initialising mongo connection: %+v", err)
+		}
+	} else {
+		log.Info("Skipping mongodb config as not provided")
 	}
 
 	return &k, nil
+}
+
+//GetActiveMessages gets the currently active messages
+func (k *Kubernetes) GetActiveMessages() []messaging.Message {
+	activeMessages := make([]messaging.Message, 0, len(k.inflightJobStore))
+	for _, m := range k.inflightJobStore {
+		activeMessages = append(activeMessages, m)
+	}
+	return activeMessages
 }
 
 // InProgressCount provides a count of the currently running jobs
@@ -185,24 +200,28 @@ func (k *Kubernetes) Reconcile() error {
 			if condition.Type == batchv1.JobFailed {
 				contextualLogger.Warning("job failed to execute in k8s")
 
-				logs, err := k.getLogs(&j)
+				//Todo: reused block refactor into method
+				eventData, err := sourceMessage.EventData()
 				if err != nil {
-					contextualLogger.Error("failed to get logs for job")
+					contextualLogger.WithError(err).Error("failed to get eventData from message")
+				} else if k.mongoStore == nil {
+					contextualLogger.Error("failed to get logs for job: mongo store not initialised")
 				} else {
+					eventData.Context.Name = k.moduleName
+					logs, err := k.getLogs(&j)
+					if err != nil {
+						contextualLogger.WithError(err).Error("failed to get logs for job: getLogsFailed")
+					}
 					err = k.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
-						Context: &common.Context{ //nolint:errcheck
-							CorrelationID: j.Annotations[correlationIDLabel], //nolint:errcheck
-							Name:          j.Annotations[moduleName],         //nolint:errcheck
-							EventID:       j.Annotations[eventID],            //nolint:errcheck
-							ParentEventID: j.Annotations[parentEventID],      //nolint:errcheck
-						},
-						Succeeded:   true,
+						Context:     eventData.Context,
 						Logs:        logs,
-						Description: fmt.Sprintf("module:%s-event:%s-attempt:%s", j.Annotations[moduleName], j.Annotations[eventID], j.Annotations[deliverycountlabel]),
+						Succeeded:   true,
+						Description: fmt.Sprintf("module:%s-event:%s-attempt:%v", eventData.Context.Name, eventData.Context.EventID, j.Labels[deliverycountlabel]),
 					})
 					if err != nil {
-						contextualLogger.Error("failed to store logs for job in mongo")
+						contextualLogger.WithError(err).Error("failed to store logs for job in mongo")
 					}
+					contextualLogger.WithField("logs", logs).Info("got logs for task")
 				}
 
 				err = sourceMessage.Reject()
@@ -219,25 +238,30 @@ func (k *Kubernetes) Reconcile() error {
 			if condition.Type == batchv1.JobComplete {
 				contextualLogger.Info("job successfully to execute in k8s")
 
-				logs, err := k.getLogs(&j)
+				//Todo: reused block refactor into method
+				eventData, err := sourceMessage.EventData()
 				if err != nil {
-					contextualLogger.Error("failed to get logs for job")
+					contextualLogger.WithError(err).Error("failed to get eventData from message")
+				} else if k.mongoStore == nil {
+					contextualLogger.Error("failed to get logs for job: mongo store not initialised")
 				} else {
+					eventData.Context.Name = k.moduleName
+					logs, err := k.getLogs(&j)
+					if err != nil {
+						contextualLogger.WithError(err).Error("failed to get logs for job: getLogsFailed")
+					}
 					err = k.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
-						Context: &common.Context{ //nolint:errcheck
-							CorrelationID: j.Annotations[correlationIDLabel], //nolint:errcheck
-							Name:          j.Annotations[moduleName],         //nolint:errcheck
-							EventID:       j.Annotations[eventID],            //nolint:errcheck
-							ParentEventID: j.Annotations[parentEventID],      //nolint:errcheck
-						},
-						Succeeded:   true,
+						Context:     eventData.Context,
 						Logs:        logs,
-						Description: fmt.Sprintf("module:%s-event:%s-attempt:%s", j.Annotations[moduleName], j.Annotations[eventID], j.Annotations[deliverycountlabel]),
+						Succeeded:   true,
+						Description: fmt.Sprintf("module:%s-event:%s-attempt:%v", eventData.Context.Name, eventData.Context.EventID, j.Labels[deliverycountlabel]),
 					})
 					if err != nil {
-						contextualLogger.Error("failed to store logs for job in mongo")
+						contextualLogger.WithError(err).Error("failed to store logs for job in mongo")
 					}
+					contextualLogger.WithField("logs", logs).Info("got logs for task")
 				}
+
 				err = sourceMessage.Accept()
 
 				if err != nil {
@@ -305,7 +329,7 @@ func (k *Kubernetes) Dispatch(message messaging.Message) error {
 	deadlineSeconds := k.jobConfig.MaxRunningTimeMins * 60
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   getJobName(message),
+			Name:   getJobName(message, k.moduleName),
 			Labels: labels,
 		},
 		Spec: batchv1.JobSpec{
@@ -460,8 +484,8 @@ func getClientSet() (*kubernetes.Clientset, error) {
 	return clientset, nil
 }
 
-func getJobName(m messaging.Message) string {
-	return strings.ToLower(m.ID()) + "-v" + strconv.Itoa(m.DeliveryCount())
+func getJobName(m messaging.Message, moduleName string) string {
+	return strings.ToLower(moduleName) + strings.ToLower(m.ID()) + "-v" + strconv.Itoa(m.DeliveryCount())
 }
 
 func getLogsForJob(namespace string, job *batchv1.Job, clientset *kubernetes.Clientset) (string, error) {
@@ -480,29 +504,29 @@ func getLogsForJob(namespace string, job *batchv1.Job, clientset *kubernetes.Cli
 	stringBuilder := strings.Builder{}
 	for _, pod := range pods.Items {
 
-		stringBuilder.WriteString("\n\n ------ Preparer logs ------ \n\n")
+		stringBuilder.WriteString("\n\n ------ Preparer logs ------ \n\n") //nolint: errcheck
 
 		logs, err := getLogsForContainer("prepare", pod.Name, namespace, clientset)
 		if err != nil {
 			stringBuilder.WriteString("Failed getting logs for 'prepare' container /n") //nolint: errcheck
 		}
-		stringBuilder.WriteString(logs)
+		stringBuilder.WriteString(logs) //nolint: errcheck
 
-		stringBuilder.WriteString("\n\n ------ Worker logs ------ \n\n")
+		stringBuilder.WriteString("\n\n ------ Worker logs ------ \n\n") //nolint: errcheck
 
 		logs, err = getLogsForContainer("worker", pod.Name, namespace, clientset)
 		if err != nil {
 			stringBuilder.WriteString("Failed getting logs for 'prepare' container /n") //nolint: errcheck
 		}
-		stringBuilder.WriteString(logs)
+		stringBuilder.WriteString(logs) //nolint: errcheck
 
-		stringBuilder.WriteString("\n\n ------ Committer logs ------ \n\n")
+		stringBuilder.WriteString("\n\n ------ Committer logs ------ \n\n") //nolint: errcheck
 
 		logs, err = getLogsForContainer("commit", pod.Name, namespace, clientset)
 		if err != nil {
 			stringBuilder.WriteString("Failed getting logs for 'prepare' container /n") //nolint: errcheck
 		}
-		stringBuilder.WriteString(logs)
+		stringBuilder.WriteString(logs) //nolint: errcheck
 
 	}
 

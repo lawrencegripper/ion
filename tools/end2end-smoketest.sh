@@ -70,11 +70,9 @@ then
         echo "WARNING.... you'll need to create it some of the fields in ./deployment/vars.private.tfvars without it the terraform deployment will fail"
         return
     fi
-
-    sed -i "s/docker_root.*/docker_root=\"$DOCKER_USER\"/g" vars.private.tfvars
-    sed -i "s/docker_user.*/docker_user=\"$ION_IMAGE_TAG\"/g" vars.private.tfvars
+    
     terraform init
-    terraform apply -var-file ./vars.private.tfvars -auto-approve
+    terraform apply -var-file ./vars.private.tfvars -auto-approve -var docker_root=$DOCKER_USER -var docker_tag=$ION_IMAGE_TAG
     terraform output kubeconfig > ../kubeconfig.private.yaml
 
     echo "--------------------------------------------------------"

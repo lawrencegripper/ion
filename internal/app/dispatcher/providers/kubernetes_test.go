@@ -3,14 +3,13 @@ package providers
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-	"testing"
-	"time"
-
-	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/mongodb"
 	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
+	"pack.ag/amqp"
+	"strings"
+	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -36,7 +35,6 @@ func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error)
 	k.getLogs = func(b *batchv1.Job) (string, error) {
 		return "logs", fmt.Errorf("failed getting logs")
 	}
-	k.mongoStore = &mongodb.MongoDB{}
 	return &k, nil
 }
 
@@ -45,7 +43,7 @@ func TestGetJobName(t *testing.T) {
 		MessageID:          mockMessageID,
 		DeliveryCountValue: 15,
 	}
-	jobName := getJobName(messageToSend)
+	jobName := getJobName(messageToSend, "exampleModule")
 
 	if !strings.Contains(jobName, "15") {
 		t.Error("Should contain the attempt count")
@@ -408,6 +406,11 @@ func newNoOpMockMessage(id string) MockMessage {
 // DeliveryCount get number of times the message has ben delivered
 func (m MockMessage) DeliveryCount() int {
 	return m.DeliveryCountValue
+}
+
+// GetAMQPMessage get the original amqp message
+func (m MockMessage) GetAMQPMessage() *amqp.Message {
+	return nil
 }
 
 // ID get the ID

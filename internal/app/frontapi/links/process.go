@@ -35,7 +35,7 @@ func Process(w http.ResponseWriter, r *http.Request) {
 		Type: eventType,
 		Context: &common.Context{
 			CorrelationID: uuid.Must(uuid.NewV4(), nil).String(),
-			ParentEventID: "origin:frontapi",
+			ParentEventID: "frontapi",
 			EventID:       uuid.Must(uuid.NewV4(), nil).String(),
 			Name:          "frontapi",
 		},

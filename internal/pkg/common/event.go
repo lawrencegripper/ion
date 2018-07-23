@@ -50,7 +50,7 @@ const EventMetaDocType = "eventMeta"
 const InsightDocType = "insight"
 
 //ModuleLogsDocType sets the document type in Context
-const ModuleLogsDocType = "insight"
+const ModuleLogsDocType = "modulelogs"
 
 //Context carries the data for configuring the module
 type Context struct {

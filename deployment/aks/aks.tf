@@ -16,7 +16,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   dns_prefix = "ionaks-${random_string.batchname.result}"
 
   resource_group_name = "${var.resource_group_name}"
-  kubernetes_version  = "1.9.2"
+  kubernetes_version  = "1.10.5"
 
   linux_profile {
     admin_username = "${var.linux_admin_username}"

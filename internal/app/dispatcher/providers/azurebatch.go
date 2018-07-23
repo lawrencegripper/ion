@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"strings"
 
 	"github.com/Azure/go-autorest/autorest/azure"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
+	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
+	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/mongodb"
 	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	"github.com/lawrencegripper/pod2docker"
@@ -31,6 +34,8 @@ type AzureBatch struct {
 	workerEnvVars      map[string]interface{}
 	ctx                context.Context
 	cancelOps          context.CancelFunc
+	mongoStore         *mongodb.MongoDB
+	moduleName         string
 
 	jobConfig   *types.JobConfig
 	batchConfig *types.AzureBatchConfig
@@ -43,6 +48,7 @@ type AzureBatch struct {
 	createTask func(taskDetails batch.TaskAddParameter) (autorest.Response, error)
 	listTasks  func() (*[]batch.CloudTask, error)
 	removeTask func(*batch.CloudTask) (autorest.Response, error)
+	getLogs    func(*batch.CloudTask) string
 }
 
 // NewAzureBatchProvider creates a provider for azure batch.
@@ -51,6 +57,7 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return nil, fmt.Errorf("Cannot create a provider - invalid configuration, require config, AzureBatch and Job")
 	}
 	b := AzureBatch{}
+	b.moduleName = config.ModuleName
 	b.handlerArgs = sharedHandlerArgs
 	b.inprogressJobStore = make(map[string]messaging.Message)
 	b.batchConfig = config.AzureBatch
@@ -86,6 +93,21 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 	}
 	b.jobClient = jobClient
 
+	if config.Handler != nil && config.Handler.MongoDBDocumentStorageProvider != nil {
+		b.mongoStore, err = mongodb.NewMongoDB(&mongodb.Config{
+			Enabled:    true,
+			Name:       config.Handler.MongoDBDocumentStorageProvider.Name,
+			Collection: config.Handler.MongoDBDocumentStorageProvider.Collection,
+			Password:   config.Handler.MongoDBDocumentStorageProvider.Password,
+			Port:       config.Handler.MongoDBDocumentStorageProvider.Port,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed initialising mongo connection: %+v", err)
+		}
+	} else {
+		log.Info("Skipping mongodb config as not provided")
+	}
+
 	taskclient := batch.NewTaskClientWithBaseURI(batchBaseURL)
 	taskclient.Authorizer = auth
 	b.taskClient = &taskclient
@@ -117,24 +139,21 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return &currentTasks, nil
 	}
 	b.removeTask = func(t *batch.CloudTask) (autorest.Response, error) {
-		//Log the details from the running task
-		err := logFileContent(b.ctx, t, b.fileClient, b.jobID, "stdout.txt")
-		if err != nil {
-			log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stdout")
-		}
-		err = logFileContent(b.ctx, t, b.fileClient, b.jobID, "stderr.txt")
-		if err != nil {
-			log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stderr")
-		}
-		err = logFileContent(b.ctx, t, b.fileClient, b.jobID, "wd/modulecontainer.log")
-		if err != nil {
-			log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stderr")
-		}
 		//remove the task
 		return b.taskClient.Delete(b.ctx, b.jobID, *t.ID, nil, nil, nil, nil, "", "", nil, nil)
 	}
+	b.getLogs = func(t *batch.CloudTask) string { return getLogsForTask(b.ctx, b.fileClient, t, b.jobID) }
 
 	return &b, nil
+}
+
+//GetActiveMessages gets the currently active messages
+func (b *AzureBatch) GetActiveMessages() []messaging.Message {
+	activeMessages := make([]messaging.Message, 0, len(b.inprogressJobStore))
+	for _, m := range b.inprogressJobStore {
+		activeMessages = append(activeMessages, m)
+	}
+	return activeMessages
 }
 
 // InProgressCount will show how many tasks are currently in progress
@@ -321,8 +340,29 @@ func (b *AzureBatch) Reconcile() error {
 				log.WithField("message", sourceMessage).
 					WithFields(logFieldsForTask(&t)).Info("Task completed with success exit code")
 
+				eventData, err := sourceMessage.EventData()
+				if err != nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to get eventData from message")
+				} else if b.mongoStore == nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to get logs for job: mongo store not initialised")
+				} else {
+					eventData.Context.Name = b.moduleName
+					logs := b.getLogs(&t)
+					err := b.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
+						Context:   eventData.Context,
+						Logs:      logs,
+						Succeeded: true,
+					})
+					if err != nil {
+						log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to store logs for job in mongo")
+					}
+
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).WithField("logs", logs).Info("got logs for task")
+
+				}
+
 				//Remove the task from batch
-				_, err := b.removeTask(&t)
+				_, err = b.removeTask(&t)
 				if err != nil {
 					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove COMPLETED task from batch")
 				}
@@ -346,8 +386,26 @@ func (b *AzureBatch) Reconcile() error {
 					WithFields(logFieldsForTask(&t)).
 					Info("Task completed with failed exit code")
 
+				eventData, err := sourceMessage.EventData()
+				if err != nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to get eventData from message")
+				} else if b.mongoStore == nil {
+					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to get logs for job: mongo store not initialised")
+				} else {
+					eventData.Context.Name = b.moduleName
+					logs := b.getLogs(&t)
+					err := b.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
+						Context:   eventData.Context,
+						Logs:      logs,
+						Succeeded: true,
+					})
+					if err != nil {
+						log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to store logs for job in mongo")
+					}
+				}
+
 				// Remove the task from batch
-				_, err := b.removeTask(&t)
+				_, err = b.removeTask(&t)
 				if err != nil {
 					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove FAILED task from batch")
 				}
@@ -380,15 +438,49 @@ func (b *AzureBatch) Reconcile() error {
 	return nil
 }
 
-func logFileContent(ctx context.Context, t *batch.CloudTask, fileClient *batch.FileClient, jobName, filepath string) error {
+func getLogFileContent(ctx context.Context, t *batch.CloudTask, fileClient *batch.FileClient, jobName, filepath string) (string, error) {
 	stdout, err := fileClient.GetFromTask(ctx, jobName, *t.ID, filepath, nil, nil, nil, nil, "", nil, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	stdoutByptes, err := ioutil.ReadAll(*stdout.Value)
 	if err != nil {
-		return err
+		return "", err
 	}
-	log.WithField("task", *t).WithField(filepath, string(stdoutByptes)).Info("logged file content from batch task")
-	return nil
+	return string(stdoutByptes), nil
+}
+
+func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.CloudTask, jobID string) string {
+	sb := strings.Builder{}
+	//Log the details from the running task
+	logs, err := getLogFileContent(ctx, t, fileClient, jobID, "stdout.txt")
+	sb.WriteString("\n\n ------ Batch logs: stdout ------ \n\n") //nolint: errcheck
+	if err != nil {
+		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
+		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		return sb.String()
+	}
+	sb.WriteString(logs) //nolint: errcheck
+
+	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "stderr.txt")
+
+	sb.WriteString("\n\n ------ Batch logs: stdout ------ \n\n") //nolint: errcheck
+	if err != nil {
+		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
+		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		return sb.String()
+	}
+	sb.WriteString(logs) //nolint: errcheck
+
+	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/modulecontainer.log")
+	sb.WriteString("\n\n ------ Module logs ------ \n\n") //nolint: errcheck
+	if err != nil {
+		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
+		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		return sb.String()
+	}
+	sb.WriteString(logs) //nolint: errcheck
+
+	return sb.String()
+
 }
