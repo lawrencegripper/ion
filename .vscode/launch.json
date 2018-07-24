@@ -12,7 +12,7 @@
             "program": "${workspaceRoot}/cmd/ion",
             "showLog": true,
             "args": [
-                "module"
+                "module list"
             ]
         },
         {
@@ -24,7 +24,7 @@
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "showLog": true,
             "args": [
-                "start",
+                "list",
             ]
         },
         {

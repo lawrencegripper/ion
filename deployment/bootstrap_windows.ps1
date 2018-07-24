@@ -25,12 +25,27 @@ $url = "https://github.com/sl1pm4t/terraform-provider-kubernetes/releases/downlo
 #Github and other sites now require tls1.2 without this line the script will fail with an SSL error.
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls"
 
-Write-Host "Downloading Traefik Binary from $url" -foregroundcolor Green
+Write-Host "Downloading Kubernetes Terraform provider from $url" -foregroundcolor Green
 
 $outfile = $PSScriptRoot+"/terraform-provider-kubernetes.gz"
 
 Invoke-WebRequest -Uri $url -OutFile $outfile -UseBasicParsing
-DeGZIP-File "$PSScriptRoot/terraform-provider-kubernetes.gz" "$PSScriptRoot/terraform-provider-kubernetes.exe" 
+DeGZIP-File "$PSScriptRoot/terraform-provider-kubernetes.gz" "$PSScriptRoot/terraform-provider-kubernetes.exe"
 
 Write-Host "Download complete" -foregroundcolor Green
+
+Write-Host "Downloading TLS Terraform provider" -foregroundcolor Green
+
+mkdir -p $GOPATH/src/github.com/terraform-providers; cd $GOPATH/src/github.com/terraform-providers
+git clone git@github.com:terraform-providers/terraform-provider-tls
+
+Write-Host "Download complete" -foregroundcolor Green
+
+Write-Host "Building TLS Terraform provider" -foregroundcolor Green
+
+cd $GOPATH/src/github.com/terraform-providers/terraform-provider-tls
+make build
+
+Write-Host "Build complete" -foregroundcolor Green
+
 

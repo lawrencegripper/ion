@@ -1,3 +1,9 @@
+variable "certificate_mount_path" {
+  type        = "string"
+  description = "Path to mount certificates"
+  default     = "/etc/config/"
+}
+
 variable "client_id" {
   type        = "string"
   description = "Client ID"

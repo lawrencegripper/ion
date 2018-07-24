@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" //nolint: golint
 )
 
 // Run the GRPC server

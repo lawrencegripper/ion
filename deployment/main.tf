@@ -135,3 +135,18 @@ output "acr_password" {
   sensitive = true
   value     = "${module.acr.password}"
 }
+
+output "cluster_client_certificate" {
+  value     = "${module.ion.cluster_client_certificate}"
+  sensitive = true
+}
+
+output "cluster_client_key" {
+  value     = "${module.ion.cluster_client_key}"
+  sensitive = true
+}
+
+output "cluster_ca" {
+  value     = "${module.ion.cluster_ca}"
+  sensitive = true
+}

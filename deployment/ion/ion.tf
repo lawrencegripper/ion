@@ -129,6 +129,110 @@ resource "kubernetes_deployment" "ion-front-api" {
   }
 }
 
+resource "tls_private_key" "ca" {
+  algorithm   = "ECDSA"
+  ecdsa_curve = "P384"
+}
+
+resource "tls_self_signed_cert" "ca" {
+  key_algorithm   = "${tls_private_key.ca.algorithm}"
+  private_key_pem = "${tls_private_key.ca.private_key_pem}"
+
+  subject {
+    common_name  = "Ion CA"
+    organization = "Ion, Ltd"
+    country      = "GB"
+  }
+
+  validity_period_hours = 43800
+  is_ca_certificate     = true
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth",
+    "client_auth",
+    "cert_signing",
+  ]
+}
+
+resource "tls_private_key" "registry" {
+  algorithm   = "ECDSA"
+  ecdsa_curve = "P384"
+}
+
+resource "random_string" "dns" {
+  length  = 8
+  upper   = false
+  special = false
+  number  = false
+}
+
+resource "tls_cert_request" "registry" {
+  key_algorithm   = "${tls_private_key.registry.algorithm}"
+  private_key_pem = "${tls_private_key.registry.private_key_pem}"
+
+  subject {
+    common_name  = "Ion Management API"
+    organization = "Ion, Ltd"
+    country      = "GB"
+  }
+
+  dns_names = ["ion${random_string.dns.result}.${var.resource_group_location}.cloudapp.azure.com"]
+}
+
+resource "tls_locally_signed_cert" "registry" {
+  cert_request_pem = "${tls_cert_request.registry.cert_request_pem}"
+
+  ca_key_algorithm   = "${tls_private_key.ca.algorithm}"
+  ca_private_key_pem = "${tls_private_key.ca.private_key_pem}"
+  ca_cert_pem        = "${tls_self_signed_cert.ca.cert_pem}"
+
+  validity_period_hours = 43800
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth",
+    "client_auth",
+  ]
+}
+
+resource "kubernetes_secret" "ion-management-api" {
+  metadata {
+    name = "generic"
+  }
+
+  data {
+    certificate     = "${tls_locally_signed_cert.registry.cert_pem}"
+    certificate_key = "${tls_private_key.registry.private_key_pem}"
+    certificate_ca  = "${tls_self_signed_cert.ca.cert_pem}"
+  }
+}
+
+resource "kubernetes_service" "ion-management-api" {
+  metadata {
+    name = "ion-management-api"
+
+    annotations {
+      "service.beta.kubernetes.io/azure-dns-label-name" = "ion${random_string.dns.result}"
+    }
+  }
+
+  spec {
+    selector {
+      app = "${kubernetes_deployment.ion-management-api.metadata.0.labels.app}"
+    }
+
+    port {
+      port        = 9000
+      target_port = 9000
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
 resource "kubernetes_deployment" "ion-management-api" {
   metadata {
     name = "ion-management-api"
@@ -162,6 +266,18 @@ resource "kubernetes_deployment" "ion-management-api" {
           }
 
           env = [
+            {
+              name  = "CERTFILE"
+              value = "${var.certificate_mount_path}/certificate"
+            },
+            {
+              name  = "KEYFILE"
+              value = "${var.certificate_mount_path}/certificate_key"
+            },
+            {
+              name  = "CACERTFILE"
+              value = "${var.certificate_mount_path}/certificate_ca"
+            },
             {
               name  = "AZURE_BATCH_ACCOUNT_LOCATION"
               value = "${var.resource_group_location}"
@@ -271,8 +387,41 @@ resource "kubernetes_deployment" "ion-management-api" {
               value = "${var.app_insights_key}"
             },
           ]
+
+          volume_mount {
+            mount_path = "${var.certificate_mount_path}"
+            name       = "ion-management-api"
+            read_only  = true
+          }
+        }
+
+        volume {
+          name = "ion-management-api"
+
+          secret {
+            secret_name = "${kubernetes_secret.ion-management-api.metadata.0.name}"
+          }
         }
       }
     }
   }
+}
+
+output "cluster_client_certificate" {
+  value     = "${tls_locally_signed_cert.registry.cert_pem}"
+  sensitive = true
+}
+
+output "cluster_client_key" {
+  value     = "${tls_private_key.registry.private_key_pem}"
+  sensitive = true
+}
+
+output "cluster_ca" {
+  value     = "${tls_self_signed_cert.ca.cert_pem}"
+  sensitive = true
+}
+
+output "ion_management_endpoint" {
+  value = "ion${random_string.dns.result}.${var.resource_group_location}.cloudapp.azure.com"
 }
