@@ -349,16 +349,16 @@ func (b *AzureBatch) Reconcile() error {
 					eventData.Context.Name = b.moduleName
 					logs := b.getLogs(&t)
 					err := b.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
-						Context:   eventData.Context,
-						Logs:      logs,
-						Succeeded: true,
+						Context:     eventData.Context,
+						Logs:        logs,
+						Succeeded:   true,
+						Description: fmt.Sprintf("module:%s-event:%s-attempt:%v", eventData.Context.Name, eventData.Context.EventID, &t.ID),
 					})
 					if err != nil {
 						log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to store logs for job in mongo")
 					}
 
 					log.WithError(err).WithField("task", t).WithField("messageID", messageID).WithField("logs", logs).Info("got logs for task")
-
 				}
 
 				//Remove the task from batch
@@ -395,9 +395,10 @@ func (b *AzureBatch) Reconcile() error {
 					eventData.Context.Name = b.moduleName
 					logs := b.getLogs(&t)
 					err := b.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
-						Context:   eventData.Context,
-						Logs:      logs,
-						Succeeded: true,
+						Context:     eventData.Context,
+						Logs:        logs,
+						Succeeded:   true,
+						Description: fmt.Sprintf("module:%s-event:%s-attempt:%v", eventData.Context.Name, eventData.Context.EventID, &t.ID),
 					})
 					if err != nil {
 						log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to store logs for job in mongo")

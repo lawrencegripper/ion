@@ -3,6 +3,7 @@ package providers
 import (
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/labels"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -491,7 +492,7 @@ func getJobName(m messaging.Message, moduleName string) string {
 func getLogsForJob(namespace string, job *batchv1.Job, clientset *kubernetes.Clientset) (string, error) {
 
 	pods, err := clientset.Core().Pods(namespace).List(metav1.ListOptions{
-		LabelSelector: job.Spec.Selector.String(),
+		LabelSelector: labels.SelectorFromSet(job.Spec.Selector.MatchLabels).String(),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed gettings pods for job: %+v", err)
