@@ -80,7 +80,7 @@ func TestIntegrationNewListener(t *testing.T) {
 	message := messaging.NewAmqpMessageWrapper(amqpMessage)
 
 	go func() {
-		time.Sleep(time.Duration(30) * time.Second)
+		time.Sleep(time.Duration(1) * time.Second)
 		err := listener.RenewLocks(ctx, []*amqp.Message{
 			amqpMessage,
 		})
@@ -90,7 +90,7 @@ func TestIntegrationNewListener(t *testing.T) {
 	}()
 
 	//Added to ensure that locks are renewed
-	time.Sleep(time.Duration(90) * time.Second)
+	time.Sleep(time.Duration(75) * time.Second)
 
 	err = message.Accept()
 	if string(message.Body()) != nonce {

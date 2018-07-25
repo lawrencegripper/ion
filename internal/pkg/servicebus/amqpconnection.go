@@ -3,8 +3,10 @@ package servicebus
 import (
 	"context"
 	"fmt"
+	"github.com/twinj/uuid"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -31,6 +33,7 @@ type AmqpConnection struct {
 	AMQPConnectionString string
 	Session              *amqp.Session
 	Receiver             *amqp.Receiver
+	ManagementReceiver   *amqp.Receiver
 	ManagementSender     *amqp.Sender
 	getSubscription      func() (servicebus.SBSubscription, error)
 }
@@ -181,7 +184,7 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 
 	listener.Session = createAmqpSession(&listener)
 	listener.Receiver = createAmqpListener(&listener)
-	listener.ManagementSender, err = listener.CreateAmqpSender(listener.TopicName + "/$management")
+	listener.ManagementSender, listener.ManagementReceiver, err = listener.createAmqpSBManagementChannels(listener.TopicName)
 	if err != nil {
 		log.WithError(err).Error("failed to create management sender, without this renewal of message locks will fail")
 	}
@@ -191,17 +194,23 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 
 //RenewLocks renews the locks on messages provided
 func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Message) error {
-	lockTokens := make([]interface{}, 0, len(messages))
+	lockTokens := make([]amqp.UUID, 0, len(messages))
 	for _, m := range messages {
-		lockTokens = append(lockTokens, m.DeliveryAnnotations["x-opt-lock-token"])
+		lockTokens = append(lockTokens, m.DeliveryAnnotations["x-opt-lock-token"].(amqp.UUID))
+		log.WithField("uuid", m.DeliveryAnnotations["x-opt-lock-token"].(amqp.UUID)).Info("adding lockid")
 	}
 
+	hostname, _ := os.Hostname()
 	err := l.ManagementSender.Send(ctx, &amqp.Message{
 		ApplicationProperties: map[string]interface{}{
 			"operation": "com.microsoft:renew-lock",
 		},
+		Properties: &amqp.MessageProperties{
+			MessageID: uuid.NewV4().String(),
+			ReplyTo:   hostname,
+		},
 		Value: map[string]interface{}{
-			"lock-token": &lockTokens,
+			"lock-token": lockTokens[0],
 		},
 	})
 	if err != nil {
@@ -209,7 +218,48 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 		return err
 	}
 
+	response, err := l.ManagementReceiver.Receive(ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to renew locks on active messages")
+		return err
+	}
+
+	log.WithField("responseMsg", response).Info("renew locks: response message")
+
 	return nil
+}
+
+func (l *AmqpConnection) createAmqpSBManagementChannels(topic string) (*amqp.Sender, *amqp.Receiver, error) {
+	if l.Session == nil {
+		log.WithField("currentListener", l).Panic("Cannot create amqp listener without a session already configured")
+	}
+
+	subscriptionAddress := getSubscriptionAmqpPath(topic, l.SubscriptionName) + "/$management"
+	hostname, _ := os.Hostname()
+	// hostAddress := hostname + "/" + subscriptionAddress
+
+	// receiver := uuid.NewV4().String()
+	sender, err := l.Session.NewSender(
+		amqp.LinkTargetAddress(subscriptionAddress),
+		amqp.LinkSourceAddress(hostname),
+	)
+
+	if err != nil {
+		log.Fatal("Creating management sender:", err)
+		return nil, nil, err
+	}
+
+	reciever, err := l.Session.NewReceiver(
+		amqp.LinkSourceAddress(subscriptionAddress),
+		amqp.LinkTargetAddress(hostname),
+	)
+
+	if err != nil {
+		log.Fatal("Creating management receiver:", err)
+		return nil, nil, err
+	}
+
+	return sender, reciever, nil
 }
 
 func createAmqpListener(listener *AmqpConnection) *amqp.Receiver {
@@ -282,7 +332,7 @@ func getAmqpConnectionString(keyName, keyValue, namespace string) string {
 }
 
 func getSubscriptionAmqpPath(eventName, moduleName string) string {
-	return "/" + strings.ToLower(eventName) + "/subscriptions/" + getSubscriptionName(eventName, moduleName)
+	return "/" + strings.ToLower(eventName) + "/Subscriptions/" + getSubscriptionName(eventName, moduleName)
 }
 
 func getSubscriptionName(eventName, moduleName string) string {
