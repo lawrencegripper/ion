@@ -82,7 +82,7 @@ func TestJoinBlobPath(t *testing.T) {
 				"frank",
 				"123",
 			},
-			expected: "alice-frank-123",
+			expected: `alice/frank/123`,
 		},
 		{
 			strs: []string{
@@ -90,7 +90,7 @@ func TestJoinBlobPath(t *testing.T) {
 				"-",
 				"-",
 			},
-			expected: "-----",
+			expected: `-/-/-`,
 		},
 		{
 			strs: []string{
@@ -98,7 +98,7 @@ func TestJoinBlobPath(t *testing.T) {
 				"testtest",
 				"",
 			},
-			expected: "-testtest-",
+			expected: `/testtest/`,
 		},
 	}
 	for _, test := range testCases {
