@@ -41,7 +41,7 @@ func WriteEvents(events []Event) {
 		}
 
 		for _, pair := range ev.Metadata {
-			content.Append(pair)
+			content = content.Append(pair)
 		}
 
 		b, err := json.Marshal(content)
