@@ -210,7 +210,7 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 			ReplyTo:   hostname + "-receiver",
 		},
 		Value: map[string]interface{}{
-			"lock-token": lockTokens,
+			"lock-tokens": lockTokens,
 		},
 	})
 	if err != nil {
@@ -221,7 +221,7 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 	response, err := l.ManagementReceiver.Receive(ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to renew locks on active messages")
-		return err
+		//return err
 	}
 
 	log.WithField("responseMsg", response).Info("renew locks: response message")
@@ -333,7 +333,7 @@ func getAmqpConnectionString(keyName, keyValue, namespace string) string {
 }
 
 func getSubscriptionAmqpPath(eventName, moduleName string) string {
-	return "/" + strings.ToLower(eventName) + "/Subscriptions/" + getSubscriptionName(eventName, moduleName)
+	return "/" + strings.ToLower(eventName) + "/subscriptions/" + getSubscriptionName(eventName, moduleName)
 }
 
 func getSubscriptionName(eventName, moduleName string) string {

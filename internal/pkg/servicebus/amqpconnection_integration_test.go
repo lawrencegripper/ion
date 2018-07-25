@@ -80,7 +80,7 @@ func TestIntegrationNewListener(t *testing.T) {
 	message := messaging.NewAmqpMessageWrapper(amqpMessage)
 
 	go func() {
-		time.Sleep(time.Duration(1) * time.Second)
+		time.Sleep(time.Duration(45) * time.Second)
 		err := listener.RenewLocks(ctx, []*amqp.Message{
 			amqpMessage,
 		})
@@ -96,7 +96,6 @@ func TestIntegrationNewListener(t *testing.T) {
 	if string(message.Body()) != nonce {
 		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Body())
 	}
-	t.Error(err)
 
 	stats, err = listener.GetQueueDepth()
 	depth = stats.ActiveMessageCount
