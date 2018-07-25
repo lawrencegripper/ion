@@ -136,17 +136,31 @@ output "acr_password" {
   value     = "${module.acr.password}"
 }
 
-output "cluster_client_certificate" {
-  value     = "${module.ion.cluster_client_certificate}"
+output "client_cert" {
+  value     = "${module.ion.client_cert}"
   sensitive = true
 }
 
-output "cluster_client_key" {
-  value     = "${module.ion.cluster_client_key}"
+output "client_key" {
+  value     = "${module.ion.client_key}"
   sensitive = true
 }
 
 output "cluster_ca" {
   value     = "${module.ion.cluster_ca}"
   sensitive = true
+}
+
+output "server_cert" {
+  value     = "${module.ion.server_cert}"
+  sensitive = true
+}
+
+output "server_key" {
+  value     = "${module.ion.server_key}"
+  sensitive = true
+}
+
+output "ion_management_endpoint" {
+  value = "${module.ion.ion_management_endpoint}"
 }

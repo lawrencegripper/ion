@@ -151,6 +151,15 @@ func NewStartCommand() *cobra.Command {
 	flags.Int("management-port", 9000, "The management API port")
 	viper.BindPFlag("management-port", flags.Lookup("management-port"))
 
+	flags.String("certfile", "", "The server x509 certificate for TLS")
+	viper.BindPFlag("certfile", flags.Lookup("certfile"))
+
+	flags.String("keyfile", "", "The server private key for the certificate file")
+	viper.BindPFlag("keyfile", flags.Lookup("keyfile"))
+
+	flags.String("cacertfile", "", "The CA root certificate file")
+	viper.BindPFlag("cacertfile", flags.Lookup("cacertfile"))
+
 	flags.String("namespace", "default", "Namespace to deploy Ion into")
 	cmd.MarkFlagRequired("namespace")
 	viper.BindPFlag("namespace", flags.Lookup("namespace"))
@@ -217,10 +226,10 @@ func NewStartCommand() *cobra.Command {
 	viper.BindPFlag("image-registry-url", flags.Lookup("image-registry-url"))
 
 	flags.String("image-registry-username", "", "The username for the image registry")
-	viper.BindPFlag("image-registry-username", flags.Lookup("image-registry-url"))
+	viper.BindPFlag("image-registry-username", flags.Lookup("image-registry-username"))
 
 	flags.String("image-registry-password", "", "The passworkd for the image registry")
-	viper.BindPFlag("image-registry-password", flags.Lookup("image-registry-url"))
+	viper.BindPFlag("image-registry-password", flags.Lookup("image-registry-password"))
 
 	//logging: Appinsights
 	flags.String("logging-appinsights", "", "App Insights instrumentation key")

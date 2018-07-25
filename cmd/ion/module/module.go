@@ -44,6 +44,8 @@ func Setup(cmd *cobra.Command, args []string) error {
 	var options []grpc.DialOption
 
 	if certFile != "" && keyFile != "" && caCertFile != "" {
+		fmt.Printf("cert: %s, key: %s, ca: %s\n", certFile, keyFile, caCertFile) //TODO: Remove, only for debug
+
 		certificate, err := tls.LoadX509KeyPair(
 			certFile,
 			keyFile,
@@ -75,10 +77,13 @@ func Setup(cmd *cobra.Command, args []string) error {
 	options = append(options, grpc.WithTimeout(time.Duration(timeoutSec)*time.Second))
 
 	// Initialize a global GRPC connection to the management server
+	fmt.Printf("Connecting to GRPC at %s", managementEndpoint)
 	conn, err := grpc.Dial(managementEndpoint, options...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to server %s: %+v", managementEndpoint, err)
 	}
+
+	defer conn.Close() // nolint: errcheck
 	Client = module.NewModuleServiceClient(conn)
 
 	return nil
@@ -102,7 +107,7 @@ func init() {
 	// Local flags for the root command
 	moduleCmd.PersistentFlags().StringVar(&managementEndpoint, "endpoint", "localhost:9000", "management server endpoint")
 	moduleCmd.PersistentFlags().IntVar(&timeoutSec, "timeout", 30, "timeout in seconds for cli to connect to management server")
-	moduleCmd.PersistentFlags().StringVar(&certFile, "certfile", "", "x509 PEM formatted client certificate")
-	moduleCmd.PersistentFlags().StringVar(&keyFile, "keyfile", "", "x509 PEM formatted client key")
+	moduleCmd.PersistentFlags().StringVar(&certFile, "certfile", "", "client x509 certificate file")
+	moduleCmd.PersistentFlags().StringVar(&keyFile, "keyfile", "", "client private key for certificate file")
 	moduleCmd.PersistentFlags().StringVar(&caCertFile, "cacertfile", "", "Root CA certificate file")
 }

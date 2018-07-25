@@ -130,8 +130,8 @@ resource "kubernetes_deployment" "ion-front-api" {
 }
 
 resource "tls_private_key" "ca" {
-  algorithm   = "ECDSA"
-  ecdsa_curve = "P384"
+  algorithm = "RSA"
+  rsa_bits  = "2048"
 }
 
 resource "tls_self_signed_cert" "ca" {
@@ -156,33 +156,68 @@ resource "tls_self_signed_cert" "ca" {
   ]
 }
 
-resource "tls_private_key" "registry" {
-  algorithm   = "ECDSA"
-  ecdsa_curve = "P384"
+resource "tls_private_key" "server" {
+  algorithm = "RSA"
+  rsa_bits  = "2048"
 }
 
-resource "random_string" "dns" {
+resource "random_string" "server" {
   length  = 8
   upper   = false
   special = false
   number  = false
 }
 
-resource "tls_cert_request" "registry" {
-  key_algorithm   = "${tls_private_key.registry.algorithm}"
-  private_key_pem = "${tls_private_key.registry.private_key_pem}"
+resource "tls_cert_request" "server" {
+  key_algorithm   = "${tls_private_key.server.algorithm}"
+  private_key_pem = "${tls_private_key.server.private_key_pem}"
 
   subject {
-    common_name  = "Ion Management API"
+    common_name  = "ion${random_string.server.result}.${var.resource_group_location}.cloudapp.azure.com"
     organization = "Ion, Ltd"
     country      = "GB"
   }
 
-  dns_names = ["ion${random_string.dns.result}.${var.resource_group_location}.cloudapp.azure.com"]
+  dns_names = ["ion${random_string.server.result}.${var.resource_group_location}.cloudapp.azure.com"]
 }
 
-resource "tls_locally_signed_cert" "registry" {
-  cert_request_pem = "${tls_cert_request.registry.cert_request_pem}"
+resource "tls_locally_signed_cert" "server" {
+  cert_request_pem = "${tls_cert_request.server.cert_request_pem}"
+
+  ca_key_algorithm   = "${tls_private_key.ca.algorithm}"
+  ca_private_key_pem = "${tls_private_key.ca.private_key_pem}"
+  ca_cert_pem        = "${tls_self_signed_cert.ca.cert_pem}"
+
+  validity_period_hours = 43800
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth",
+    "client_auth",
+  ]
+}
+
+resource "tls_private_key" "client" {
+  algorithm = "RSA"
+  rsa_bits  = "2048"
+}
+
+resource "tls_cert_request" "client" {
+  key_algorithm   = "${tls_private_key.client.algorithm}"
+  private_key_pem = "${tls_private_key.client.private_key_pem}"
+
+  subject {
+    common_name  = "ion${random_string.server.result}.${var.resource_group_location}.cloudapp.azure.com"
+    organization = "Ion, Ltd"
+    country      = "GB"
+  }
+
+  dns_names = ["ion${random_string.server.result}.${var.resource_group_location}.cloudapp.azure.com"]
+}
+
+resource "tls_locally_signed_cert" "client" {
+  cert_request_pem = "${tls_cert_request.client.cert_request_pem}"
 
   ca_key_algorithm   = "${tls_private_key.ca.algorithm}"
   ca_private_key_pem = "${tls_private_key.ca.private_key_pem}"
@@ -204,8 +239,8 @@ resource "kubernetes_secret" "ion-management-api" {
   }
 
   data {
-    certificate     = "${tls_locally_signed_cert.registry.cert_pem}"
-    certificate_key = "${tls_private_key.registry.private_key_pem}"
+    certificate     = "${tls_locally_signed_cert.server.cert_pem}"
+    certificate_key = "${tls_private_key.server.private_key_pem}"
     certificate_ca  = "${tls_self_signed_cert.ca.cert_pem}"
   }
 }
@@ -215,7 +250,7 @@ resource "kubernetes_service" "ion-management-api" {
     name = "ion-management-api"
 
     annotations {
-      "service.beta.kubernetes.io/azure-dns-label-name" = "ion${random_string.dns.result}"
+      "service.beta.kubernetes.io/azure-dns-label-name" = "ion${random_string.server.result}"
     }
   }
 
@@ -407,13 +442,13 @@ resource "kubernetes_deployment" "ion-management-api" {
   }
 }
 
-output "cluster_client_certificate" {
-  value     = "${tls_locally_signed_cert.registry.cert_pem}"
+output "client_cert" {
+  value     = "${tls_locally_signed_cert.client.cert_pem}"
   sensitive = true
 }
 
-output "cluster_client_key" {
-  value     = "${tls_private_key.registry.private_key_pem}"
+output "client_key" {
+  value     = "${tls_private_key.client.private_key_pem}"
   sensitive = true
 }
 
@@ -422,6 +457,16 @@ output "cluster_ca" {
   sensitive = true
 }
 
+output "server_cert" {
+  value     = "${tls_locally_signed_cert.server.cert_pem}"
+  sensitive = true
+}
+
+output "server_key" {
+  value     = "${tls_private_key.server.private_key_pem}"
+  sensitive = true
+}
+
 output "ion_management_endpoint" {
-  value = "ion${random_string.dns.result}.${var.resource_group_location}.cloudapp.azure.com"
+  value = "ion${random_string.server.result}.${var.resource_group_location}.cloudapp.azure.com"
 }
