@@ -23,7 +23,8 @@ type Insights []Insight
 type Insight common.KeyValuePair
 
 //WriteEvents creates an event file in the ion event dir which will be raise when
-// the module exits with a non-zero exit code
+// the module exits with a zero exit code
+// WARNING: this can only be called once per module execution.
 func WriteEvents(events []Event) {
 	i := 0
 	for _, ev := range events {
@@ -56,6 +57,7 @@ func WriteEvents(events []Event) {
 //WriteInsights creates an insights.json file with data to be stored by ion
 // insights are stored in a searchable document store and usually contain
 // information that could be queried. For example, names of items detected in the video.
+// Insights will be stored only when the module exits with a zero exit code
 // WARNING: this can only be called once per module execution.
 func WriteInsights(i Insights) {
 	b, err := json.Marshal(i)
