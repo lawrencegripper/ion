@@ -184,7 +184,7 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 
 	listener.Session = createAmqpSession(&listener)
 	listener.Receiver = createAmqpListener(&listener)
-	listener.ManagementSender, listener.ManagementReceiver, err = listener.createAmqpSBManagementChannels(listener.TopicName)
+	listener.ManagementSender, listener.ManagementReceiver, err = listener.createAmqpSBManagementChannels(listener.TopicName, config.ModuleName)
 	if err != nil {
 		log.WithError(err).Error("failed to create management sender, without this renewal of message locks will fail")
 	}
@@ -207,10 +207,10 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 		},
 		Properties: &amqp.MessageProperties{
 			MessageID: uuid.NewV4().String(),
-			ReplyTo:   hostname,
+			ReplyTo:   hostname + "-receiver",
 		},
 		Value: map[string]interface{}{
-			"lock-token": lockTokens[0],
+			"lock-token": lockTokens,
 		},
 	})
 	if err != nil {
@@ -229,19 +229,20 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 	return nil
 }
 
-func (l *AmqpConnection) createAmqpSBManagementChannels(topic string) (*amqp.Sender, *amqp.Receiver, error) {
+func (l *AmqpConnection) createAmqpSBManagementChannels(topic, eventname string) (*amqp.Sender, *amqp.Receiver, error) {
 	if l.Session == nil {
 		log.WithField("currentListener", l).Panic("Cannot create amqp listener without a session already configured")
 	}
 
-	subscriptionAddress := getSubscriptionAmqpPath(topic, l.SubscriptionName) + "/$management"
+	subscriptionAddress := getSubscriptionAmqpPath(topic, eventname) + "/$management"
 	hostname, _ := os.Hostname()
+	hostAddress := hostname
 	// hostAddress := hostname + "/" + subscriptionAddress
 
 	// receiver := uuid.NewV4().String()
 	sender, err := l.Session.NewSender(
 		amqp.LinkTargetAddress(subscriptionAddress),
-		amqp.LinkSourceAddress(hostname),
+		amqp.LinkSourceAddress(hostAddress+"-sender"),
 	)
 
 	if err != nil {
@@ -251,7 +252,7 @@ func (l *AmqpConnection) createAmqpSBManagementChannels(topic string) (*amqp.Sen
 
 	reciever, err := l.Session.NewReceiver(
 		amqp.LinkSourceAddress(subscriptionAddress),
-		amqp.LinkTargetAddress(hostname),
+		amqp.LinkTargetAddress(hostAddress+"-receiver"),
 	)
 
 	if err != nil {
