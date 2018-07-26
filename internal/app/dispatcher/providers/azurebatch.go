@@ -13,8 +13,6 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
-	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
-	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/mongodb"
 	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	"github.com/lawrencegripper/pod2docker"
@@ -34,8 +32,7 @@ type AzureBatch struct {
 	workerEnvVars      map[string]interface{}
 	ctx                context.Context
 	cancelOps          context.CancelFunc
-	mongoStore         *mongodb.MongoDB
-	moduleName         string
+	logStore           *LogStore
 
 	jobConfig   *types.JobConfig
 	batchConfig *types.AzureBatchConfig
@@ -57,7 +54,6 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return nil, fmt.Errorf("Cannot create a provider - invalid configuration, require config, AzureBatch and Job")
 	}
 	b := AzureBatch{}
-	b.moduleName = config.ModuleName
 	b.handlerArgs = sharedHandlerArgs
 	b.inprogressJobStore = make(map[string]messaging.Message)
 	b.batchConfig = config.AzureBatch
@@ -92,21 +88,6 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return nil, err
 	}
 	b.jobClient = jobClient
-
-	if config.Handler != nil && config.Handler.MongoDBDocumentStorageProvider != nil {
-		b.mongoStore, err = mongodb.NewMongoDB(&mongodb.Config{
-			Enabled:    true,
-			Name:       config.Handler.MongoDBDocumentStorageProvider.Name,
-			Collection: config.Handler.MongoDBDocumentStorageProvider.Collection,
-			Password:   config.Handler.MongoDBDocumentStorageProvider.Password,
-			Port:       config.Handler.MongoDBDocumentStorageProvider.Port,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed initialising mongo connection: %+v", err)
-		}
-	} else {
-		log.Info("Skipping mongodb config as not provided")
-	}
 
 	taskclient := batch.NewTaskClientWithBaseURI(batchBaseURL)
 	taskclient.Authorizer = auth
@@ -144,6 +125,18 @@ func NewAzureBatchProvider(config *types.Configuration, sharedHandlerArgs []stri
 	}
 	b.getLogs = func(t *batch.CloudTask) string { return getLogsForTask(b.ctx, b.fileClient, t, b.jobID) }
 
+	if config.Handler != nil &&
+		config.Handler.MongoDBDocumentStorageProvider != nil &&
+		config.Handler.AzureBlobStorageProvider != nil {
+		b.logStore, err = NewLogStore(config.Handler.MongoDBDocumentStorageProvider, config.Handler.AzureBlobStorageProvider, config.ModuleName)
+		if err != nil {
+			log.WithError(err).Error("failed to create log store")
+			return nil, err
+		}
+	} else {
+		log.Info("Skipping logstore config as not provided")
+		b.logStore = &LogStore{}
+	}
 	return &b, nil
 }
 
@@ -199,7 +192,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 
 	//Todo: Refactor this bit as got a bit messy now.
 	moduleContainer := apiv1.Container{
-		Name:            "modulecontainer",
+		Name:            "worker",
 		Image:           b.jobConfig.WorkerImage,
 		Env:             workerEnvVars,
 		ImagePullPolicy: pullPolicy,
@@ -327,53 +320,41 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		messageID := *messageIDPtr
+		contextualLogger := log.WithFields(logFieldsForTask(&t)).WithField("messageID", messageID)
+
 		sourceMessage, ok := b.inprogressJobStore[messageID]
 		if !ok {
-			log.WithField("task", t).Info("job seen which dispatcher stared but doesn't have source message... likely following a dispatcher restart")
+			contextualLogger.Info("job seen which dispatcher stared but doesn't have source message... likely following a dispatcher restart")
 			continue
 		}
 
 		// Job succeeded - accept the message so it is removed from the queue
 		if t.State == batch.TaskStateCompleted {
+
 			if *t.ExecutionInfo.ExitCode == 0 {
 				// Task has completed successfully
-				log.WithField("message", sourceMessage).
-					WithFields(logFieldsForTask(&t)).Info("Task completed with success exit code")
+				contextualLogger.Info("Task completed with success exit code")
 
-				eventData, err := sourceMessage.EventData()
+				logs := b.getLogs(&t)
 				if err != nil {
-					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to get eventData from message")
-				} else if b.mongoStore == nil {
-					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to get logs for job: mongo store not initialised")
-				} else {
-					eventData.Context.Name = b.moduleName
-					logs := b.getLogs(&t)
-					err := b.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
-						Context:     eventData.Context,
-						Logs:        logs,
-						Succeeded:   true,
-						Description: fmt.Sprintf("module:%s-event:%s-attempt:%v", eventData.Context.Name, eventData.Context.EventID, &t.ID),
-					})
-					if err != nil {
-						log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to store logs for job in mongo")
-					}
-
-					log.WithError(err).WithField("task", t).WithField("messageID", messageID).WithField("logs", logs).Info("got logs for task")
+					contextualLogger.WithError(err).Error("failed to get logs for job: getLogsFailed")
+				}
+				err := b.logStore.StoreLogs(contextualLogger, sourceMessage, logs, true)
+				if err != nil {
+					contextualLogger.WithError(err).Error("failed to log to logstore")
 				}
 
 				//Remove the task from batch
 				_, err = b.removeTask(&t)
 				if err != nil {
-					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("Failed to remove COMPLETED task from batch")
+					contextualLogger.Error("Failed to remove COMPLETED task from batch")
 				}
 
 				//ACK the message to remove from queue
 				err = sourceMessage.Accept()
 
 				if err != nil {
-					log.WithField("message", sourceMessage).
-						WithFields(logFieldsForTask(&t)).
-						Error("failed to accept message")
+					contextualLogger.Error("failed to accept message")
 					return err
 				}
 
@@ -382,27 +363,15 @@ func (b *AzureBatch) Reconcile() error {
 				continue
 			} else {
 				//Task has failed!
-				log.WithField("message", sourceMessage).
-					WithFields(logFieldsForTask(&t)).
-					Info("Task completed with failed exit code")
+				contextualLogger.Info("Task completed with failed exit code")
 
-				eventData, err := sourceMessage.EventData()
+				logs := b.getLogs(&t)
 				if err != nil {
-					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to get eventData from message")
-				} else if b.mongoStore == nil {
-					log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to get logs for job: mongo store not initialised")
-				} else {
-					eventData.Context.Name = b.moduleName
-					logs := b.getLogs(&t)
-					err := b.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
-						Context:     eventData.Context,
-						Logs:        logs,
-						Succeeded:   true,
-						Description: fmt.Sprintf("module:%s-event:%s-attempt:%v", eventData.Context.Name, eventData.Context.EventID, &t.ID),
-					})
-					if err != nil {
-						log.WithError(err).WithField("task", t).WithField("messageID", messageID).Error("failed to store logs for job in mongo")
-					}
+					contextualLogger.WithError(err).Error("failed to get logs for job: getLogsFailed")
+				}
+				err := b.logStore.StoreLogs(contextualLogger, sourceMessage, logs, false)
+				if err != nil {
+					contextualLogger.WithError(err).Error("failed to log to logstore")
 				}
 
 				// Remove the task from batch
@@ -455,29 +424,47 @@ func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.
 	sb := strings.Builder{}
 	//Log the details from the running task
 	logs, err := getLogFileContent(ctx, t, fileClient, jobID, "stdout.txt")
-	sb.WriteString("\n\n ------ Batch logs: stdout ------ \n\n") //nolint: errcheck
+	sb.WriteString("\n\n ------ Batch logs: stdout (for debugging) ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
-		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		sb.WriteString("failed to get: stdout") //nolint: errcheck
 		return sb.String()
 	}
 	sb.WriteString(logs) //nolint: errcheck
 
 	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "stderr.txt")
 
-	sb.WriteString("\n\n ------ Batch logs: stdout ------ \n\n") //nolint: errcheck
+	sb.WriteString("\n\n ------ Batch logs: sterr (for debugging) ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
-		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		sb.WriteString("failed to get: stderr") //nolint: errcheck
 		return sb.String()
 	}
 	sb.WriteString(logs) //nolint: errcheck
 
-	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/modulecontainer.log")
+	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/prepare.log")
+	sb.WriteString("\n\n ------ Preparer logs ------ \n\n") //nolint: errcheck
+	if err != nil {
+		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
+		sb.WriteString("failed to get: prepare") //nolint: errcheck
+		return sb.String()
+	}
+	sb.WriteString(logs) //nolint: errcheck
+
+	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/worker.log")
 	sb.WriteString("\n\n ------ Module logs ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
-		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		sb.WriteString("failed to get: worker") //nolint: errcheck
+		return sb.String()
+	}
+	sb.WriteString(logs) //nolint: errcheck
+
+	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/commit.log")
+	sb.WriteString("\n\n ------ Commit logs ------ \n\n") //nolint: errcheck
+	if err != nil {
+		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
+		sb.WriteString("failed to get: commit") //nolint: errcheck
 		return sb.String()
 	}
 	sb.WriteString(logs) //nolint: errcheck

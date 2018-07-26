@@ -33,6 +33,8 @@ func NewMockAzureBatchProvider(createTask func(taskDetails batch.TaskAddParamete
 	b.removeTask = func(t *batch.CloudTask) (autorest.Response, error) {
 		return autorest.Response{}, nil
 	}
+	b.logStore = &LogStore{}
+	b.getLogs = func(*batch.CloudTask) string { return "logs" }
 	return &b, nil
 }
 

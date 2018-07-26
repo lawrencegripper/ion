@@ -199,6 +199,7 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 		lockToken, ok := m.DeliveryAnnotations["x-opt-lock-token"]
 		if !ok {
 			log.WithField("message", m).Error("failed to get x-opt-locktoken from message annotations, cannot renew lock")
+			continue
 		}
 		lockTokenUUID, valid := lockToken.(amqp.UUID)
 		if !valid {
