@@ -153,6 +153,27 @@ func (db *MongoDB) CreateInsight(insight *documentstorage.Insight) error {
 	return nil
 }
 
+//CreateModuleLogs creates an insights document
+func (db *MongoDB) CreateModuleLogs(logs *documentstorage.ModuleLogs) error {
+	logs.Context.DocumentType = common.ModuleLogsDocType
+	b, err := JSONMarshal(*logs)
+	if err != nil {
+		return fmt.Errorf("error serializing JSON document: %+v", err)
+	}
+	var bsonDocument interface{}
+	err = bson.UnmarshalJSON(b, &bsonDocument)
+	if err != nil {
+		return fmt.Errorf("error de-serializing into BSON: %+v", err)
+	}
+	selector := bson.M{"id": logs.Description}
+	update := bson.M{"$set": logs}
+	_, err = db.Collection.Upsert(selector, update)
+	if err != nil {
+		return fmt.Errorf("error creates document: %+v", err)
+	}
+	return nil
+}
+
 //Close cleans up the connection to Mongo
 func (db *MongoDB) Close() {
 	defer db.Session.Close()

@@ -18,6 +18,7 @@ type Message interface {
 	Accept() error
 	Reject() error
 	EventData() (common.Event, error)
+	GetAMQPMessage() *amqp.Message
 }
 
 // AmqpMessage Wrapper for amqp
@@ -34,6 +35,11 @@ func NewAmqpMessageWrapper(m *amqp.Message) Message {
 	return &AmqpMessage{
 		OriginalMessage: m,
 	}
+}
+
+//GetAMQPMessage returns the wrapped message
+func (m *AmqpMessage) GetAMQPMessage() *amqp.Message {
+	return m.OriginalMessage
 }
 
 // DeliveryCount get number of times the message has ben delivered

@@ -106,6 +106,8 @@ module "ion" {
   managementapi_docker_image = "${var.docker_root}/ion-management:${var.docker_tag}"
   dispatcher_docker_image    = "${var.docker_root}/ion-dispatcher:${var.docker_tag}"
   frontapi_docker_image      = "${var.docker_root}/ion-frontapi:${var.docker_tag}"
+
+  app_insights_key = "${module.appinsights.instrumentation_key}"
 }
 
 output "kubeconfig" {

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 echo "Pushing to dockerhub"
 
 if [ -z "$DOCKER_USER" ]

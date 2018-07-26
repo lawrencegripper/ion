@@ -34,6 +34,7 @@ type Configuration struct {
 	AzureStorageAccountKey            string
 	LogLevel                          string
 	PrintConfig                       bool
+	AppInsightsKey                    string
 }
 
 // NewConfiguration create an empty config

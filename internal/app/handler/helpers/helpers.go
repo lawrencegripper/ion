@@ -69,7 +69,7 @@ func JoinBlobPath(strs ...string) string {
 	for _, s := range strs {
 		allStrs = append(allStrs, s)
 	}
-	return strings.Join(allStrs, "-")
+	return strings.Join(allStrs, `/`)
 }
 
 //ContainsString checks whether a string is in a slice of strings

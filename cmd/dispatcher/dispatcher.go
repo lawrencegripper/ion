@@ -118,12 +118,13 @@ func NewDispatcherCommand() *cobra.Command {
 					panic(err)
 				}
 
-				// TODO: Probably want to ignore stuff like INFO, maybe only take ERROR and PANIC
 				// set custom levels
-				// hook.SetLevels([]log.Level{
-				// 	log.PanicLevel,
-				// 	log.ErrorLevel,
-				// })
+				hook.SetLevels([]log.Level{
+					log.PanicLevel,
+					log.ErrorLevel,
+					log.WarnLevel,
+					log.FatalLevel,
+				})
 
 				// ignore fields
 				hook.AddIgnore("private")
