@@ -424,20 +424,20 @@ func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.
 	sb := strings.Builder{}
 	//Log the details from the running task
 	logs, err := getLogFileContent(ctx, t, fileClient, jobID, "stdout.txt")
-	sb.WriteString("\n\n ------ [Debug] Batch logs: stdout ------ \n\n") //nolint: errcheck
+	sb.WriteString("\n\n ------ Batch logs: stdout (for debugging) ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
-		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		sb.WriteString("failed to get: stdout") //nolint: errcheck
 		return sb.String()
 	}
 	sb.WriteString(logs) //nolint: errcheck
 
 	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "stderr.txt")
 
-	sb.WriteString("\n\n ------ [Debug] Batch logs: sterr ------ \n\n") //nolint: errcheck
+	sb.WriteString("\n\n ------ Batch logs: sterr (for debugging) ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
-		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		sb.WriteString("failed to get: stderr") //nolint: errcheck
 		return sb.String()
 	}
 	sb.WriteString(logs) //nolint: errcheck
@@ -446,7 +446,7 @@ func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.
 	sb.WriteString("\n\n ------ Preparer logs ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
-		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		sb.WriteString("failed to get: prepare") //nolint: errcheck
 		return sb.String()
 	}
 	sb.WriteString(logs) //nolint: errcheck
@@ -455,7 +455,7 @@ func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.
 	sb.WriteString("\n\n ------ Module logs ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
-		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		sb.WriteString("failed to get: worker") //nolint: errcheck
 		return sb.String()
 	}
 	sb.WriteString(logs) //nolint: errcheck
@@ -464,7 +464,7 @@ func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.
 	sb.WriteString("\n\n ------ Commit logs ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
-		sb.WriteString("failed to get %v from task: stdout") //nolint: errcheck
+		sb.WriteString("failed to get: commit") //nolint: errcheck
 		return sb.String()
 	}
 	sb.WriteString(logs) //nolint: errcheck
