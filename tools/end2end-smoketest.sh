@@ -23,6 +23,7 @@ sleep 5
 if [ -z "$DOCKER_USER" ]
 then
       echo "You must specify a $DOCKER_USER environment variable to which the ion images can be pushed"
+      exit 1
 fi
 
 if [ -z "$SKIP_BUILD" ]
@@ -70,11 +71,9 @@ then
         echo "WARNING.... you'll need to create it some of the fields in ./deployment/vars.private.tfvars without it the terraform deployment will fail"
         return
     fi
-
-    sed -i "s/docker_root.*/docker_root=\"$DOCKER_USER\"/g" vars.private.tfvars
-    sed -i "s/docker_user.*/docker_user=\"$ION_IMAGE_TAG\"/g" vars.private.tfvars
+    
     terraform init
-    terraform apply -var-file ./vars.private.tfvars -auto-approve
+    terraform apply -var-file ./vars.private.tfvars -auto-approve -var docker_root=$DOCKER_USER -var docker_tag=$ION_IMAGE_TAG
     terraform output kubeconfig > ../kubeconfig.private.yaml
 
     echo "--------------------------------------------------------"
@@ -116,8 +115,8 @@ echo "--------------------------------------------------------"
 echo "Deploying downloader and transcoder module with tag $ION_IMAGE_TAG"
 echo "--------------------------------------------------------"
 
-docker run --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
-docker run --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
+docker run --rm --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+docker run --rm --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
 sleep 30
 
 

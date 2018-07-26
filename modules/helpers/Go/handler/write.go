@@ -2,25 +2,27 @@ package handler
 
 import (
 	"encoding/json"
-	"github.com/lawrencegripper/ion/internal/pkg/common"
-	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/lawrencegripper/ion/internal/pkg/common"
+	"github.com/lawrencegripper/ion/modules/helpers/Go/env"
+	log "github.com/sirupsen/logrus"
 )
 
 //Event is an event to be raised by the module
 type Event struct {
-	Event string   `json:"event_type"`
-	Files []string `json:"file"`
+	Event    string   `json:"event_type"`
+	Files    []string `json:"file"`
+	Metadata Insights `json:"metadata"`
 }
 
 //Insights an array of keyValuePair
 type Insights []Insight
 
 //Insight wrapper for common.KeyValuePair
-type Insight common.KeyValuePair
+type Insight = common.KeyValuePair
 
 //WriteEvents creates an event file in the ion event dir which will be raise when
 // the module exits with a zero exit code
@@ -28,7 +30,7 @@ type Insight common.KeyValuePair
 func WriteEvents(events []Event) {
 	i := 0
 	for _, ev := range events {
-		b, err := json.Marshal(common.KeyValuePairs{
+		content := common.KeyValuePairs{
 			common.KeyValuePair{
 				Key:   "eventType",
 				Value: ev.Event,
@@ -37,7 +39,13 @@ func WriteEvents(events []Event) {
 				Key:   "files",
 				Value: strings.Join(ev.Files, ","),
 			},
-		})
+		}
+
+		for _, pair := range ev.Metadata {
+			content = content.Append(pair)
+		}
+
+		b, err := json.Marshal(content)
 		if err != nil {
 			log.WithError(err).Panic("failed marshalling event")
 		}

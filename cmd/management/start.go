@@ -4,10 +4,13 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	logrus_appinsights "github.com/jjcollinge/logrus-appinsights"
 	"github.com/lawrencegripper/ion/internal/app/management"
 	"github.com/lawrencegripper/ion/internal/pkg/tools"
 	log "github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -49,6 +52,7 @@ func NewStartCommand() *cobra.Command {
 			managementConfig.AzureStorageAccountKey = viper.GetString("azure-storage-account-key")
 			managementConfig.AzureServiceBusNamespace = viper.GetString("azure-servicebus-namespace")
 			managementConfig.LogLevel = viper.GetString("loglevel")
+			managementConfig.AppInsightsKey = viper.GetString("logging-appinsights")
 
 			//Quick fix for https://github.com/lawrencegripper/ion/issues/142
 			managementConfig.ContainerImageRegistryURL = viper.GetString("image-registry-url")
@@ -111,6 +115,21 @@ func NewStartCommand() *cobra.Command {
 
 			if managementConfig.PrintConfig {
 				fmt.Println(tools.PrettyPrintStruct(managementConfig))
+			}
+
+			if managementConfig.AppInsightsKey != "" {
+				hook, err := logrus_appinsights.New("management-api", logrus_appinsights.Config{
+					InstrumentationKey: managementConfig.AppInsightsKey,
+					MaxBatchSize:       10,              // optional
+					MaxBatchInterval:   time.Second * 5, // optional
+				})
+				if err != nil || hook == nil {
+					panic(err)
+				}
+
+				// ignore fields
+				hook.AddIgnore("private")
+				log.AddHook(hook)
 			}
 
 			return nil
@@ -199,6 +218,10 @@ func NewStartCommand() *cobra.Command {
 
 	flags.String("image-registry-password", "", "The passworkd for the image registry")
 	viper.BindPFlag("image-registry-password", flags.Lookup("image-registry-url"))
+
+	//logging: Appinsights
+	flags.String("logging-appinsights", "", "App Insights instrumentation key")
+	viper.BindPFlag("logging-appinsights", flags.Lookup("logging-appinsights"))
 
 	return cmd
 }

@@ -3,13 +3,14 @@ package providers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
+	"github.com/lawrencegripper/ion/internal/pkg/messaging"
+	"github.com/lawrencegripper/ion/internal/pkg/types"
+	"pack.ag/amqp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/lawrencegripper/ion/internal/pkg/common"
-	"github.com/lawrencegripper/ion/internal/pkg/messaging"
-	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,9 @@ func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error)
 	k.removeJob = func(j *batchv1.Job) error {
 		return nil
 	}
+	k.getLogs = func(b *batchv1.Job) (string, error) {
+		return "logs", fmt.Errorf("failed getting logs")
+	}
 	return &k, nil
 }
 
@@ -39,7 +43,7 @@ func TestGetJobName(t *testing.T) {
 		MessageID:          mockMessageID,
 		DeliveryCountValue: 15,
 	}
-	jobName := getJobName(messageToSend)
+	jobName := getJobName(messageToSend, "exampleModule")
 
 	if !strings.Contains(jobName, "15") {
 		t.Error("Should contain the attempt count")
@@ -404,6 +408,11 @@ func (m MockMessage) DeliveryCount() int {
 	return m.DeliveryCountValue
 }
 
+// GetAMQPMessage get the original amqp message
+func (m MockMessage) GetAMQPMessage() *amqp.Message {
+	return nil
+}
+
 // ID get the ID
 func (m MockMessage) ID() string {
 	return m.MessageID
@@ -431,7 +440,7 @@ func (m MockMessage) EventData() (common.Event, error) {
 	a := common.Event{}
 
 	if m.JSONValue == "" {
-		m.JSONValue = `{ "id": "barry", "type": "faceevnt", "parentId": "barrySnr", "correlationId": "12345" }`
+		m.JSONValue = `{ "context": {"eventId": "barry", "name": "faceevnt", "parentId": "barrySnr", "correlationId": "12345" }}`
 	}
 
 	err := json.Unmarshal([]byte(m.JSONValue), &a)

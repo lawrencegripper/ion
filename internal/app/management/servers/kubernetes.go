@@ -48,7 +48,7 @@ var logLevel string
 
 func genID() string {
 	id := xid.New()
-	return id.String()
+	return id.String()[0:5]
 }
 
 // NewKubernetesManagementServer creates and initializes a new Kubernetes management server
@@ -115,6 +115,7 @@ func (k *Kubernetes) createSharedServicesSecret(config *types.Configuration) err
 			"HANDLER_MONGODBDOCPROVIDER_COLLECTION":     config.MongoDBCollection,
 			"HANDLER_AZUREBLOBPROVIDER_BLOBACCOUNTNAME": config.AzureStorageAccountName,
 			"HANDLER_AZUREBLOBPROVIDER_BLOBACCOUNTKEY":  config.AzureStorageAccountKey,
+			"LOGGING_APPINSIGHTS":                       config.AppInsightsKey,
 		},
 	}
 

@@ -152,8 +152,8 @@ func getBlobProvider(config *Configuration, meta dataplane.DocumentStorageProvid
 			log.WithError(err).Panic("failed while getting eventmeta for blob provider to use sas urls")
 		}
 		azureBlob, err := azure.NewBlobStorage(c,
-			helpers.JoinBlobPath(config.Context.ParentEventID),
-			helpers.JoinBlobPath(config.Context.EventID),
+			helpers.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
+			helpers.JoinBlobPath(config.Context.EventID, config.Context.Name),
 			eventMeta,
 		)
 		if err != nil {

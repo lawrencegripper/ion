@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/services/batch/2017-09-01.6.0/batch"
 	"github.com/lawrencegripper/ion/internal/app/dispatcher/helpers"
+
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -83,6 +85,8 @@ func TestIntegrationAzureBatchDispatch(t *testing.T) {
 				t.Error(err)
 				t.FailNow()
 			}
+
+			p.getLogs = func(t *batch.CloudTask) string { return "test" }
 
 			messageAccepted := false
 			messageRejected := false

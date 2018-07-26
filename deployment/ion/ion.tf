@@ -266,6 +266,10 @@ resource "kubernetes_deployment" "ion-management-api" {
               name  = "IMAGE_REGISTRY_PASSWORD"
               value = "${var.acr_password}"
             },
+            {
+              name  = "LOGGING_APPINSIGHTS"
+              value = "${var.app_insights_key}"
+            },
           ]
         }
       }

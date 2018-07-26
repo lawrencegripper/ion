@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"context"
+	"pack.ag/amqp"
 	"sync"
 	"time"
 
@@ -40,7 +41,27 @@ func Run(cfg *types.Configuration) {
 
 	var wg sync.WaitGroup
 
-	wg.Add(2)
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		for {
+			// Renew message locks with ServiceBus
+			//https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-amqp-request-response#message-renew-lock
+			time.Sleep(time.Duration(45) * time.Second)
+
+			activeMessages := provider.GetActiveMessages()
+			messagesAMQP := make([]*amqp.Message, 0, len(activeMessages))
+			for _, m := range activeMessages {
+				originalMessage := m.GetAMQPMessage()
+				messagesAMQP = append(messagesAMQP, originalMessage)
+			}
+
+			err := amqpConnection.RenewLocks(ctx, messagesAMQP)
+			if err != nil {
+				log.WithError(err).Error("failed to renew locks")
+			}
+		}
+	}()
 	go func() {
 		defer wg.Done()
 		for {
