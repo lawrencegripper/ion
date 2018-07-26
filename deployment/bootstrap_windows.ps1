@@ -34,10 +34,3 @@ DeGZIP-File "$PSScriptRoot/terraform-provider-kubernetes.gz" "$PSScriptRoot/terr
 
 Write-Host "Download complete" -foregroundcolor Green
 
-Write-Host "Downloading TLS Terraform provider" -foregroundcolor Green
-
-mkdir -p $GOPATH/src/github.com/terraform-providers; cd $GOPATH/src/github.com/terraform-providers
-git clone git@github.com:terraform-providers/terraform-provider-tls
-
-Write-Host "Download complete" -foregroundcolor Green
-
