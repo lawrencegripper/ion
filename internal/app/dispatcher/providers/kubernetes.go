@@ -486,7 +486,7 @@ func getClientSet() (*kubernetes.Clientset, error) {
 }
 
 func getJobName(m messaging.Message, moduleName string) string {
-	return strings.ToLower(moduleName) + strings.ToLower(m.ID()) + "-v" + strconv.Itoa(m.DeliveryCount())
+	return strings.ToLower(moduleName+m.ID()) + "-v" + strconv.Itoa(m.DeliveryCount())
 }
 
 func getLogsForJob(namespace string, job *batchv1.Job, clientset *kubernetes.Clientset) (string, error) {
