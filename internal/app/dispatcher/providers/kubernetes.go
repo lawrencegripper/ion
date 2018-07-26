@@ -13,9 +13,6 @@ import (
 	"github.com/lawrencegripper/ion/internal/pkg/messaging"
 
 	"github.com/Azure/go-autorest/autorest/to"
-
-	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
-	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage/mongodb"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -54,7 +51,7 @@ type Kubernetes struct {
 	pullSecret       string
 	handlerArgs      []string
 	workerEnvVars    map[string]interface{}
-	mongoStore       *mongodb.MongoDB
+	logStore         *LogStore
 }
 
 // NewKubernetesProvider Creates an instance and does basic setup
@@ -109,19 +106,17 @@ func NewKubernetesProvider(config *types.Configuration, sharedHandlerArgs []stri
 		return getLogsForJob(b.Namespace, b, k.client)
 	}
 
-	if config.Handler != nil && config.Handler.MongoDBDocumentStorageProvider != nil {
-		k.mongoStore, err = mongodb.NewMongoDB(&mongodb.Config{
-			Enabled:    true,
-			Name:       config.Handler.MongoDBDocumentStorageProvider.Name,
-			Collection: config.Handler.MongoDBDocumentStorageProvider.Collection,
-			Password:   config.Handler.MongoDBDocumentStorageProvider.Password,
-			Port:       config.Handler.MongoDBDocumentStorageProvider.Port,
-		})
+	if config.Handler != nil &&
+		config.Handler.MongoDBDocumentStorageProvider != nil &&
+		config.Handler.AzureBlobStorageProvider != nil {
+		k.logStore, err = NewLogStore(config.Handler.MongoDBDocumentStorageProvider, config.Handler.AzureBlobStorageProvider, config.ModuleName)
 		if err != nil {
-			return nil, fmt.Errorf("failed initialising mongo connection: %+v", err)
+			log.WithError(err).Error("failed to create log store")
+			return nil, err
 		}
 	} else {
-		log.Info("Skipping mongodb config as not provided")
+		log.Info("Skipping logstore config as not provided")
+		k.logStore = &LogStore{}
 	}
 
 	return &k, nil
@@ -201,31 +196,17 @@ func (k *Kubernetes) Reconcile() error {
 			if condition.Type == batchv1.JobFailed {
 				contextualLogger.Warning("job failed to execute in k8s")
 
-				//Todo: reused block refactor into method
-				eventData, err := sourceMessage.EventData()
+				logs, err := k.getLogs(&j)
 				if err != nil {
-					contextualLogger.WithError(err).Error("failed to get eventData from message")
-				} else if k.mongoStore == nil {
-					contextualLogger.Error("failed to get logs for job: mongo store not initialised")
-				} else {
-					eventData.Context.Name = k.moduleName
-					logs, err := k.getLogs(&j)
-					if err != nil {
-						contextualLogger.WithError(err).Error("failed to get logs for job: getLogsFailed")
-					}
-					err = k.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
-						Context:     eventData.Context,
-						Logs:        logs,
-						Succeeded:   true,
-						Description: fmt.Sprintf("module:%s-event:%s-attempt:%v", eventData.Context.Name, eventData.Context.EventID, j.Labels[deliverycountlabel]),
-					})
-					if err != nil {
-						contextualLogger.WithError(err).Error("failed to store logs for job in mongo")
-					}
-					contextualLogger.WithField("logs", logs).Info("got logs for task")
+					contextualLogger.WithError(err).Error("failed to get logs for job: getLogsFailed")
+				}
+				err = k.logStore.StoreLogs(contextualLogger, sourceMessage, logs, false)
+				if err != nil {
+					contextualLogger.WithError(err).Error("failed to log to logstore")
 				}
 
 				err = sourceMessage.Reject()
+
 				if err != nil {
 					contextualLogger.Error("failed to reject message")
 					return err
@@ -239,28 +220,13 @@ func (k *Kubernetes) Reconcile() error {
 			if condition.Type == batchv1.JobComplete {
 				contextualLogger.Info("job successfully to execute in k8s")
 
-				//Todo: reused block refactor into method
-				eventData, err := sourceMessage.EventData()
+				logs, err := k.getLogs(&j)
 				if err != nil {
-					contextualLogger.WithError(err).Error("failed to get eventData from message")
-				} else if k.mongoStore == nil {
-					contextualLogger.Error("failed to get logs for job: mongo store not initialised")
-				} else {
-					eventData.Context.Name = k.moduleName
-					logs, err := k.getLogs(&j)
-					if err != nil {
-						contextualLogger.WithError(err).Error("failed to get logs for job: getLogsFailed")
-					}
-					err = k.mongoStore.CreateModuleLogs(&documentstorage.ModuleLogs{
-						Context:     eventData.Context,
-						Logs:        logs,
-						Succeeded:   true,
-						Description: fmt.Sprintf("module:%s-event:%s-attempt:%v", eventData.Context.Name, eventData.Context.EventID, j.Labels[deliverycountlabel]),
-					})
-					if err != nil {
-						contextualLogger.WithError(err).Error("failed to store logs for job in mongo")
-					}
-					contextualLogger.WithField("logs", logs).Info("got logs for task")
+					contextualLogger.WithError(err).Error("failed to get logs for job: getLogsFailed")
+				}
+				err = k.logStore.StoreLogs(contextualLogger, sourceMessage, logs, true)
+				if err != nil {
+					contextualLogger.WithError(err).Error("failed to log to logstore")
 				}
 
 				err = sourceMessage.Accept()

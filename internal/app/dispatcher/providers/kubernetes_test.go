@@ -35,6 +35,7 @@ func NewMockKubernetesProvider(create func(b *batchv1.Job) (*batchv1.Job, error)
 	k.getLogs = func(b *batchv1.Job) (string, error) {
 		return "logs", fmt.Errorf("failed getting logs")
 	}
+	k.logStore = &LogStore{}
 	return &k, nil
 }
 
@@ -374,7 +375,7 @@ func TestReconcileJobFailed(t *testing.T) {
 	}
 
 	if !rejectedMessage {
-		t.Error("Failed to accept message during reconcilation. Expected message to be marked as accepted as job is complete")
+		t.Error("Failed to reject message during reconcilation. Expected message to be marked as accepted as job is complete")
 	}
 
 	if len(k.inflightJobStore) != 0 {

@@ -6,7 +6,6 @@ cmd/handler/handler
 .memdb
 .dev
 **/debug.test
-dispatcher
 cmd/dispatcher/debug
 internal/app/management/client/client
 
