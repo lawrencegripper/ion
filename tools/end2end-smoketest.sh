@@ -15,7 +15,7 @@ echo "You must have already:"
 echo " MUST: Run terraform init in the ./deployment folder"
 echo " MUST: have kubectl installed and available in your path"
 echo " Must: Be logged into Azure CLI and have the right subscription set as your default"
-echo " Must: Be logged into docker cli and have set $DOCKER_USER to your username"
+echo " Must: Be logged into Docker CLI and have set $DOCKER_USER to your username"
 echo "--------------------------------------------------------"
 
 sleep 5
@@ -56,6 +56,7 @@ then
         kubectl delete jobs --all || true
         kubectl delete pods --all || true
         kubectl delete secrets --all || true
+        kubectl delete service --all || true
     else
         echo "Kubeconfig not found, no cluster created skipping cleanup..."
     fi
@@ -75,11 +76,6 @@ then
     terraform init
     terraform apply -var-file ./vars.private.tfvars -auto-approve -var docker_root=$DOCKER_USER -var docker_tag=$ION_IMAGE_TAG
     terraform output kubeconfig > ../kubeconfig.private.yaml
-
-    mkdir -p certs
-    terraform output client_cert > "certs/client.crt"
-    terraform output client_key > "certs/client.key"
-    terraform output cluster_ca > "certs/rootCA.pem"
 
     echo "--------------------------------------------------------"
     echo "Setting kubectl context to new cluster"
@@ -103,6 +99,15 @@ else
     kubectl delete jobs --all || true
 fi
 
+CERT_DIR="$PWD/tf"
+mkdir -p $CERT_DIR
+cd ./deployment
+terraform output client_cert > "$CERT_DIR/client.crt"
+terraform output client_key > "$CERT_DIR/client.key"
+terraform output cluster_ca > "$CERT_DIR/rootCA.pem"
+export DNS_NAME=$(terraform output ion_management_endpoint)
+cd -
+
 echo "--------------------------------------------------------"
 echo "Forwarding ports for front api"
 echo "--------------------------------------------------------"
@@ -117,18 +122,24 @@ echo "--------------------------------------------------------"
 echo "Deploying downloader and transcoder module with tag $ION_IMAGE_TAG"
 echo "--------------------------------------------------------"
 
-docker run --rm --network host ion-cli module create -i frontapi.new_link -o file_downloaded \
-            -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG \
-            -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
-docker run --rm --network host -v ${PWD}:/src ion-cli module create -i file_downloaded \
-            -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch \
-            --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG \
-            --config-map-file /src/tools/transcoder.env \
-            --certfile certs/client.crt \
-            --keyfile certs/client.key \
-            --cacertfile certs/rootCA.pem
-sleep 30
+docker run --rm --network host -v ${PWD}/tf:/src/tf ion-cli module create -i frontapi.new_link -o file_downloaded \
+-n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG \
+-p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG \
+--endpoint $DNS_NAME:9000 \
+--certfile /src/tf/client.crt \
+--keyfile /src/tf/client.key \
+--cacertfile /src/tf/rootCA.pem
 
+docker run --rm --network host -v ${PWD}:/src ion-cli module create -i file_downloaded \
+-o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch \
+--handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG \
+--config-map-file /src/tools/transcoder.env \
+--endpoint $DNS_NAME:9000 \
+--certfile /src/tf/client.crt \
+--keyfile /src/tf/client.key \
+--cacertfile /src/tf/rootCA.pem
+
+sleep 30
 
 echo "--------------------------------------------------------"
 echo "Submitting a video for processing to the frontapi"
