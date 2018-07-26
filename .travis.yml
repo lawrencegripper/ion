@@ -24,7 +24,7 @@ before_install:
   - ssh-keygen -b 2048 -t rsa -f ~/.ssh/id_rsa -q -N ""
   # Install tooling GRPC files
   - go get -u google.golang.org/grpc
-  - chmod +x ./tools/install-protoc.sh && sudo ./tools/install-protoc.sh $PROTOC_VERSION
+  - sudo apt install protobuf-compiler
   - go get -u github.com/golang/protobuf/protoc-gen-go
   # Install ffmpeg
   - sudo add-apt-repository -y ppa:mc3man/trusty-media
