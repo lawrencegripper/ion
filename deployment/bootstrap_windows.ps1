@@ -41,11 +41,3 @@ git clone git@github.com:terraform-providers/terraform-provider-tls
 
 Write-Host "Download complete" -foregroundcolor Green
 
-Write-Host "Building TLS Terraform provider" -foregroundcolor Green
-
-cd $GOPATH/src/github.com/terraform-providers/terraform-provider-tls
-make build
-
-Write-Host "Build complete" -foregroundcolor Green
-
-
