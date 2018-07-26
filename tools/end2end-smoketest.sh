@@ -2,8 +2,9 @@
 cd "$(dirname "$0")"
 cd ..
 
-SKIP_BUILD=$1
-SKIP_TERRAFORM=$2
+BUILD=$1
+TERRAFORM=$2
+ION_IMAGE_TAG=$3
 
 echo "--------------------------------------------------------"
 echo "WARNING: This script will deploy into your currently selected Azure Subscription, Kubernetes clusters and Docker hub user"
@@ -20,27 +21,34 @@ echo "--------------------------------------------------------"
 
 sleep 5
 
-if [ -z "$DOCKER_USER" ]
-then
-      echo "You must specify a $DOCKER_USER environment variable to which the ion images can be pushed"
+if [ -z "$LOCAL_IP" ]; then
+    export LOCAL_IP=localhost
 fi
 
-if [ -z "$SKIP_BUILD" ]
-then
+if [ -z "$DOCKER_USER" ]; then
+    echo "You must specify a $DOCKER_USER environment variable to which the ion images can be pushed"
+    exit 1
+fi
+
+if [ "$BUILD" = true ]; then
     echo "--------------------------------------------------------"
     echo "Building source and pushing images"
     echo "--------------------------------------------------------"
 
     make
     ./build/pushimages.sh
+    export ION_IMAGE_TAG=$(cat imagetag.temp)
 fi
 
-export ION_IMAGE_TAG=$(cat imagetag.temp)
-echo "-> Using tag $ION_IMAGE_TAG" 
+if [ -z "$ION_IMAGE_TAG" ]; then
+    echo "Skipped local container build, existing container image tag must be provided!"
+    exit 1
+fi
 
-if [ -z "$SKIP_TERRAFORM" ]
-then
-    #Refresh the azurecli token 
+echo "-> Using tag $ION_IMAGE_TAG"
+
+if [ "$TERRAFORM" = true ]; then
+    #Refresh the azurecli token
     az group list >> /dev/null
 
     echo "--------------------------------------------------------"
@@ -82,7 +90,7 @@ then
     echo "--------------------------------------------------------"
     az aks get-credentials -n $(terraform output cluster_name) -g $(terraform output resource_group_name)
     cd -
-    
+
     echo "--------------------------------------------------------"
     echo "Wait for the pods to start"
     echo "--------------------------------------------------------"
@@ -116,8 +124,16 @@ echo "--------------------------------------------------------"
 echo "Deploying downloader and transcoder module with tag $ION_IMAGE_TAG"
 echo "--------------------------------------------------------"
 
+if [ "$BUILD" = false ]; then
+    docker pull "$DOCKER_USER/ion-cli:$ION_IMAGE_TAG"
+    docker tag "$DOCKER_USER/ion-cli:$ION_IMAGE_TAG" ion-cli:$ION_IMAGE_TAG
+fi
+
 docker run --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+
+#docker run --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
 docker run --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
+
 sleep 30
 
 
