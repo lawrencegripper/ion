@@ -192,7 +192,7 @@ func (b *AzureBatch) Dispatch(message messaging.Message) error {
 
 	//Todo: Refactor this bit as got a bit messy now.
 	moduleContainer := apiv1.Container{
-		Name:            "modulecontainer",
+		Name:            "worker",
 		Image:           b.jobConfig.WorkerImage,
 		Env:             workerEnvVars,
 		ImagePullPolicy: pullPolicy,
@@ -442,7 +442,7 @@ func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.
 	}
 	sb.WriteString(logs) //nolint: errcheck
 
-	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/preparecontainer.log")
+	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/prepare.log")
 	sb.WriteString("\n\n ------ Preparer logs ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
@@ -451,7 +451,7 @@ func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.
 	}
 	sb.WriteString(logs) //nolint: errcheck
 
-	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/modulecontainer.log")
+	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/worker.log")
 	sb.WriteString("\n\n ------ Module logs ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
@@ -460,7 +460,7 @@ func getLogsForTask(ctx context.Context, fileClient *batch.FileClient, t *batch.
 	}
 	sb.WriteString(logs) //nolint: errcheck
 
-	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/commitcontainer.log")
+	logs, err = getLogFileContent(ctx, t, fileClient, jobID, "wd/commit.log")
 	sb.WriteString("\n\n ------ Commit logs ------ \n\n") //nolint: errcheck
 	if err != nil {
 		log.WithError(err).WithField("task", *t).Warningf("failed to get %v from task", "stout")
