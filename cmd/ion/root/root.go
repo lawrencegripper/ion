@@ -16,21 +16,19 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// TLS Certificates or mutual auth
+// TLSCerts for mutual auth
 type TLSCerts struct {
 	CertFile   string
 	KeyFile    string
 	CACertFile string
 }
 
+// Available returns whether all required certs have been provided
 func (t *TLSCerts) Available() bool {
 	return (t.CACertFile != "" && t.CertFile != "" && t.KeyFile != "")
 }
 
 var cfgFile string
-
-// GRPCConn is a shared GRPC client connection
-var GRPCConn *grpc.ClientConn
 var managementEndpoint string
 var tlsCerts TLSCerts
 var timeoutSec int
@@ -62,6 +60,10 @@ func Setup(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// GetManagementConnection will return a new GRPC client connection
+// to the management server. If the required TLS certificates have
+// been provided to the CLI, mutual authentication will be used. If
+// not then the connection will be insecure.
 func GetManagementConnection() (*grpc.ClientConn, error) {
 
 	var options []grpc.DialOption

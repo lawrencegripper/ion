@@ -37,11 +37,11 @@ then
 fi
 
 export ION_IMAGE_TAG=$(cat imagetag.temp)
-echo "-> Using tag $ION_IMAGE_TAG" 
+echo "-> Using tag $ION_IMAGE_TAG"
 
 if [ -z "$SKIP_TERRAFORM" ]
 then
-    #Refresh the azurecli token 
+    #Refresh the azurecli token
     az group list >> /dev/null
 
     echo "--------------------------------------------------------"
@@ -71,17 +71,22 @@ then
         echo "WARNING.... you'll need to create it some of the fields in ./deployment/vars.private.tfvars without it the terraform deployment will fail"
         return
     fi
-    
+
     terraform init
     terraform apply -var-file ./vars.private.tfvars -auto-approve -var docker_root=$DOCKER_USER -var docker_tag=$ION_IMAGE_TAG
     terraform output kubeconfig > ../kubeconfig.private.yaml
+
+    mkdir -p certs
+    terraform output client_cert > "certs/client.crt"
+    terraform output client_key > "certs/client.key"
+    terraform output cluster_ca > "certs/rootCA.pem"
 
     echo "--------------------------------------------------------"
     echo "Setting kubectl context to new cluster"
     echo "--------------------------------------------------------"
     az aks get-credentials -n $(terraform output cluster_name) -g $(terraform output resource_group_name)
     cd -
-    
+
     echo "--------------------------------------------------------"
     echo "Wait for the pods to start"
     echo "--------------------------------------------------------"
@@ -99,7 +104,7 @@ else
 fi
 
 echo "--------------------------------------------------------"
-echo "Forwarding ports for management api and front api"
+echo "Forwarding ports for front api"
 echo "--------------------------------------------------------"
 
 #Cleanup any leftover listeners
@@ -107,16 +112,21 @@ ps aux | grep [k]ubectl | awk '{print $2}' | xargs kill || true
 
 kubectl get pods | grep ion-front | awk '{print $1}' | xargs -I % kubectl port-forward % 9001:9001 &
 FORWARD_PID1=$!
-kubectl get pods | grep ion-management | awk '{print $1}' | xargs -I % kubectl port-forward % 9000:9000 &
-FORWARD_PID2=$!
-
 
 echo "--------------------------------------------------------"
 echo "Deploying downloader and transcoder module with tag $ION_IMAGE_TAG"
 echo "--------------------------------------------------------"
 
-docker run --rm --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
-docker run --rm --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
+docker run --rm --network host ion-cli module create -i frontapi.new_link -o file_downloaded \
+            -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG \
+            -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+docker run --rm --network host -v ${PWD}:/src ion-cli module create -i file_downloaded \
+            -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch \
+            --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG \
+            --config-map-file /src/tools/transcoder.env \
+            --certfile certs/client.crt \
+            --keyfile certs/client.key \
+            --cacertfile certs/rootCA.pem
 sleep 30
 
 

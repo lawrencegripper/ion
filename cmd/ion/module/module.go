@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Client to be used by any subcommands to talk to the module service
 var Client module.ModuleServiceClient
 
 // moduleCmd represents the module command
