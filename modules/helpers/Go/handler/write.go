@@ -13,16 +13,16 @@ import (
 
 //Event is an event to be raised by the module
 type Event struct {
-	Event    string               `json:"event_type"`
-	Files    []string             `json:"file"`
-	Metadata common.KeyValuePairs `json:"metadata"`
+	Event    string   `json:"event_type"`
+	Files    []string `json:"file"`
+	Metadata Insights `json:"metadata"`
 }
 
 //Insights an array of keyValuePair
 type Insights []Insight
 
 //Insight wrapper for common.KeyValuePair
-type Insight common.KeyValuePair
+type Insight = common.KeyValuePair
 
 //WriteEvents creates an event file in the ion event dir which will be raise when
 // the module exits with a zero exit code
