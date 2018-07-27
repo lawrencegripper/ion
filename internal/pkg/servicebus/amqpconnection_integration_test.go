@@ -42,7 +42,7 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*240)
 	defer cancel()
 
 	listener := NewAmqpConnection(ctx, config)
@@ -78,6 +78,20 @@ func TestIntegrationNewListener(t *testing.T) {
 	}
 
 	message := messaging.NewAmqpMessageWrapper(amqpMessage)
+
+	go func() {
+		time.Sleep(time.Duration(45) * time.Second)
+		err := listener.RenewLocks(ctx, []*amqp.Message{
+			amqpMessage,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	// Renew another time to make sure
+	//Added to ensure that locks are renewed
+	time.Sleep(time.Duration(75) * time.Second)
 
 	go func() {
 		time.Sleep(time.Duration(45) * time.Second)
