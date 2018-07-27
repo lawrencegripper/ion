@@ -1,14 +1,15 @@
 #!/bin/bash
 
-set -e
-
 OUT_DIR=$1      # Directory to write the new certificates to
 TOOL=$2         # The certificate generation tool
 DNS_NAME=$3     # The DNS name to use to connect the client and server
 IMAGE_TAG=$4    # Optional Docker image tag used in terraform
 
-if pgrep management; then pkill -9 management &> /dev/null; fi
-if pgrep ioncli; then pkill -9 ioncli &> /dev/null; fi
+function prockill { P=$(pgrep $1); if [ -n "$P" ]; then kill "$P"; fi }
+prockill management
+prockill ioncli
+
+set -e  # Leave below prockill
 
 echo "------------------------------------"
 echo "Generating new certificates using: $TOOL"
@@ -18,9 +19,6 @@ case "$TOOL" in
         if [ -z "$DNS_NAME" ];then
             DNS_NAME="localhost"
         fi
-        echo "I will generate new certificates"
-        echo "I will execute a new deployment. Please be patient"
-        echo "this can take up to 30 minutes."
         ./tools/generate_certs_openssl.sh "$OUT_DIR" "$DNS_NAME"
         STATUS=$?
         if [ $STATUS != 0 ]; then
@@ -44,13 +42,12 @@ case "$TOOL" in
         echo "If no existing terraform.tfstate file is present,"
         echo "I will execute a new deployment. Please be patient"
         echo "this can take up to 30 minutes."
-        RES=$(./tools/generate_certs_terraform.sh "$OUT_DIR" "$IMAGE_TAG")
+        ./tools/generate_certs_terraform.sh "$OUT_DIR" "$IMAGE_TAG"
         STATUS=$?
         if [ $STATUS != 0 ]; then
-            echo $RES
             exit $STATUS
         fi
-        DNS_NAME=$RES
+        DNS_NAME=$(cat "$OUT_DIR/dns")
     ;;
     *)
         echo "Unrecognized tool choice:  $TOOL"
