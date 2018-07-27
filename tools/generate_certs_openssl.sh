@@ -22,18 +22,20 @@ mkdir -p $OUT_DIR
 
 CERT_SUBJ="/CN=ion.local/O=Ion LTD./C=GB/ST=London/L=London/O=Ion/OU=CA Dep"
 
+echo "------------------------------------"
 echo "Generating root certificate authority"
 echo "------------------------------------"
 openssl genrsa -out "$OUT_DIR/rootCA.key" 2048
-openssl genrsa -des3 -out "$OUT_DIR/rootCA.key" 2048
 openssl req -x509 -new -nodes -key "$OUT_DIR/rootCA.key" -subj "$CERT_SUBJ" -sha256 -days 1024 -out "$OUT_DIR/rootCA.pem"
 
+echo "------------------------------------"
 echo "Generating server certificates"
 echo "------------------------------------"
 openssl genrsa -out "$OUT_DIR/server.key" 2048
 openssl req -new -key "$OUT_DIR/server.key" -out "$OUT_DIR/server.csr" -subj "$CERT_SUBJ"
 openssl x509 -req -in "$OUT_DIR/server.csr" -CA "$OUT_DIR/rootCA.pem" -CAkey "$OUT_DIR/rootCA.key" -CAcreateserial -out "$OUT_DIR/server.crt" -days 500 -sha256
 
+echo "------------------------------------"
 echo "Generating client certificates"
 echo "------------------------------------"
 openssl genrsa -out "$OUT_DIR/client.key" 2048

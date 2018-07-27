@@ -34,6 +34,7 @@ func NewStartCommand() *cobra.Command {
 			managementConfig.CertFile = viper.GetString("certfile")
 			managementConfig.KeyFile = viper.GetString("keyfile")
 			managementConfig.CACertFile = viper.GetString("cacertfile")
+			managementConfig.Hostname = viper.GetString("hostname")
 			managementConfig.Provider = viper.GetString("provider")
 			managementConfig.Port = viper.GetInt("management-port")
 			managementConfig.Namespace = viper.GetString("namespace")
@@ -159,6 +160,9 @@ func NewStartCommand() *cobra.Command {
 
 	flags.String("cacertfile", "", "The CA root certificate file")
 	viper.BindPFlag("cacertfile", flags.Lookup("cacertfile"))
+
+	flags.String("hostname", "", "The hostname to listen on")
+	viper.BindPFlag("hostname", flags.Lookup("hostname"))
 
 	flags.String("namespace", "default", "Namespace to deploy Ion into")
 	cmd.MarkFlagRequired("namespace")

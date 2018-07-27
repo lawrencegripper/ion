@@ -2,6 +2,10 @@
 
 set -e
 
+# This script cannot produce any output unless it is going
+# to exit. This is because the caller will capture the
+# generated DNS name from the final echo statement.
+
 TERRAFORM_INSTALLED=$(command -v terraform)
 if [ -z "$TERRAFORM_INSTALLED" ]; then
     echo "terraform is not installed, please install it in order to run this script"
@@ -11,20 +15,19 @@ fi
 OUT_DIR=$1
 if [ -z "$OUT_DIR" ]; then
     OUT_DIR=$PWD
-    echo "No directory passed, using current directory ("$OUT_DIR"), continue (y/n)"
+    echo "No directory passed, using current directory ($OUT_DIR), continue (y/n)"
     read res
-    if [[ "$res" != "y" || "$res" != "Y" ]]; then
+    if [[ "$res" != "y" && "$res" != "Y" ]]; then
         exit
     fi
 fi
 
-mkdir -p $OUT_DIR
-
-ION_IMAGE_TAG=$2
-if [ -z "$ION_IMAGE_TAG" ]; then
-    echo "No image tag provided, defaulting to latest"
-    ION_IMAGE_TAG="latest"
+IMAGE_TAG=$2
+if [ -z "$IMAGE_TAG" ]; then
+    IMAGE_TAG="latest"
 fi
+
+mkdir -p $OUT_DIR
 
 cd ./deployment
 if [ ! -f ./vars.private.tfvars ]; then
@@ -33,10 +36,15 @@ if [ ! -f ./vars.private.tfvars ]; then
     exit
 fi
 
-terraform init
-terraform apply -var-file ./vars.private.tfvars -auto-approve -var docker_root=$DOCKER_USER -var docker_tag=$ION_IMAGE_TAG
+if [ ! -f ./terraform.tfstate ]; then
+    terraform init > /dev/null 2>&1
+    terraform apply -var-file ./vars.private.tfvars -auto-approve -var docker_root="$DOCKER_USER" -var docker_tag="$IMAGE_TAG" > /dev/null 2>&1
+fi
+
 terraform output client_cert > "$OUT_DIR/client.crt"
 terraform output client_key > "$OUT_DIR/client.key"
 terraform output cluster_ca > "$OUT_DIR/rootCA.pem"
 terraform output server_cert > "$OUT_DIR/server.crt"
 terraform output server_key > "$OUT_DIR/server.key"
+
+terraform output fqdn # Will print FQDN for catcher script

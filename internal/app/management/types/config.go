@@ -6,6 +6,7 @@ type Configuration struct {
 	CertFile                          string
 	KeyFile                           string
 	CACertFile                        string
+	Hostname                          string
 	Provider                          string
 	Port                              int
 	Namespace                         string

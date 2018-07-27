@@ -67,7 +67,7 @@ func Run(config *types.Configuration) {
 		options = append(options, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", config.Hostname, config.Port))
 	if err != nil {
 		panic(fmt.Errorf("failed to listen: %v", err))
 	}
@@ -78,7 +78,7 @@ func Run(config *types.Configuration) {
 
 	reflection.Register(s)
 
-	fmt.Printf("Starting GRPC server on port %s", strconv.FormatInt(int64(config.Port), 10))
+	fmt.Printf("Starting GRPC server on %s:%s\n", config.Hostname, strconv.FormatInt(int64(config.Port), 10))
 	if err := s.Serve(lis); err != nil {
 		panic(fmt.Errorf("failed to serve: %v", err))
 	}
