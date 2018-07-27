@@ -161,7 +161,7 @@ func NewStartCommand() *cobra.Command {
 	flags.String("cacertfile", "", "The CA root certificate file")
 	viper.BindPFlag("cacertfile", flags.Lookup("cacertfile"))
 
-	flags.String("hostname", "", "The hostname to listen on")
+	flags.String("hostname", "localhost", "The hostname to listen on")
 	viper.BindPFlag("hostname", flags.Lookup("hostname"))
 
 	flags.String("namespace", "default", "Namespace to deploy Ion into")
