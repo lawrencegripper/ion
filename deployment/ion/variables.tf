@@ -113,3 +113,13 @@ variable "dispatcher_docker_image" {
 }
 
 variable "app_insights_key" {}
+
+variable "server_cert" {}
+
+variable "server_key" {}
+
+variable "root_ca" {}
+
+variable "fqdn" {}
+
+variable "prefix" {}

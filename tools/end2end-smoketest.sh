@@ -105,7 +105,7 @@ cd ./deployment
 terraform output client_cert > "$CERT_DIR/client.crt"
 terraform output client_key > "$CERT_DIR/client.key"
 terraform output cluster_ca > "$CERT_DIR/rootCA.pem"
-export DNS_NAME=$(terraform output ion_management_endpoint)
+export FQDN=$(terraform output fqdn)
 cd -
 
 echo "--------------------------------------------------------"
@@ -125,7 +125,7 @@ echo "--------------------------------------------------------"
 docker run --rm --network host -v ${PWD}/tf:/src/tf ion-cli module create -i frontapi.new_link -o file_downloaded \
 -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG \
 -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG \
---endpoint $DNS_NAME:9000 \
+--endpoint $FQDN:9000 \
 --certfile /src/tf/client.crt \
 --keyfile /src/tf/client.key \
 --cacertfile /src/tf/rootCA.pem
@@ -134,7 +134,7 @@ docker run --rm --network host -v ${PWD}:/src ion-cli module create -i file_down
 -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch \
 --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG \
 --config-map-file /src/tools/transcoder.env \
---endpoint $DNS_NAME:9000 \
+--endpoint $FQDN:9000 \
 --certfile /src/tf/client.crt \
 --keyfile /src/tf/client.key \
 --cacertfile /src/tf/rootCA.pem
