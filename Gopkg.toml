@@ -66,3 +66,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/jjcollinge/logrus-appinsights"
+
+[[constraint]]
+  name = "github.com/azure/azure-storage-blob-go"
+  version = "0.1.4"

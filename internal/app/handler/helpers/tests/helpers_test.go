@@ -154,7 +154,7 @@ func TestClearDir(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		_ = os.MkdirAll(test.dirname, 0777)
+		_ = os.MkdirAll(test.dirname, os.ModePerm)
 		for _, file := range test.files {
 			path := path.Join(test.dirname, file)
 			f, err := os.Create(path)

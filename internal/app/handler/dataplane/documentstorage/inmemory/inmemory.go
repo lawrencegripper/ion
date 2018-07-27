@@ -70,7 +70,7 @@ func (db *InMemoryDB) Close() {
 	if err != nil {
 		panic("Failed to serialize self on close")
 	}
-	err = ioutil.WriteFile(onDiskName, b, 0777)
+	err = ioutil.WriteFile(onDiskName, b, os.ModePerm)
 	if err != nil {
 		panic("Failed to write serialized self to file")
 	}

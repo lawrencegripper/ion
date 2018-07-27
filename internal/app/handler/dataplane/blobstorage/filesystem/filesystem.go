@@ -22,7 +22,7 @@ type BlobStorage struct {
 
 //NewBlobStorage creates a new file system blob provider
 func NewBlobStorage(config *Config) (*BlobStorage, error) {
-	err := os.MkdirAll(config.OutputDir, 0777)
+	err := os.MkdirAll(config.OutputDir, os.ModePerm)
 	if err != nil {
 		return nil, fmt.Errorf("error creating directory for filesystem blob provider '%+v'", err)
 	}

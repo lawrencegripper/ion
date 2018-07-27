@@ -155,7 +155,7 @@ func TestDevIntegration(t *testing.T) {
 }
 
 func writeOutputBlob(path string) error {
-	err := ioutil.WriteFile(path, []byte("image1"), 0777)
+	err := ioutil.WriteFile(path, []byte("image1"), os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error writing file '%s', '%+v'", path, err)
 	}
@@ -163,7 +163,7 @@ func writeOutputBlob(path string) error {
 }
 
 func writeOutputBytes(bytes []byte, path string) error {
-	err := ioutil.WriteFile(path, bytes, 0777)
+	err := ioutil.WriteFile(path, bytes, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error writing file '%s', '%+v'", bytes, err)
 	}

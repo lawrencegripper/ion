@@ -1,16 +1,23 @@
 package azure
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/azure/azure-storage-blob-go/2016-05-31/azblob"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/app/handler/helpers"
+	"github.com/lawrencegripper/ion/internal/app/handler/module"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -32,10 +39,13 @@ type BlobStorage struct {
 	outputBlobPrefix string
 	inputBlobPrefix  string
 	eventMeta        *documentstorage.EventMeta
+	accountKey       string
+	accountName      string
+	env              *module.Environment
 }
 
 //NewBlobStorage creates a new Azure Blob Storage object
-func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string, eventMeta *documentstorage.EventMeta) (*BlobStorage, error) {
+func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string, eventMeta *documentstorage.EventMeta, env *module.Environment) (*BlobStorage, error) {
 	blobClient, err := storage.NewBasicClient(config.BlobAccountName, config.BlobAccountKey)
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage blobClient: %+v", err)
@@ -47,6 +57,9 @@ func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string, ev
 		outputBlobPrefix: outputBlobPrefix,
 		inputBlobPrefix:  inputBlobPrefix,
 		eventMeta:        eventMeta,
+		accountName:      config.BlobAccountName,
+		accountKey:       config.BlobAccountKey,
+		env:              env,
 	}
 	return asb, nil
 }
@@ -71,29 +84,40 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 	blobSASURIs := make(map[string]string)
 
 	for _, filePath := range filePaths {
-		_, nakedFilePath := path.Split(filePath)
-		blobPath := helpers.JoinBlobPath(a.outputBlobPrefix, nakedFilePath)
+		filePathOutOfEnv := strings.Replace(filePath, a.env.OutputBlobDirPath, "", 1)
+		if filePathOutOfEnv[0] == '/' {
+			filePathOutOfEnv = filePathOutOfEnv[1:]
+		}
+		blobPath := helpers.JoinBlobPath(a.outputBlobPrefix, filePathOutOfEnv)
 		file, err := os.Open(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read data from file '%s', error: '%+v'", filePath, err)
 		}
 		defer file.Close() // nolint: errcheck
-		blobRef := container.GetBlobReference(blobPath)
-		_, err = blobRef.DeleteIfExists(&storage.DeleteBlobOptions{})
-		if err != nil {
-			return nil, err
-		}
-		err = blobRef.CreateBlockBlobFromReader(file, &storage.PutBlobOptions{})
+		c := azblob.NewSharedKeyCredential(a.accountName, a.accountKey)
+		p := azblob.NewPipeline(c, azblob.PipelineOptions{})
+		URL, _ := url.Parse(
+			fmt.Sprintf("https://%s.blob.core.windows.net/%s", a.accountName, a.containerName))
+		containerURL := azblob.NewContainerURL(*URL, p)
+		ctx := context.Background()
+		_, err = containerURL.Create(ctx, azblob.Metadata{}, azblob.PublicAccessNone)
+		blobURL := containerURL.NewBlockBlobURL(blobPath)
+
+		parallelism := uint16(runtime.NumCPU())
+		_, err = azblob.UploadFileToBlockBlob(ctx, file, blobURL, azblob.UploadToBlockBlobOptions{
+			BlockSize:   1 * 1024 * 1024,
+			Parallelism: parallelism})
 		if err != nil {
 			return nil, err
 		}
 
+		blobRef := container.GetBlobReference(blobPath)
 		uri, err := blobRef.GetSASURI(readStorageOptions)
 		if err != nil {
 			return nil, err
 		}
 
-		blobSASURIs[nakedFilePath] = uri
+		blobSASURIs[filePathOutOfEnv] = uri
 	}
 	return blobSASURIs, nil
 }
@@ -124,10 +148,17 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to read blob '%s' with error '%+v'", fileSASURL, err)
 		}
-		outputFilePath := path.Join(outputDir, filePath)
-		err = ioutil.WriteFile(outputFilePath, bytes, 0777)
+		dirPath := filepath.Dir(filePath)
+		dirs := filepath.SplitList(dirPath)
+		for _, dir := range dirs {
+			dirPathInEnv := path.Join(outputDir, dir)
+			if _, err := os.Stat(dirPathInEnv); os.IsNotExist(err) {
+				_ = os.Mkdir(dirPathInEnv, os.ModePerm)
+			}
+		}
+		err = ioutil.WriteFile(filePath, bytes, os.ModePerm)
 		if err != nil {
-			return fmt.Errorf("failed to write file '%s' with error '%+v'", outputFilePath, err)
+			return fmt.Errorf("failed to write file '%s' with error '%+v'", filePath, err)
 		}
 	}
 	return nil

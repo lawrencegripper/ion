@@ -114,7 +114,7 @@ func (p *Preparer) prepareEnv() error {
 	// If in development enabled, make sure the development directories exist
 	if p.devConfig.Enabled {
 		if _, err := os.Stat(p.devConfig.ModuleDir); os.IsNotExist(err) {
-			_ = os.MkdirAll(p.devConfig.ModuleDir, 0777)
+			_ = os.MkdirAll(p.devConfig.ModuleDir, os.ModePerm)
 		}
 	}
 	return nil
@@ -145,7 +145,7 @@ func (p *Preparer) prepareData() error {
 			if err != nil {
 				return err
 			}
-			err = ioutil.WriteFile(p.environment.InputMetaFilePath, b, 0777)
+			err = ioutil.WriteFile(p.environment.InputMetaFilePath, b, os.ModePerm)
 			if err != nil {
 				return err
 			}

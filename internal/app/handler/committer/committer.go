@@ -125,29 +125,32 @@ func (c *Committer) doCommit() error {
 }
 
 //CommitBlob commits the blob directory to an external blob provider
-func (c *Committer) commitBlob(blobsPath string) (map[string]string, error) {
-	if _, err := os.Stat(blobsPath); os.IsNotExist(err) {
-		logger.Debug(c.context, fmt.Sprintf("blob output directory '%s' does not exists '%+v'", blobsPath, err))
+func (c *Committer) commitBlob(blobsDir string) (map[string]string, error) {
+	if _, err := os.Stat(blobsDir); os.IsNotExist(err) {
+		logger.Debug(c.context, fmt.Sprintf("blob output directory '%s' does not exists '%+v'", blobsDir, err))
 		return nil, nil
 	}
 
-	// TODO: Search recursively to support sub folders.
-	files, err := ioutil.ReadDir(blobsPath)
+	files := make([]string, 0)
+	err := filepath.Walk(blobsDir, func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			return nil
+		}
+		files = append(files, path)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
-	var fileNames []string
-	for _, file := range files {
-		fileNames = append(fileNames, filepath.FromSlash(path.Join(blobsPath, file.Name())))
-	}
-	blobURIs, err := c.dataPlane.PutBlobs(fileNames)
+
+	blobURIs, err := c.dataPlane.PutBlobs(files)
 	if err != nil {
 		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
 
 	logger.Info(c.context, "committed blob data")
 	logger.DebugWithFields(c.context, "blob file names", map[string]interface{}{
-		"files": fileNames,
+		"files": files,
 	})
 	return blobURIs, nil
 }
