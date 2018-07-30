@@ -76,21 +76,31 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 			return nil, fmt.Errorf("failed to read data from file '%s', error: '%+v'", filePath, err)
 		}
 		defer file.Close() // nolint: errcheck
+
+		stat, err := file.Stat()
+		if err != nil {
+			return nil, err
+		}
+
+		b := stat.Size()
+		kb := float64(b) / 1024
+		mb := float64(kb / 1024)
+		var timeout time.Duration
+		if mb > 5 {
+			timeout = time.Duration(mb) * 60 * time.Second
+		}
 		c := azblob.NewSharedKeyCredential(a.accountName, a.accountKey)
 		p := azblob.NewPipeline(c, azblob.PipelineOptions{
 			Retry: azblob.RetryOptions{
-				Policy:        azblob.RetryPolicyExponential,
-				MaxTries:      3,
-				TryTimeout:    time.Second * 3,
-				RetryDelay:    time.Second * 1,
-				MaxRetryDelay: time.Second * 3,
+				Policy:     azblob.RetryPolicyExponential,
+				MaxTries:   3,
+				TryTimeout: timeout,
 			},
 		})
 		URL, _ := url.Parse(
 			fmt.Sprintf("https://%s.blob.core.windows.net/%s", a.accountName, a.containerName))
 		containerURL := azblob.NewContainerURL(*URL, p)
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+		ctx := context.Background()
 		_, err = containerURL.Create(ctx, azblob.Metadata{}, azblob.PublicAccessNone)
 		if err != nil {
 			if serr, ok := err.(azblob.StorageError); !ok {

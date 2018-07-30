@@ -6,6 +6,7 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"github.com/lawrencegripper/ion/internal/app/handler/module"
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -166,6 +167,27 @@ func TestDevIntegration(t *testing.T) {
 		}
 		break
 	}
+}
+
+func writeLargeOutputBlob(path string, sizeInMB float64) error {
+	dir := filepath.Dir(path)
+	if dir != "." {
+		_ = os.MkdirAll(dir, os.ModePerm)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	kb := sizeInMB * 1024
+	b := kb * 1024
+	for i := 0; i < int(math.Ceil(b)); i++ {
+		if _, err := f.Write([]byte{255}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeOutputBlob(path string) error {

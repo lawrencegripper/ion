@@ -105,7 +105,8 @@ func TestAzureIntegration(t *testing.T) {
 	// Write an output image blob
 	blob2 := "subdir/img2.png"
 	blob2FilePath := path.Join(environment.OutputBlobDirPath, blob2)
-	writeOutputBlob(blob2FilePath)
+	//writeOutputBlob(blob2FilePath)
+	writeLargeOutputBlob(blob2FilePath, 10)
 
 	// Grab the length of the output directory
 	var outFiles []string
