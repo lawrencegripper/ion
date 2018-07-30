@@ -119,13 +119,8 @@ func TestCommitBlob(t *testing.T) {
 	for _, test := range testCases {
 		for _, file := range test.files {
 			dirPath := filepath.Dir(file)
-			dirs := filepath.SplitList(dirPath)
-			for _, dir := range dirs {
-				dirPathInEnv := path.Join(environment.OutputBlobDirPath, dir)
-				if _, err := os.Stat(dirPathInEnv); os.IsNotExist(err) {
-					_ = os.Mkdir(dirPathInEnv, os.ModePerm)
-				}
-			}
+			dirPathInEnv := path.Join(environment.OutputBlobDirPath, dir)
+			_ = os.MkdirAll(dirPathInEnv, os.ModePerm)
 			outputFilePath := filepath.Join(environment.OutputBlobDirPath, file)
 			f, err := os.Create(outputFilePath)
 			f.Close()
