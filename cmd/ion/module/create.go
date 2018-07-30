@@ -10,15 +10,16 @@ import (
 )
 
 type createOptions struct {
-	provider           string
-	name               string
-	eventSubscriptions string
-	eventPublications  string
-	instanceCount      int32
-	retryCount         int32
-	configMapFilepath  string
-	moduleImage        string
-	handlerImage       string
+	provider             string
+	name                 string
+	eventSubscriptions   string
+	eventPublications    string
+	instanceCount        int32
+	retryCount           int32
+	configMapFilepath    string
+	moduleImage          string
+	handlerImage         string
+	maxExecutionTimeMins int32
 }
 
 var createOpts createOptions
@@ -43,15 +44,16 @@ func Create(cmd *cobra.Command, args []string) error {
 	}
 
 	createRequest := &module.ModuleCreateRequest{
-		Modulename:         createOpts.name,
-		Eventsubscriptions: createOpts.eventSubscriptions,
-		Eventpublications:  createOpts.eventPublications,
-		Moduleimage:        createOpts.moduleImage,
-		Handlerimage:       createOpts.handlerImage,
-		Instancecount:      createOpts.instanceCount,
-		Retrycount:         createOpts.retryCount,
-		Provider:           createOpts.provider,
-		Configmap:          configMap,
+		Modulename:           createOpts.name,
+		Eventsubscriptions:   createOpts.eventSubscriptions,
+		Eventpublications:    createOpts.eventPublications,
+		Moduleimage:          createOpts.moduleImage,
+		Handlerimage:         createOpts.handlerImage,
+		Maxexecutiontimemins: createOpts.maxExecutionTimeMins,
+		Instancecount:        createOpts.instanceCount,
+		Retrycount:           createOpts.retryCount,
+		Provider:             createOpts.provider,
+		Configmap:            configMap,
 	}
 
 	fmt.Println("creating module")
@@ -75,6 +77,7 @@ func init() {
 	createCmd.Flags().StringVarP(&createOpts.provider, "provider", "p", "kubernetes", "provider for modules compute resouces (Kubernetes, AzureBatch)")
 	createCmd.Flags().Int32Var(&createOpts.instanceCount, "instance-count", 1, "the number of dispatcher instance to create")
 	createCmd.Flags().Int32Var(&createOpts.retryCount, "retry-count", 1, "the number of dispatcher instance to create")
+	createCmd.Flags().Int32Var(&createOpts.maxExecutionTimeMins, "max-exec-mins", 5, "the maximum number of minutes the job can run for")
 
 	// Mark requried flags
 	createCmd.MarkFlagRequired("name")                //nolint: errcheck
