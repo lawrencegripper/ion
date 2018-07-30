@@ -65,6 +65,28 @@ func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string, ev
 func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 	blobSASURIs := make(map[string]string)
 
+	c := azblob.NewSharedKeyCredential(a.accountName, a.accountKey)
+	p := azblob.NewPipeline(c, azblob.PipelineOptions{
+		Retry: azblob.RetryOptions{
+			Policy:   azblob.RetryPolicyExponential,
+			MaxTries: 3,
+		},
+	})
+	URL, _ := url.Parse(
+		fmt.Sprintf("https://%s.blob.core.windows.net/%s", a.accountName, a.containerName))
+	containerURL := azblob.NewContainerURL(*URL, p)
+	ctx := context.Background()
+	_, err := containerURL.Create(ctx, azblob.Metadata{}, azblob.PublicAccessNone)
+	if err != nil {
+		if serr, ok := err.(azblob.StorageError); !ok {
+			return nil, err
+		} else { // nolint: golint
+			if serr.ServiceCode() != ContainerAlreadyExistsErr {
+				return nil, err
+			}
+		}
+	}
+
 	for _, filePath := range filePaths {
 		filePathOutOfEnv := strings.Replace(filePath, a.env.OutputBlobDirPath, "", 1)
 		if filePathOutOfEnv[0] == '/' {
@@ -89,30 +111,14 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 		if mb > 5 {
 			timeout = time.Duration(mb) * 60 * time.Second
 		}
-		c := azblob.NewSharedKeyCredential(a.accountName, a.accountKey)
-		p := azblob.NewPipeline(c, azblob.PipelineOptions{
+		p = azblob.NewPipeline(c, azblob.PipelineOptions{
 			Retry: azblob.RetryOptions{
 				Policy:     azblob.RetryPolicyExponential,
 				MaxTries:   3,
 				TryTimeout: timeout,
 			},
 		})
-		URL, _ := url.Parse(
-			fmt.Sprintf("https://%s.blob.core.windows.net/%s", a.accountName, a.containerName))
-		containerURL := azblob.NewContainerURL(*URL, p)
-		ctx := context.Background()
-		_, err = containerURL.Create(ctx, azblob.Metadata{}, azblob.PublicAccessNone)
-		if err != nil {
-			if serr, ok := err.(azblob.StorageError); !ok {
-				return nil, err
-			} else { // nolint: golint
-				if serr.ServiceCode() != ContainerAlreadyExistsErr {
-					return nil, err
-				}
-			}
-		}
-		blobURL := containerURL.NewBlockBlobURL(blobPath)
-
+		blobURL := containerURL.WithPipeline(p).NewBlockBlobURL(blobPath)
 		parallelism := uint16(runtime.NumCPU())
 		_, err = azblob.UploadFileToBlockBlob(ctx, file, blobURL, azblob.UploadToBlockBlobOptions{
 			BlockSize:   1 * 1024 * 1024,
