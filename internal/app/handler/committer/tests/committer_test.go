@@ -119,7 +119,7 @@ func TestCommitBlob(t *testing.T) {
 	for _, test := range testCases {
 		for _, file := range test.files {
 			dirPath := filepath.Dir(file)
-			dirPathInEnv := path.Join(environment.OutputBlobDirPath, dir)
+			dirPathInEnv := path.Join(environment.OutputBlobDirPath, dirPath)
 			_ = os.MkdirAll(dirPathInEnv, os.ModePerm)
 			outputFilePath := filepath.Join(environment.OutputBlobDirPath, file)
 			f, err := os.Create(outputFilePath)
