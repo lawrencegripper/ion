@@ -6,6 +6,7 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
@@ -155,7 +156,12 @@ func (p *Preparer) prepareData() error {
 }
 
 func (p *Preparer) getEventMeta() (*documentstorage.EventMeta, error) {
-	context, _ := p.dataPlane.GetEventMetaByID(p.context.EventID)
-	//TODO: Fail on error conditions other than not found
-	return context, nil
+	context, err := p.dataPlane.GetEventMetaByID(p.context.EventID)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), documentstorage.NotFoundErr) {
+			logger.Info(p.context, "no event meta found, likely invoked manually")
+			return context, nil // Ignore not found errors
+		}
+	}
+	return context, err // Return all other errors
 }

@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/azure/azure-storage-blob-go/2016-05-31/azblob"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/app/handler/helpers"
@@ -22,6 +21,11 @@ import (
 )
 
 // cSpell:ignore nolint, golint, sasuris, sasuri
+
+const (
+	// ContainerAlreadyExistsErr returned when creating a container that already exists
+	ContainerAlreadyExistsErr = "ContainerAlreadyExists"
+)
 
 //Config to setup a BlobStorage blob provider
 type Config struct {
@@ -34,7 +38,6 @@ type Config struct {
 //BlobStorage is responsible for handling the connections to Azure Blob Storage
 // nolint: golint
 type BlobStorage struct {
-	blobClient       storage.BlobStorageClient
 	containerName    string
 	outputBlobPrefix string
 	inputBlobPrefix  string
@@ -46,13 +49,7 @@ type BlobStorage struct {
 
 //NewBlobStorage creates a new Azure Blob Storage object
 func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string, eventMeta *documentstorage.EventMeta, env *module.Environment) (*BlobStorage, error) {
-	blobClient, err := storage.NewBasicClient(config.BlobAccountName, config.BlobAccountKey)
-	if err != nil {
-		return nil, fmt.Errorf("error creating storage blobClient: %+v", err)
-	}
-	blob := blobClient.GetBlobService()
 	asb := &BlobStorage{
-		blobClient:       blob,
 		containerName:    config.ContainerName,
 		outputBlobPrefix: outputBlobPrefix,
 		inputBlobPrefix:  inputBlobPrefix,
@@ -66,21 +63,6 @@ func NewBlobStorage(config *Config, inputBlobPrefix, outputBlobPrefix string, ev
 
 //PutBlobs puts a file into Azure Blob Storage
 func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
-	container, err := a.createContainerIfNotExist()
-	if err != nil {
-		return nil, err
-	}
-
-	readStorageOptions := storage.BlobSASOptions{
-		BlobServiceSASPermissions: storage.BlobServiceSASPermissions{
-			Read: true,
-		},
-		SASOptions: storage.SASOptions{
-			Start:  time.Now().Add(time.Duration(-1) * time.Hour),
-			Expiry: time.Now().Add(time.Duration(24) * time.Hour),
-		},
-	}
-
 	blobSASURIs := make(map[string]string)
 
 	for _, filePath := range filePaths {
@@ -95,12 +77,30 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 		}
 		defer file.Close() // nolint: errcheck
 		c := azblob.NewSharedKeyCredential(a.accountName, a.accountKey)
-		p := azblob.NewPipeline(c, azblob.PipelineOptions{})
+		p := azblob.NewPipeline(c, azblob.PipelineOptions{
+			Retry: azblob.RetryOptions{
+				Policy:        azblob.RetryPolicyExponential,
+				MaxTries:      3,
+				TryTimeout:    time.Second * 3,
+				RetryDelay:    time.Second * 1,
+				MaxRetryDelay: time.Second * 3,
+			},
+		})
 		URL, _ := url.Parse(
 			fmt.Sprintf("https://%s.blob.core.windows.net/%s", a.accountName, a.containerName))
 		containerURL := azblob.NewContainerURL(*URL, p)
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 		_, err = containerURL.Create(ctx, azblob.Metadata{}, azblob.PublicAccessNone)
+		if err != nil {
+			if serr, ok := err.(azblob.StorageError); !ok {
+				return nil, err
+			} else { // nolint: golint
+				if serr.ServiceCode() != ContainerAlreadyExistsErr {
+					return nil, err
+				}
+			}
+		}
 		blobURL := containerURL.NewBlockBlobURL(blobPath)
 
 		parallelism := uint16(runtime.NumCPU())
@@ -111,13 +111,17 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 			return nil, err
 		}
 
-		blobRef := container.GetBlobReference(blobPath)
-		uri, err := blobRef.GetSASURI(readStorageOptions)
-		if err != nil {
-			return nil, err
-		}
+		sasQueryParams := azblob.BlobSASSignatureValues{
+			Protocol:      azblob.SASProtocolHTTPS,
+			StartTime:     time.Now().UTC().Add(-1 * time.Hour),
+			ExpiryTime:    time.Now().UTC().Add(24 * time.Hour),
+			Permissions:   azblob.BlobSASPermissions{Read: true}.String(),
+			ContainerName: a.containerName,
+			BlobName:      blobPath,
+		}.NewSASQueryParameters(c)
 
-		blobSASURIs[filePathOutOfEnv] = uri
+		queryParams := sasQueryParams.Encode()
+		blobSASURIs[filePathOutOfEnv] = fmt.Sprintf("%s?%s", blobURL, queryParams)
 	}
 	return blobSASURIs, nil
 }
@@ -149,16 +153,12 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 			return fmt.Errorf("failed to read blob '%s' with error '%+v'", fileSASURL, err)
 		}
 		dirPath := filepath.Dir(filePath)
-		dirs := filepath.SplitList(dirPath)
-		for _, dir := range dirs {
-			dirPathInEnv := path.Join(outputDir, dir)
-			if _, err := os.Stat(dirPathInEnv); os.IsNotExist(err) {
-				_ = os.Mkdir(dirPathInEnv, os.ModePerm)
-			}
-		}
-		err = ioutil.WriteFile(filePath, bytes, os.ModePerm)
+		dirPathInEnv := path.Join(outputDir, dirPath)
+		_ = os.MkdirAll(dirPathInEnv, os.ModePerm)
+		filePathInEnv := filepath.Join(outputDir, filePath)
+		err = ioutil.WriteFile(filePathInEnv, bytes, os.ModePerm)
 		if err != nil {
-			return fmt.Errorf("failed to write file '%s' with error '%+v'", filePath, err)
+			return fmt.Errorf("failed to write file '%s' with error '%+v'", filePathInEnv, err)
 		}
 	}
 	return nil
@@ -166,17 +166,4 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 
 //Close cleans up any external resources
 func (a *BlobStorage) Close() {
-}
-
-//createContainerIfNotExist creates the container if it doesn't exist
-func (a *BlobStorage) createContainerIfNotExist() (*storage.Container, error) {
-	containerName := a.containerName
-	container := a.blobClient.GetContainerReference(containerName)
-	_, err := container.CreateIfNotExists(&storage.CreateContainerOptions{
-		Access: storage.ContainerAccessTypePrivate,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error thrown creating container %s: %+v", containerName, err)
-	}
-	return container, nil
 }

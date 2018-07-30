@@ -103,14 +103,21 @@ func TestAzureIntegration(t *testing.T) {
 	writeOutputBlob(blob1FilePath)
 
 	// Write an output image blob
-	blob2 := "img2.png"
+	blob2 := "subdir/img2.png"
 	blob2FilePath := path.Join(environment.OutputBlobDirPath, blob2)
 	writeOutputBlob(blob2FilePath)
 
 	// Grab the length of the output directory
-	outFiles, err := ioutil.ReadDir(environment.OutputBlobDirPath)
+	var outFiles []string
+	err = filepath.Walk(environment.OutputBlobDirPath, func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			return nil
+		}
+		outFiles = append(outFiles, path)
+		return err
+	})
 	if err != nil {
-		t.Errorf("error reading out dir '%+v'", err)
+		t.Fatalf("error walking input dir '%+v'", err)
 	}
 	outLength := len(outFiles)
 
@@ -147,9 +154,16 @@ func TestAzureIntegration(t *testing.T) {
 	handler.Run(config)
 
 	// Check blob input data matches the output from the first module
-	inFiles, err := ioutil.ReadDir(environment.InputBlobDirPath)
+	var inFiles []string
+	err = filepath.Walk(environment.InputBlobDirPath, func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			return nil
+		}
+		inFiles = append(inFiles, path)
+		return err
+	})
 	if err != nil {
-		t.Fatalf("error reading in dir '%+v'", err)
+		t.Fatalf("error walking input dir '%+v'", err)
 	}
 	inLength := len(inFiles)
 
@@ -169,8 +183,8 @@ func TestAzureIntegration(t *testing.T) {
 		t.Fatalf("error decoding file '%s' content: '%+v'", environment.InputMetaFilePath, err)
 	}
 
-	if len(kvps) != 1 {
-		t.Fatalf("insights file should contain 1 key value pair, but has %d", len(kvps))
+	if len(kvps) != (inLength + 1) {
+		t.Fatalf("insights file should contain %d key value pair, but has %d", (inLength + 1), len(kvps))
 	}
 
 	// The first key, value pair should be as expected

@@ -41,6 +41,9 @@ func TestMain(m *testing.M) {
 	persistentEventsDir = filepath.FromSlash(fmt.Sprintf("%s/events", testdata))
 	eventTypes = append(eventTypes, "test_events")
 
+	environment = module.GetModuleEnvironment(testdata)
+	environment.Build()
+
 	// Create mock dataplane...
 
 	// Metadata store
@@ -53,7 +56,7 @@ func TestMain(m *testing.M) {
 	blob, err := filesystem.NewBlobStorage(&filesystem.Config{
 		InputDir:  persistentInBlobDir,
 		OutputDir: persistentOutBlobDir,
-	})
+	}, environment)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create file system storage with error '%+v'", err))
 	}
@@ -74,9 +77,6 @@ func TestMain(m *testing.M) {
 		CorrelationID: "frank",
 		ParentEventID: "parentid",
 	}
-
-	environment = module.GetModuleEnvironment(testdata)
-	environment.Build()
 
 	// Create committer
 	log.SetOutput(os.Stdout)

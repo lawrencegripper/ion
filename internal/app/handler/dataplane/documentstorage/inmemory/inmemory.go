@@ -9,7 +9,9 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
 )
 
-const onDiskName = ".memdb"
+const (
+	onDiskName = ".memdb"
+)
 
 //nolint:golint
 //InMemoryDB is an in memory DB
@@ -47,7 +49,7 @@ func NewInMemoryDB() (*InMemoryDB, error) {
 func (db *InMemoryDB) GetEventMetaByID(id string) (*documentstorage.EventMeta, error) {
 	context, exist := db.Contexts[id]
 	if !exist {
-		return nil, fmt.Errorf("no record found for id '%s'", id)
+		return nil, fmt.Errorf("%s %s", documentstorage.NotFoundErr, id)
 	}
 	return &context, nil
 }
