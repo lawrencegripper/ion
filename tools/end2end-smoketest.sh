@@ -56,7 +56,6 @@ then
         kubectl delete jobs --all || true
         kubectl delete pods --all || true
         kubectl delete secrets --all || true
-        kubectl delete service --all || true
     else
         echo "Kubeconfig not found, no cluster created skipping cleanup..."
     fi
@@ -154,6 +153,14 @@ fi
 if [ -x "$(command -v notify-send)" ]; then
     notify-send -u critical ion-end2end "Ion ready for testing"
 fi
+
+echo "You can now authenticate to your ion cluster using TLS, for example the following command will list all currently deployed modules"
+echo "docker run --rm -v ${PWD}:/src \
+ ion-cli module list \
+--endpoint $FQDN:9000 \
+--certfile /src/tf/client.crt \
+--keyfile /src/tf/client.key \
+--cacertfile /src/tf/rootCA.pem"
 
 read -p "Press enter to to stop forwarding ports to management api and front api and exit..." key
 ps aux | grep [k]ubectl | awk '{print $2}' | xargs kill || true
