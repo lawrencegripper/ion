@@ -101,10 +101,10 @@ fi
 CERT_DIR="$PWD/tf"
 mkdir -p $CERT_DIR
 cd ./deployment
-terraform output client_cert > "$CERT_DIR/client.crt"
-terraform output client_key > "$CERT_DIR/client.key"
-terraform output cluster_ca > "$CERT_DIR/rootCA.pem"
-export FQDN=$(terraform output fqdn)
+terraform output ion_client_cert > "$CERT_DIR/client.crt"
+terraform output ion_client_key > "$CERT_DIR/client.key"
+terraform output ion_ca > "$CERT_DIR/rootCA.pem"
+export FQDN=$(terraform output ion_fqdn)
 cd -
 
 echo "--------------------------------------------------------"

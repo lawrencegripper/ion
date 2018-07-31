@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lawrencegripper/ion/internal/pkg/common"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,21 +17,9 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// TLSCerts for mutual auth
-type TLSCerts struct {
-	CertFile   string
-	KeyFile    string
-	CACertFile string
-}
-
-// Available returns whether all required certs have been provided
-func (t *TLSCerts) Available() bool {
-	return (t.CACertFile != "" && t.CertFile != "" && t.KeyFile != "")
-}
-
 var cfgFile string
 var managementEndpoint string
-var tlsCerts TLSCerts
+var tlsCerts common.TLSCerts
 var timeoutSec int
 
 // RootCmd represents the base command when called without any subcommands

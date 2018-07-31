@@ -149,35 +149,35 @@ output "acr_password" {
   value     = "${module.acr.password}"
 }
 
-output "client_cert" {
+output "ion_client_cert" {
   value     = "${module.tls.client_cert}"
   sensitive = true
 }
 
-output "client_key" {
+output "ion_client_key" {
   value     = "${module.tls.client_key}"
   sensitive = true
 }
 
-output "cluster_ca" {
+output "ion_ca" {
   value     = "${module.tls.root_ca}"
   sensitive = true
 }
 
-output "server_cert" {
+output "ion_server_cert" {
   value     = "${module.tls.server_cert}"
   sensitive = true
 }
 
-output "server_key" {
+output "ion_server_key" {
   value     = "${module.tls.server_key}"
   sensitive = true
 }
 
-output "fqdn" {
+output "ion_fqdn" {
   value = "${module.tls.fqdn}"
 }
 
-output "service_ip" {
+output "ion_service_ip" {
   value = "${module.ion.service_ip}"
 }

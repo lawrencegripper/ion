@@ -11,6 +11,7 @@ import (
 
 	"github.com/lawrencegripper/ion/internal/app/management/servers"
 	"github.com/lawrencegripper/ion/internal/app/management/types"
+	"github.com/lawrencegripper/ion/internal/pkg/common"
 	"github.com/lawrencegripper/ion/internal/pkg/management/module"
 	"github.com/lawrencegripper/ion/internal/pkg/management/trace"
 	"google.golang.org/grpc"
@@ -40,7 +41,13 @@ func Run(config *types.Configuration) {
 
 	var options []grpc.ServerOption
 
-	if config.CertFile != "" && config.KeyFile != "" && config.CACertFile != "" {
+	tlsCerts := common.TLSCerts{
+		CertFile:   config.CertFile,
+		KeyFile:    config.KeyFile,
+		CACertFile: config.CACertFile,
+	}
+
+	if tlsCerts.Available() {
 		certificate, err := tls.LoadX509KeyPair(
 			config.CertFile,
 			config.KeyFile,

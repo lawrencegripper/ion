@@ -37,9 +37,9 @@ if [ ! -f ./terraform.tfstate ]; then
     terraform apply -var-file ./vars.private.tfvars -auto-approve -var docker_root="$DOCKER_USER" -var docker_tag="$IMAGE_TAG" > /dev/null
 fi
 
-terraform output client_cert > "$OUT_DIR/client.crt"
-terraform output client_key > "$OUT_DIR/client.key"
-terraform output cluster_ca > "$OUT_DIR/rootCA.pem"
-terraform output server_cert > "$OUT_DIR/server.crt"
-terraform output server_key > "$OUT_DIR/server.key"
-terraform output fqdn > "$OUT_DIR/dns"
+terraform output ion_client_cert > "$OUT_DIR/client.crt"
+terraform output ion_client_key > "$OUT_DIR/client.key"
+terraform output ion_ca > "$OUT_DIR/rootCA.pem"
+terraform output ion_server_cert > "$OUT_DIR/server.crt"
+terraform output ion_server_key > "$OUT_DIR/server.key"
+terraform output ion_fqdn > "$OUT_DIR/dns"
