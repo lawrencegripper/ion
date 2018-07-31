@@ -196,6 +196,16 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Message) error {
 	lockTokens := make([]amqp.UUID, 0, len(messages))
 	for _, m := range messages {
+		expires, ok := m.Annotations["x-opt-locked-until"]
+		if !ok {
+			log.WithField("message", m).Error("failed to get x-opt-locked-until from message annotations")
+			fmt.Println("Failed getting locked unitl")
+		} else {
+			log.WithField("locked-until", expires).Info("message lock expires at")
+			fmt.Println("GOT locked unitl")
+			fmt.Printf("GOT locked until: %+v %+v \n", m.Annotations, m.DeliveryAnnotations)
+		}
+
 		lockToken, ok := m.DeliveryAnnotations["x-opt-lock-token"]
 		if !ok {
 			log.WithField("message", m).Error("failed to get x-opt-locktoken from message annotations, cannot renew lock")
@@ -204,10 +214,16 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 		lockTokenUUID, valid := lockToken.(amqp.UUID)
 		if !valid {
 			log.WithField("message", m).Error("failed to get x-opt-locktoken from message annotations - the type is not amqp.uuid, cannot renew lock")
+			continue
 		}
 
 		lockTokens = append(lockTokens, lockTokenUUID)
 		log.WithField("uuid", lockTokenUUID).Debug("adding lockid to renew")
+	}
+
+	if len(lockTokens) < 1 {
+		log.Info("no lock tokens present to renew")
+		return nil
 	}
 
 	hostname, _ := os.Hostname()
@@ -232,9 +248,12 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 	if err != nil {
 		// See https://github.com/lawrencegripper/ion/issues/157
 		log.WithError(err).Error("error response from server on active messages, due to bug unmarshalling type 0x40 this is expected")
+		return err
 	}
 
 	log.WithField("responseMsg", response).Debug("renew locks: response message")
+	fmt.Printf("response message: %+v \n", response)
+	fmt.Printf("properties %+v \n", response.Properties)
 
 	return nil
 }

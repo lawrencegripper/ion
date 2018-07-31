@@ -2,7 +2,8 @@
 all: dependencies checks test dispatcher handler frontapi management ioncli example-modules
 
 dependencies:
-	dep ensure -v --vendor-only
+	# dep ensure -v --vendor-only
+	echo "skipping vendor until vcabbage PR is merged"
 
 test:
 	go test -short ./...

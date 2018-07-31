@@ -562,7 +562,7 @@ func readBinary(r *buffer) ([]byte, error) {
 		}
 		length = int(binary.BigEndian.Uint32(buf))
 	default:
-		return nil, errorErrorf("type code %#02x is not a recognized string type", type_)
+		return nil, errorErrorf("type code %#02x is not a recognized binary type", type_)
 	}
 
 	buf, ok := r.next(length)
@@ -578,7 +578,12 @@ func readAny(r *buffer) (interface{}, error) {
 		return nil, errorNew("invalid length")
 	}
 
+	if tryReadNull(r) {
+		return nil, nil
+	}
+
 	switch type_ {
+
 	// composite
 	case 0x0:
 		return readComposite(r)

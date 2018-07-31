@@ -42,6 +42,12 @@ func TestIntegrationNewListener(t *testing.T) {
 		t.Skip("Skipping integration test in short mode...")
 	}
 
+	// renewEvery := time.Second * 45
+	// waitBetweenRenews := time.Second * 75
+
+	renewEvery := time.Second * 5
+	waitBetweenRenews := time.Second * 15
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*240)
 	defer cancel()
 
@@ -79,37 +85,38 @@ func TestIntegrationNewListener(t *testing.T) {
 
 	message := messaging.NewAmqpMessageWrapper(amqpMessage)
 
-	go func() {
-		time.Sleep(time.Duration(45) * time.Second)
-		err := listener.RenewLocks(ctx, []*amqp.Message{
-			amqpMessage,
-		})
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	i := 15
+	for i > 0 {
+		go func() {
+			time.Sleep(renewEvery)
+			err := listener.RenewLocks(ctx, []*amqp.Message{
+				amqpMessage,
+			})
+			if err != nil {
+				t.Error(err)
+			}
+		}()
 
-	// Renew another time to make sure
-	//Added to ensure that locks are renewed
-	time.Sleep(time.Duration(75) * time.Second)
-
-	go func() {
-		time.Sleep(time.Duration(45) * time.Second)
-		err := listener.RenewLocks(ctx, []*amqp.Message{
-			amqpMessage,
-		})
-		if err != nil {
-			t.Error(err)
-		}
-	}()
-
-	//Added to ensure that locks are renewed
-	time.Sleep(time.Duration(75) * time.Second)
+		// Renew another time to make sure
+		//Added to ensure that locks are renewed
+		time.Sleep(waitBetweenRenews)
+		i--
+	}
 
 	err = message.Accept()
 	if string(message.Body()) != nonce {
 		t.Errorf("value not as expected in message Expected: %s Got: %s", nonce, message.Body())
 	}
+
+	go func() {
+		time.Sleep(renewEvery)
+		err := listener.RenewLocks(ctx, []*amqp.Message{
+			amqpMessage,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	stats, err = listener.GetQueueDepth()
 	depth = stats.ActiveMessageCount

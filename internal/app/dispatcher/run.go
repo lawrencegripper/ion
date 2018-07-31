@@ -47,7 +47,7 @@ func Run(cfg *types.Configuration) {
 		for {
 			// Renew message locks with ServiceBus
 			//https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-amqp-request-response#message-renew-lock
-			time.Sleep(time.Duration(45) * time.Second)
+			time.Sleep(time.Duration(25) * time.Second)
 
 			activeMessages := provider.GetActiveMessages()
 			messagesAMQP := make([]*amqp.Message, 0, len(activeMessages))
@@ -66,6 +66,7 @@ func Run(cfg *types.Configuration) {
 		defer wg.Done()
 		for {
 			message, err := amqpConnection.Receiver.Receive(ctx)
+
 			if err != nil {
 				// Todo: Investigate the type of error here. If this could be triggered by a poisened message
 				// app shouldn't panic.
@@ -74,6 +75,16 @@ func Run(cfg *types.Configuration) {
 
 			if message == nil {
 				log.WithError(err).Panic("Error received dequeuing message - nil message")
+			}
+
+			if message.DeliveryAnnotations != nil && len(message.DeliveryAnnotations) > 0 {
+				lockToken, ok := message.DeliveryAnnotations["x-opt-lock-token"]
+				if ok {
+					log.WithField("message-lock-token", lockToken).Error("got x-opt-locktoken from message annotations in run.go")
+				}
+				log.WithField("deliveryAnnotations", message.DeliveryAnnotations).Info("Received message with delivery annotations")
+			} else {
+				log.Warning("message has nil or empty deliveryAnnotations")
 			}
 
 			wrapper := messaging.NewAmqpMessageWrapper(message)
