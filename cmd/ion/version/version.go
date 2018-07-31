@@ -12,13 +12,12 @@ var versionCmd = &cobra.Command{
 	Run:   Version,
 }
 
-// Setup is called before Run and is used to setup any
-// persistent components needed by sub commands.
+// Version prints the current version information
 func Version(cmd *cobra.Command, args []string) {
-	ver := GetVersion()
+	clientVer := GetClientVersion()
 
 	//TODO: Support output formats
-	fmt.Printf("%+v\n", ver)
+	fmt.Printf("%+v\n", clientVer)
 }
 
 // Register adds to root command

@@ -14,7 +14,8 @@ var (
 	BaseGoVersion = "unknown"
 )
 
-type VersionInfo struct {
+// ClientVersionInfo holds details about the current client binary
+type ClientVersionInfo struct {
 	Platform  string `json:"platform"`
 	Version   string `json:"version"`
 	GitCommit string `json:"gitCommit"`
@@ -22,8 +23,9 @@ type VersionInfo struct {
 	GoVersion string `json:"goVersion"`
 }
 
-func GetVersion() VersionInfo {
-	return VersionInfo{
+// GetClientVersion returns details about the current client binary
+func GetClientVersion() ClientVersionInfo {
+	return ClientVersionInfo{
 		Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 		Version:   BaseVersion,
 		GitCommit: BaseGitCommit,
