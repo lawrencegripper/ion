@@ -317,7 +317,7 @@ func (l *AmqpConnection) CreateAmqpSender(topic string) (*amqp.Sender, error) {
 	}
 
 	sender, err := l.Session.NewSender(
-		amqp.LinkTargetAddress("/" + topic),
+		amqp.LinkTargetAddress("/" + strings.ToLower(topic)),
 	)
 	if err != nil {
 		log.Fatal("Creating receiver:", err)

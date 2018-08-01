@@ -7,6 +7,7 @@ import (
 	sbamqp "github.com/lawrencegripper/ion/internal/pkg/servicebus"
 	"github.com/lawrencegripper/ion/internal/pkg/types"
 	"os"
+	"pack.ag/amqp"
 	"testing"
 )
 
@@ -19,7 +20,7 @@ var config = &types.Configuration{
 	ServiceBusNamespace: os.Getenv("AZURE_SERVICEBUS_NAMESPACE"),
 	Hostname:            "Test",
 	ModuleName:          helpers.RandomName(8),
-	SubscribesToEvent:   "ExampleEvent2",
+	SubscribesToEvent:   "exampleevent1235",
 	EventsPublished:     "ExamplePublishtopic",
 	LogLevel:            "Debug",
 	Job: &types.JobConfig{
@@ -27,7 +28,7 @@ var config = &types.Configuration{
 	},
 }
 
-// TestNewListener performs an end-2-end integration test on the listener talking to Azure ServiceBus
+// TestNewListener performs an end-2-end integration with Service Bus sending from HTTP then receiving via AMQP
 func TestIntegration_serivcebusHTTPSender(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode...")
@@ -35,6 +36,7 @@ func TestIntegration_serivcebusHTTPSender(t *testing.T) {
 
 	ctx := context.Background()
 	listenerm := sbamqp.NewAmqpConnection(ctx, config)
+	defer listenerm.Receiver.Close(ctx)
 
 	bus, err := NewServiceBus(&Config{
 		AuthorizationRuleName: *listenerm.AccessKeys.KeyName,
@@ -64,11 +66,52 @@ func TestIntegration_serivcebusHTTPSender(t *testing.T) {
 
 	if err != nil {
 		t.Error(err)
-		t.Fatal("failed to send")
+		t.Fatal("failed to receive")
 	}
 
 	if msg.DeliveryAnnotations == nil || len(msg.DeliveryAnnotations) < 1 {
 		t.Errorf("expected delivery annotation to be set, have: %+v", msg)
 	}
+
+	msg.Accept()
+
+}
+
+// TestNewListener performs an end-2-end integration with Service Bus sending from AMQP then receiving via AMQP
+func TestIntegration_serivcebusAMQPSender(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode...")
+	}
+
+	ctx := context.Background()
+	listenerm := sbamqp.NewAmqpConnection(ctx, config)
+	defer listenerm.Receiver.Close(ctx)
+
+	sender, err := listenerm.CreateAmqpSender(config.SubscribesToEvent)
+
+	if err != nil {
+		t.Error(err)
+		t.Fatal("failed to send")
+	}
+
+	err = sender.Send(ctx, amqp.NewMessage([]byte("bob")))
+
+	if err != nil {
+		t.Error(err)
+		t.Fatal("failed to send")
+	}
+
+	msg, err := listenerm.Receiver.Receive(ctx)
+
+	if err != nil {
+		t.Error(err)
+		t.Fatal("failed to receive")
+	}
+
+	if msg.DeliveryAnnotations == nil || len(msg.DeliveryAnnotations) < 1 {
+		t.Errorf("expected delivery annotation to be set, have: %+v", msg)
+	}
+
+	msg.Accept()
 
 }
