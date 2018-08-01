@@ -18,10 +18,9 @@ import (
 func Run(cfg *types.Configuration) {
 	ctx := context.Background()
 
+	var provider providers.Provider
 	amqpConnection := servicebus.NewAmqpConnection(ctx, cfg)
 	handlerArgs := providers.GetSharedHandlerArgs(cfg, amqpConnection.AccessKeys)
-
-	var provider providers.Provider
 
 	if cfg.AzureBatch != nil {
 		log.Info("Using Azure batch provider...")
@@ -41,14 +40,15 @@ func Run(cfg *types.Configuration) {
 
 	var wg sync.WaitGroup
 
-	wg.Add(3)
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		for {
+			// Locks are held for 1 mins, renew every 25 sec to keep locks
+			time.Sleep(25 * time.Second)
+
 			// Renew message locks with ServiceBus
 			//https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-amqp-request-response#message-renew-lock
-			time.Sleep(time.Duration(25) * time.Second)
-
 			activeMessages := provider.GetActiveMessages()
 			messagesAMQP := make([]*amqp.Message, 0, len(activeMessages))
 			for _, m := range activeMessages {
@@ -60,6 +60,18 @@ func Run(cfg *types.Configuration) {
 			if err != nil {
 				log.WithError(err).Error("failed to renew locks")
 			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for {
+			// output queue stats every 30 seconds
+			time.Sleep(30 * time.Second)
+			queueStats, err := amqpConnection.GetQueueDepth()
+			if err != nil {
+				log.WithError(err).Error("failed getting queue depth from listener")
+			}
+			log.WithField("activeMessageCount", queueStats.ActiveMessageCount).WithField("deadLetteredMessageCount", queueStats.DeadLetterMessageCount).Info("listenerStats")
 		}
 	}()
 	go func() {
@@ -104,17 +116,19 @@ func Run(cfg *types.Configuration) {
 			}
 
 			contextualLogger.Debug("message dispatched")
-			queueStats, err := amqpConnection.GetQueueDepth()
-			if err != nil {
-				contextualLogger.WithError(err).Error("failed getting queue depth from listener")
-			}
-			contextualLogger.WithField("activeMessageCount", queueStats.ActiveMessageCount).WithField("deadLetteredMessageCount", queueStats.DeadLetterMessageCount).Info("listenerStats")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for {
+			time.Sleep(time.Second * 15)
+
+			if len(provider.GetActiveMessages()) < 1 {
+				log.Debug("no active messages, skipping reconciling...")
+				continue
+			}
+
 			log.Debug("reconciling...")
 
 			err := provider.Reconcile()
@@ -123,9 +137,6 @@ func Run(cfg *types.Configuration) {
 				log.WithError(err).Panic("Failed to reconcile ....")
 			}
 			log.WithField("inProgress", provider.InProgressCount()).Info("providerStats")
-
-			time.Sleep(time.Second * 15)
-
 		}
 	}()
 	wg.Wait()

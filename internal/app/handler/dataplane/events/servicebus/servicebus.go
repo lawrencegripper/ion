@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/twinj/uuid"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,13 +35,13 @@ type ServiceBus struct {
 	SKN        string
 }
 
-/* not currently needed - leaving for future use
 type brokerProperties struct {
-	correlationID string
-	messageID     string
-	timeToLive    time.Duration
+	// correlationID string
+	// messageID     string
+	// timeToLive    time.Duration
+	LockToken string `json:"LockToken"`
+	State     string `json:"State"`
 }
-*/
 
 const topicPlaceholderText = "%%TOPIC_PLACEHOLDER%%"
 
@@ -69,14 +70,15 @@ func (s *ServiceBus) Publish(e common.Event) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", generateSAS(sbURL, s.SKN, s.Key))
 
-	/* not currently needed - leaving for future use
-	var props brokerProperties
+	props := brokerProperties{
+		LockToken: uuid.NewV4().String(),
+		State:     "Active",
+	}
 	p, err := json.Marshal(&props)
 	if err != nil {
 		return fmt.Errorf("error publishing event %+v", err)
 	}
 	req.Header.Set("BrokerProperties", string(p))
-	*/
 
 	//TODO: optimize
 	client := &http.Client{}

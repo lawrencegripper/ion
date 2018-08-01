@@ -98,6 +98,23 @@
             "showLog": true
         },
         {
+            "name": "Handler ServiceBus Tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "remotePath": "",
+            "port": 2346,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}/internal/app/handler/dataplane/events/servicebus",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
+            "args": [
+                "-test.v",
+                "-test.timeout",
+                "5m"
+            ],
+            "showLog": true
+        },
+        {
             "name": "Frontapi integration Tests",
             "type": "go",
             "request": "launch",
