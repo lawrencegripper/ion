@@ -71,6 +71,9 @@ func TestIntegration_serivcebusHTTPSender(t *testing.T) {
 
 	if msg.DeliveryAnnotations == nil || len(msg.DeliveryAnnotations) < 1 {
 		t.Errorf("expected delivery annotation to be set, have: %+v", msg)
+		t.Logf("msg properties: %+v", msg.Properties)
+		t.Log("msg annotation: %+v", msg.Annotations)
+		t.Log("msg delivery annotation: %+v", msg.DeliveryAnnotations)
 	}
 
 	msg.Accept()
