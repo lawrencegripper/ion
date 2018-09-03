@@ -138,13 +138,8 @@ func TestCommitBlob(t *testing.T) {
 			continue
 		}
 
-		// Refresh blob directory between tests
-		_ = os.RemoveAll(persistentOutBlobDir)
-		_ = os.Mkdir(persistentOutBlobDir, 0777)
+		reset()
 	}
-	// Clear blob directory
-	_ = os.RemoveAll(persistentOutBlobDir)
-	RefreshTempOutputs()
 }
 
 func TestCommitInsights(t *testing.T) {
@@ -181,14 +176,15 @@ func TestCommitInsights(t *testing.T) {
 				continue
 			}
 		}
-		_ = os.Remove(environment.OutputMetaFilePath)
+		reset()
 	}
-	RefreshTempOutputs()
 }
 
 func TestCommitEvents(t *testing.T) {
 	testCases := []struct {
 		events []common.KeyValuePairs
+		files  []string
+		err    bool
 	}{
 		{
 			events: []common.KeyValuePairs{
@@ -203,6 +199,8 @@ func TestCommitEvents(t *testing.T) {
 					},
 				},
 			},
+			files: []string{},
+			err:   false,
 		},
 		{
 			events: []common.KeyValuePairs{
@@ -217,6 +215,10 @@ func TestCommitEvents(t *testing.T) {
 					},
 				},
 			},
+			files: []string{
+				"file1.png",
+			},
+			err: false,
 		},
 		{
 			events: []common.KeyValuePairs{
@@ -227,6 +229,8 @@ func TestCommitEvents(t *testing.T) {
 					},
 				},
 			},
+			files: []string{},
+			err:   false,
 		},
 		{
 			events: []common.KeyValuePairs{
@@ -241,9 +245,68 @@ func TestCommitEvents(t *testing.T) {
 					},
 				},
 			},
+			files: []string{},
+			err:   false,
+		},
+		{
+			events: []common.KeyValuePairs{
+				{
+					common.KeyValuePair{
+						Key:   "files",
+						Value: "nonexistentfile.jpg,existentfile.png",
+					},
+					common.KeyValuePair{
+						Key:   "eventType",
+						Value: "test_events",
+					},
+				},
+			},
+			files: []string{
+				"existentfile.png",
+			},
+			err: true,
+		},
+		{
+			events: []common.KeyValuePairs{
+				{
+					common.KeyValuePair{
+						Key:   "files",
+						Value: "myfile.jpg",
+					},
+					common.KeyValuePair{
+						Key:   "eventType",
+						Value: "invalid",
+					},
+				},
+			},
+			files: []string{
+				"myfile.jpg",
+			},
+			err: true,
+		},
+		{
+			events: []common.KeyValuePairs{
+				{
+					common.KeyValuePair{
+						Key:   "files",
+						Value: "",
+					},
+				},
+			},
+			files: []string{},
+			err:   true,
 		},
 	}
 	for _, test := range testCases {
+		for _, file := range test.files {
+			path := filepath.FromSlash(path.Join(environment.OutputBlobDirPath, file))
+			f, err := os.Create(path)
+			f.Close()
+			if err != nil {
+				t.Fatalf("error creating test file '%s'", file)
+				continue
+			}
+		}
 		blobURIs := make(map[string]string)
 		for i, event := range test.events {
 			b, err := json.Marshal(&event)
@@ -259,7 +322,9 @@ func TestCommitEvents(t *testing.T) {
 			blobURIs[outputEventFilePath] = "fake.blob.uri"
 		}
 		if err := c.Commit(context, dataPlane, eventTypes); err != nil {
-			t.Errorf("error commiting events: '%+v'", err)
+			if !test.err {
+				t.Errorf("error commiting events: '%+v'", err)
+			}
 			continue
 		}
 		files, err := ioutil.ReadDir(persistentEventsDir)
@@ -292,22 +357,26 @@ func TestCommitEvents(t *testing.T) {
 			t.Error("expected the events directory to be the same size as the output directory but wasn't")
 			continue
 		}
-		// Refresh blob directory between tests
-		_ = os.RemoveAll(persistentEventsDir)
-		_ = os.Mkdir(persistentEventsDir, 0777)
-
+		reset()
 	}
-	_ = os.RemoveAll(persistentEventsDir)
-	RefreshTempOutputs()
 }
 
-func RefreshTempOutputs() {
-	_ = os.RemoveAll(environment.OutputBlobDirPath)
-	_ = os.RemoveAll(environment.OutputEventsDirPath)
-	_ = os.Remove(environment.OutputMetaFilePath)
+func reset() {
+	refreshDataplane()
+	refreshEnv()
+}
 
-	_ = os.Mkdir(environment.OutputBlobDirPath, 0777)
-	_ = os.Mkdir(environment.OutputEventsDirPath, 0777)
-	f, _ := os.Create(environment.OutputMetaFilePath)
-	defer f.Close()
+func refreshDataplane() {
+	refreshDir(persistentEventsDir)
+	refreshDir(persistentInBlobDir)
+	refreshDir(persistentOutBlobDir)
+}
+
+func refreshDir(dirPath string) {
+	_ = os.RemoveAll(dirPath)
+	_ = os.MkdirAll(dirPath, os.ModePerm)
+}
+
+func refreshEnv() {
+	_ = environment.Clear()
 }
