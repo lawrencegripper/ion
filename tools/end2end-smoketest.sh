@@ -66,14 +66,20 @@ then
     echo "--------------------------------------------------------"
 
     cd ./deployment
-    if [ ! -f ./vars.private.tfvars ]; then
+    if [ ! -f ./ionvars.tfvars ]; then
         echo "vars.private.tfvars not found in deployment file!"
         echo "WARNING.... you'll need to create it some of the fields in ./deployment/vars.private.tfvars without it the terraform deployment will fail"
         return
     fi
+<<<<<<< Updated upstream
     
     terraform init
     terraform apply -var-file ./vars.private.tfvars -auto-approve -var docker_root=$DOCKER_USER -var docker_tag=$ION_IMAGE_TAG
+=======
+
+    terraform init
+    terraform apply -var-file ./ionvars.tfvars -auto-approve -var docker_root=$DOCKER_USER -var docker_tag=$ION_IMAGE_TAG
+>>>>>>> Stashed changes
     terraform output kubeconfig > ../kubeconfig.private.yaml
 
     echo "--------------------------------------------------------"
@@ -115,8 +121,16 @@ echo "--------------------------------------------------------"
 echo "Deploying downloader and transcoder module with tag $ION_IMAGE_TAG"
 echo "--------------------------------------------------------"
 
-docker run --rm --network host ion-cli module create -i frontapi.new_link -o file_downloaded -n downloader -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
-docker run --rm --network host -v ${PWD}:/src ion-cli module create -i file_downloaded -o file_transcoded -n transcode -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
+docker run --rm --network host ion-cli module create -n linkanalyzer -i frontapi.new_link -o download_file,download_youtube -m ionacrasomhufg.azurecr.io/module_linkanalyzer:v1.0.3 -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+docker run --rm --network host ion-cli module create -n downloader -i download_file -o file_downloaded -m $DOCKER_USER/ion-module-download-file:$ION_IMAGE_TAG -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+docker run --rm --network host ion-cli module create -n youtube -i download_youtube -o file_downloaded -m ionacrasomhufg.azurecr.io/module_youtube:v1.0.3 -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+docker run --rm --network host -v ${PWD}:/src ion-cli module create -n transcode -i file_downloaded -o file_transcoded -m $DOCKER_USER/ion-module-transcode:$ION_IMAGE_TAG -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/transcoder.env
+
+#docker run --network host -v ${PWD}:/src ion-cli module create -i file_transcoded -o faces -n videoindexer -m ionacrasomhufg.azurecr.io/module_videoindexer:v1.0.3 -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG --config-map-file /src/tools/videoindexer.env 
+#docker run --network host -v ${PWD}:/src ion-cli module create -i file_transcoded -o weapon_detected -n yolo -m ionacrasomhufg.azurecr.io/module_yolo:v1.0.1 -p azurebatch --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+#docker run --network host -v ${PWD}:/src ion-cli module create -i weapon_detected -o object_cropped -n yolocropper -m ionacrasomhufg.azurecr.io/module_yolo_cropper:v1.0.4 -p kubernetes --handler-image $DOCKER_USER/ion-handler:$ION_IMAGE_TAG
+
+
 sleep 30
 
 
@@ -124,7 +138,8 @@ echo "--------------------------------------------------------"
 echo "Submitting a video for processing to the frontapi"
 echo "--------------------------------------------------------"
 
-curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4"}'   http://localhost:9001/
+#curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4"}'   http://localhost:9001/
+curl --header "Content-Type: application/json"   --request POST   --data '{"url": "https://jdblobstorage.blob.core.windows.net/tadaweb/videos/L83TryyV8yc.mp4?st=2018-07-25T07%3A49%3A27Z&se=2018-07-26T07%3A49%3A27Z&sp=rl&sv=2018-03-28&sr=b&sig=n0qIiiWcqo8aDWDe3qCFdpAc5qYBxKlvyDSJXcMf1j8%3D"}'   http://localhost:9001/
 
 if [ -x "$(command -v beep)" ]; then
     beep

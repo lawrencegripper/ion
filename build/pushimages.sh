@@ -25,7 +25,7 @@ fi
 echo "Tagging builds using account:"
 echo $DOCKER_USER
 
-IMAGES=$(docker image ls | grep ion | grep -v / | awk '{print $1}')
+IMAGES=$(docker image ls | grep ion- | grep -v / | awk '{print $1}')
 
 echo "Tagging images"
 echo "$IMAGES" | xargs -I % echo "Tagged $DOCKER_USER/%:latest"
