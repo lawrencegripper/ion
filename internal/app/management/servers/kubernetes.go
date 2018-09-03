@@ -247,6 +247,7 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 		"--job.handlerimage=" + r.Handlerimage,
 		"--job.retrycount=" + fmt.Sprintf("%d", r.Retrycount),
 		"--job.pullalways=false",
+		"--job.maxrunningtimemins=" + fmt.Sprintf("%d", r.Maxexecutiontimemins),
 		"--kubernetes.namespace=" + k.namespace,
 		"--kubernetes.imagepullsecretname=" + sharedImagePullSecretName,
 		"--loglevel=" + logLevel,
