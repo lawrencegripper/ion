@@ -6,6 +6,7 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"github.com/lawrencegripper/ion/internal/app/handler/module"
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -73,14 +74,21 @@ func TestDevIntegration(t *testing.T) {
 	writeOutputBlob(blob1FilePath)
 
 	// Write an output image blob
-	blob2 := "img2.png"
+	blob2 := "subdir/img2.png"
 	blob2FilePath := filepath.FromSlash(path.Join(environment.OutputBlobDirPath, blob2))
 	writeOutputBlob(blob2FilePath)
 
 	// Grab the length of the output directory
-	outFiles, err := ioutil.ReadDir(environment.OutputBlobDirPath)
+	var outFiles []string
+	err := filepath.Walk(environment.OutputBlobDirPath, func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			return nil
+		}
+		outFiles = append(outFiles, path)
+		return err
+	})
 	if err != nil {
-		t.Fatalf("error reading out dir '%+v'", err)
+		t.Fatalf("error walking input dir '%+v'", err)
 	}
 	outLength := len(outFiles)
 
@@ -120,9 +128,16 @@ func TestDevIntegration(t *testing.T) {
 	handler.Run(config)
 
 	// Check blob input data matches the output from the first module
-	inFiles, err := ioutil.ReadDir(environment.InputBlobDirPath)
+	var inFiles []string
+	err = filepath.Walk(environment.InputBlobDirPath, func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			return nil
+		}
+		inFiles = append(inFiles, path)
+		return err
+	})
 	if err != nil {
-		t.Fatalf("error reading in dir '%+v'", err)
+		t.Fatalf("error walking input dir '%+v'", err)
 	}
 	inLength := len(inFiles)
 
@@ -154,8 +169,33 @@ func TestDevIntegration(t *testing.T) {
 	}
 }
 
+func writeLargeOutputBlob(path string, sizeInMB float64) error {
+	dir := filepath.Dir(path)
+	if dir != "." {
+		_ = os.MkdirAll(dir, os.ModePerm)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	kb := sizeInMB * 1024
+	b := kb * 1024
+	for i := 0; i < int(math.Ceil(b)); i++ {
+		if _, err := f.Write([]byte{255}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func writeOutputBlob(path string) error {
-	err := ioutil.WriteFile(path, []byte("image1"), 0777)
+	dir := filepath.Dir(path)
+	if dir != "." {
+		_ = os.MkdirAll(dir, os.ModePerm)
+	}
+	err := ioutil.WriteFile(path, []byte("image"), os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error writing file '%s', '%+v'", path, err)
 	}
@@ -163,7 +203,7 @@ func writeOutputBlob(path string) error {
 }
 
 func writeOutputBytes(bytes []byte, path string) error {
-	err := ioutil.WriteFile(path, bytes, 0777)
+	err := ioutil.WriteFile(path, bytes, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error writing file '%s', '%+v'", bytes, err)
 	}

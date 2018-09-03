@@ -17,6 +17,11 @@ import (
 
 // cSpell:ignore mongodb, bson, upsert
 
+const (
+	// mongoDBNotFoundErr returned when a document does not exist
+	mongoDBNotFoundErr = "not found"
+)
+
 //Config used to setup a MongoDB metastore provider
 type Config struct {
 	Enabled    bool   `description:"Enable MongoDB metadata provider"`
@@ -67,7 +72,10 @@ func (db *MongoDB) GetEventMetaByID(id string) (*documentstorage.EventMeta, erro
 	eventMeta := documentstorage.EventMeta{}
 	err := db.Collection.Find(bson.M{"id": id}).One(&eventMeta)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get document with ID %s, error: %+v", id, err)
+		if err.Error() == mongoDBNotFoundErr {
+			return nil, fmt.Errorf("%s %s", documentstorage.NotFoundErr, id)
+		}
+		return nil, fmt.Errorf("error get document %s, error: %+v", id, err)
 	}
 	return &eventMeta, nil
 }

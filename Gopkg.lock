@@ -8,6 +8,12 @@
   revision = "e9dc86bbf0e5bbe6bf7ff5a6f71e048959b61f71"
 
 [[projects]]
+  name = "github.com/Azure/azure-pipeline-go"
+  packages = ["pipeline"]
+  revision = "7571e8eb0876932ab505918ff7ed5107773e5ee2"
+  version = "0.1.7"
+
+[[projects]]
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "services/batch/2017-09-01.6.0/batch",
@@ -48,6 +54,12 @@
   name = "github.com/PuerkitoBio/urlesc"
   packages = ["."]
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
+
+[[projects]]
+  name = "github.com/azure/azure-storage-blob-go"
+  packages = ["2016-05-31/azblob"]
+  revision = "66ba96e49ebbdc3cd26970c6c675c906d304b5e2"
+  version = "0.1.4"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
@@ -638,6 +650,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c89b34d7bdfe7e3def73631d305fc2f126369afe577157f11b45d44fc4c5290f"
+  inputs-digest = "5b7290c1f5f1c53135bd8118971ec0da653cd08ffab9c1c7d1d020e2cc9adcee"
   solver-name = "gps-cdcl"
   solver-version = 1

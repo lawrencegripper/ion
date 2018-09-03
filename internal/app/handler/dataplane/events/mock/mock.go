@@ -19,7 +19,7 @@ type EventPublisher struct {
 
 //NewEventPublisher returns a new EventPublisher object
 func NewEventPublisher(dir string) *EventPublisher {
-	err := os.MkdirAll(dir, 0777)
+	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		return nil
 	}
@@ -36,7 +36,7 @@ func (e *EventPublisher) Publish(event common.Event) error {
 	if err != nil {
 		return fmt.Errorf("error marshalling event '%+v'", err)
 	}
-	err = ioutil.WriteFile(eventPath, eventJSON, 0777)
+	err = ioutil.WriteFile(eventPath, eventJSON, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error writing event to file '%s': '%+v'", eventPath, err)
 	}

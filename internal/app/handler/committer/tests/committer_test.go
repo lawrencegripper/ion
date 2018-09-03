@@ -41,6 +41,9 @@ func TestMain(m *testing.M) {
 	persistentEventsDir = filepath.FromSlash(fmt.Sprintf("%s/events", testdata))
 	eventTypes = append(eventTypes, "test_events")
 
+	environment = module.GetModuleEnvironment(testdata)
+	environment.Build()
+
 	// Create mock dataplane...
 
 	// Metadata store
@@ -53,7 +56,7 @@ func TestMain(m *testing.M) {
 	blob, err := filesystem.NewBlobStorage(&filesystem.Config{
 		InputDir:  persistentInBlobDir,
 		OutputDir: persistentOutBlobDir,
-	})
+	}, environment)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create file system storage with error '%+v'", err))
 	}
@@ -74,9 +77,6 @@ func TestMain(m *testing.M) {
 		CorrelationID: "frank",
 		ParentEventID: "parentid",
 	}
-
-	environment = module.GetModuleEnvironment(testdata)
-	environment.Build()
 
 	// Create committer
 	log.SetOutput(os.Stdout)
@@ -108,24 +108,40 @@ func TestCommitBlob(t *testing.T) {
 				"file4.txt",
 			},
 		},
+		{
+			files: []string{
+				"subdir/file1.txt",
+				"subdir/subsubdir/file2.txt",
+				"file3.txt",
+			},
+		},
 	}
 	for _, test := range testCases {
 		for _, file := range test.files {
-			path := filepath.FromSlash(path.Join(environment.OutputBlobDirPath, file))
-			f, err := os.Create(path)
+			dirPath := filepath.Dir(file)
+			dirPathInEnv := path.Join(environment.OutputBlobDirPath, dirPath)
+			_ = os.MkdirAll(dirPathInEnv, os.ModePerm)
+			outputFilePath := filepath.Join(environment.OutputBlobDirPath, file)
+			f, err := os.Create(outputFilePath)
 			f.Close()
 			if err != nil {
-				t.Fatalf("error creating test file '%s'", file)
+				t.Fatalf("error creating test file '%s'", outputFilePath)
 				continue
 			}
 		}
 		if err := c.Commit(context, dataPlane, eventTypes); err != nil {
 			t.Fatal(err)
 		}
-		files, err := ioutil.ReadDir(persistentOutBlobDir)
+		files := make([]string, 0)
+		err := filepath.Walk(persistentOutBlobDir, func(path string, f os.FileInfo, err error) error {
+			if f.IsDir() {
+				return nil
+			}
+			files = append(files, path)
+			return err
+		})
 		if err != nil {
-			t.Fatalf("error reading blob directory '%+v'", err)
-			continue
+			t.Fatal(err)
 		}
 		outLen := len(files)
 		blobLen := len(test.files)
@@ -134,7 +150,7 @@ func TestCommitBlob(t *testing.T) {
 			continue
 		}
 		if outLen != blobLen {
-			t.Fatal("expected the blob directory to be the same size as the output directory but wasn't")
+			t.Fatalf("expected the blob directory to contain %d items but it actually contained %d", outLen, blobLen)
 			continue
 		}
 
@@ -161,7 +177,7 @@ func TestCommitInsights(t *testing.T) {
 			t.Errorf("error encoding insights: '%+v'", err)
 			continue
 		}
-		if err := ioutil.WriteFile(environment.OutputMetaFilePath, b, 0777); err != nil {
+		if err := ioutil.WriteFile(environment.OutputMetaFilePath, b, os.ModePerm); err != nil {
 			t.Errorf("error writing insight file: '%+v'", err)
 			continue
 		}
@@ -315,7 +331,7 @@ func TestCommitEvents(t *testing.T) {
 				continue
 			}
 			outputEventFilePath := filepath.FromSlash(path.Join(environment.OutputEventsDirPath, fmt.Sprintf("event%d.json", i)))
-			if err := ioutil.WriteFile(outputEventFilePath, b, 0777); err != nil {
+			if err := ioutil.WriteFile(outputEventFilePath, b, os.ModePerm); err != nil {
 				t.Errorf("error writing event file: '%+v'", err)
 				continue
 			}
