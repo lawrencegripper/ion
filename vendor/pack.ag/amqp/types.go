@@ -189,10 +189,10 @@ type performOpen struct {
 	MaxFrameSize        uint32        // default: 4294967295
 	ChannelMax          uint16        // default: 65535
 	IdleTimeout         time.Duration // from milliseconds
-	OutgoingLocales     []symbol
-	IncomingLocales     []symbol
-	OfferedCapabilities []symbol
-	DesiredCapabilities []symbol
+	OutgoingLocales     multiSymbol
+	IncomingLocales     multiSymbol
+	OfferedCapabilities multiSymbol
+	DesiredCapabilities multiSymbol
 	Properties          map[symbol]interface{}
 }
 
@@ -267,12 +267,12 @@ type performBegin struct {
 
 	// the extension capabilities the sender supports
 	// http://www.amqp.org/specification/1.0/session-capabilities
-	OfferedCapabilities []symbol
+	OfferedCapabilities multiSymbol
 
 	// the extension capabilities the sender can use if the receiver supports them
 	// The sender MUST NOT attempt to use any capability other than those it
 	// has declared in desired-capabilities field.
-	DesiredCapabilities []symbol
+	DesiredCapabilities multiSymbol
 
 	// session properties
 	// http://www.amqp.org/specification/1.0/session-properties
@@ -459,13 +459,13 @@ type performAttach struct {
 
 	// the extension capabilities the sender supports
 	// http://www.amqp.org/specification/1.0/link-capabilities
-	OfferedCapabilities []symbol
+	OfferedCapabilities multiSymbol
 
 	// the extension capabilities the sender can use if the receiver supports them
 	//
 	// The sender MUST NOT attempt to use any capability other than those it
 	// has declared in desired-capabilities field.
-	DesiredCapabilities []symbol
+	DesiredCapabilities multiSymbol
 
 	// link properties
 	// http://www.amqp.org/specification/1.0/link-properties
@@ -743,12 +743,12 @@ type source struct {
 	//
 	// When present, the values MUST be a symbolic descriptor of a valid outcome,
 	// e.g., "amqp:accepted:list".
-	Outcomes []symbol
+	Outcomes multiSymbol
 
 	// the extension capabilities the sender supports/desires
 	//
 	// http://www.amqp.org/specification/1.0/source-capabilities
-	Capabilities []symbol
+	Capabilities multiSymbol
 }
 
 func (s *source) marshal(wr *buffer) error {
@@ -895,7 +895,7 @@ type target struct {
 	// the extension capabilities the sender supports/desires
 	//
 	// http://www.amqp.org/specification/1.0/target-capabilities
-	Capabilities []symbol
+	Capabilities multiSymbol
 }
 
 func (t *target) marshal(wr *buffer) error {
@@ -1635,6 +1635,8 @@ func (c *performClose) String() string {
 	return fmt.Sprintf("*performClose{Error: %s}", c.Error)
 }
 
+const maxDeliveryTagLength = 32
+
 // Message is an AMQP message.
 type Message struct {
 	// Message format code.
@@ -1643,6 +1645,9 @@ type Message struct {
 	// format. The lowest octet indicates the version of said message format. Any
 	// given version of a format is forwards compatible with all higher versions.
 	Format uint32
+
+	// The DeliveryTag can be up to 32 octets of binary data.
+	DeliveryTag []byte
 
 	// The header section carries standard delivery details about the transfer
 	// of a message through the AMQP network.
@@ -1721,9 +1726,9 @@ type Message struct {
 	// encryption details).
 	Footer Annotations
 
-	receiver *Receiver  // Receiver the message was received from
-	id       deliveryID // used when sending disposition
-	settled  bool       // whether transfer was settled by sender
+	receiver   *Receiver // Receiver the message was received from
+	deliveryID uint32    // used when sending disposition
+	settled    bool      // whether transfer was settled by sender
 }
 
 // NewMessage returns a *Message with data as the payload.
@@ -1748,29 +1753,30 @@ func (m *Message) GetData() []byte {
 
 // Accept notifies the server that the message has been
 // accepted and does not require redelivery.
-func (m *Message) Accept() {
-	if m.shouldSendDisposition() {
-		m.receiver.messageDisposition(m.id, &stateAccepted{})
+func (m *Message) Accept() error {
+	if !m.shouldSendDisposition() {
+		return nil
 	}
+	return m.receiver.messageDisposition(m.deliveryID, &stateAccepted{})
 }
 
 // Reject notifies the server that the message is invalid.
 //
 // Rejection error is optional.
-func (m *Message) Reject(e *Error) {
-	if m.shouldSendDisposition() {
-		m.receiver.messageDisposition(m.id, &stateRejected{
-			Error: e,
-		})
+func (m *Message) Reject(e *Error) error {
+	if !m.shouldSendDisposition() {
+		return nil
 	}
+	return m.receiver.messageDisposition(m.deliveryID, &stateRejected{Error: e})
 }
 
 // Release releases the message back to the server. The message
 // may be redelivered to this or another consumer.
-func (m *Message) Release() {
+func (m *Message) Release() error {
 	if m.shouldSendDisposition() {
-		m.receiver.messageDisposition(m.id, &stateReleased{})
+		return nil
 	}
+	return m.receiver.messageDisposition(m.deliveryID, &stateReleased{})
 }
 
 // Modify notifies the server that the message was not acted upon
@@ -1785,14 +1791,15 @@ func (m *Message) Release() {
 // messageAnnotations is an optional annotation map to be merged
 // with the existing message annotations, overwriting existing keys
 // if necessary.
-func (m *Message) Modify(deliveryFailed, undeliverableHere bool, messageAnnotations Annotations) {
-	if m.shouldSendDisposition() {
-		m.receiver.messageDisposition(m.id, &stateModified{
-			DeliveryFailed:     deliveryFailed,
-			UndeliverableHere:  undeliverableHere,
-			MessageAnnotations: messageAnnotations,
-		})
+func (m *Message) Modify(deliveryFailed, undeliverableHere bool, messageAnnotations Annotations) error {
+	if !m.shouldSendDisposition() {
+		return nil
 	}
+	return m.receiver.messageDisposition(m.deliveryID, &stateModified{
+		DeliveryFailed:     deliveryFailed,
+		UndeliverableHere:  undeliverableHere,
+		MessageAnnotations: messageAnnotations,
+	})
 }
 
 // MarshalBinary encodes the message into binary form
@@ -2400,7 +2407,7 @@ func (si *saslInit) unmarshal(r *buffer) error {
 */
 
 type saslMechanisms struct {
-	Mechanisms []symbol
+	Mechanisms multiSymbol
 }
 
 func (sm *saslMechanisms) frameBody() {}
@@ -2697,10 +2704,6 @@ const (
 	// Receiver will only settle after sending the disposition to the
 	// sender and receiving a disposition indicating settlement of
 	// the delivery from the sender.
-	//
-	// BUG: When receiving messages, accepting/rejecting/releasing a
-	//      received message does not block and wait for the sender's
-	//      confirmation disposition.
 	ModeSecond ReceiverSettleMode = 1
 )
 
@@ -2844,7 +2847,7 @@ func (a *arrayInt8) unmarshal(r *buffer) error {
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]int8, length)
 	} else {
 		aa = aa[:length]
@@ -2893,7 +2896,7 @@ func (a *arrayUint16) unmarshal(r *buffer) error {
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]uint16, length)
 	} else {
 		aa = aa[:length]
@@ -2944,7 +2947,7 @@ func (a *arrayInt16) unmarshal(r *buffer) error {
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]int16, length)
 	} else {
 		aa = aa[:length]
@@ -3004,7 +3007,7 @@ func (a *arrayUint32) unmarshal(r *buffer) error {
 	}
 	switch type_ {
 	case typeCodeUint0:
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]uint32, length)
 		} else {
 			aa = aa[:length]
@@ -3018,7 +3021,7 @@ func (a *arrayUint32) unmarshal(r *buffer) error {
 			return errorNew("invalid length")
 		}
 
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]uint32, length)
 		} else {
 			aa = aa[:length]
@@ -3034,7 +3037,7 @@ func (a *arrayUint32) unmarshal(r *buffer) error {
 			return errorErrorf("invalid length %d", length)
 		}
 
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]uint32, length)
 		} else {
 			aa = aa[:length]
@@ -3102,7 +3105,7 @@ func (a *arrayInt32) unmarshal(r *buffer) error {
 			return errorNew("invalid length")
 		}
 
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]int32, length)
 		} else {
 			aa = aa[:length]
@@ -3118,7 +3121,7 @@ func (a *arrayInt32) unmarshal(r *buffer) error {
 			return errorErrorf("invalid length %d", length)
 		}
 
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]int32, length)
 		} else {
 			aa = aa[:length]
@@ -3181,7 +3184,7 @@ func (a *arrayUint64) unmarshal(r *buffer) error {
 	}
 	switch type_ {
 	case typeCodeUlong0:
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]uint64, length)
 		} else {
 			aa = aa[:length]
@@ -3195,7 +3198,7 @@ func (a *arrayUint64) unmarshal(r *buffer) error {
 			return errorNew("invalid length")
 		}
 
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]uint64, length)
 		} else {
 			aa = aa[:length]
@@ -3211,7 +3214,7 @@ func (a *arrayUint64) unmarshal(r *buffer) error {
 			return errorNew("invalid length")
 		}
 
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]uint64, length)
 		} else {
 			aa = aa[:length]
@@ -3279,7 +3282,7 @@ func (a *arrayInt64) unmarshal(r *buffer) error {
 			return errorNew("invalid length")
 		}
 
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]int64, length)
 		} else {
 			aa = aa[:length]
@@ -3295,7 +3298,7 @@ func (a *arrayInt64) unmarshal(r *buffer) error {
 			return errorNew("invalid length")
 		}
 
-		if cap(aa) < length {
+		if int64(cap(aa)) < length {
 			aa = make([]int64, length)
 		} else {
 			aa = aa[:length]
@@ -3349,7 +3352,7 @@ func (a *arrayFloat) unmarshal(r *buffer) error {
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]float32, length)
 	} else {
 		aa = aa[:length]
@@ -3401,7 +3404,7 @@ func (a *arrayDouble) unmarshal(r *buffer) error {
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]float64, length)
 	} else {
 		aa = aa[:length]
@@ -3443,7 +3446,7 @@ func (a *arrayBool) unmarshal(r *buffer) error {
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]bool, length)
 	} else {
 		aa = aa[:length]
@@ -3527,12 +3530,12 @@ func (a *arrayString) unmarshal(r *buffer) error {
 	}
 
 	const typeSize = 2 // assume all strings are at least 2 bytes
-	if length*typeSize > r.len() {
+	if length*typeSize > int64(r.len()) {
 		return errorErrorf("invalid length %d", length)
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]string, length)
 	} else {
 		aa = aa[:length]
@@ -3550,7 +3553,7 @@ func (a *arrayString) unmarshal(r *buffer) error {
 				return err
 			}
 
-			buf, ok := r.next(int(size))
+			buf, ok := r.next(int64(size))
 			if !ok {
 				return errorNew("invalid length")
 			}
@@ -3563,7 +3566,7 @@ func (a *arrayString) unmarshal(r *buffer) error {
 			if !ok {
 				return errorNew("invalid length")
 			}
-			size := int(binary.BigEndian.Uint32(buf))
+			size := int64(binary.BigEndian.Uint32(buf))
 
 			buf, ok = r.next(size)
 			if !ok {
@@ -3618,12 +3621,12 @@ func (a *arraySymbol) unmarshal(r *buffer) error {
 	}
 
 	const typeSize = 2 // assume all symbols are at least 2 bytes
-	if length*typeSize > r.len() {
+	if length*typeSize > int64(r.len()) {
 		return errorErrorf("invalid length %d", length)
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]symbol, length)
 	} else {
 		aa = aa[:length]
@@ -3641,7 +3644,7 @@ func (a *arraySymbol) unmarshal(r *buffer) error {
 				return err
 			}
 
-			buf, ok := r.next(int(size))
+			buf, ok := r.next(int64(size))
 			if !ok {
 				return errorNew("invalid length")
 			}
@@ -3653,7 +3656,7 @@ func (a *arraySymbol) unmarshal(r *buffer) error {
 			if !ok {
 				return errorNew("invalid length")
 			}
-			size := int(binary.BigEndian.Uint32(buf))
+			size := int64(binary.BigEndian.Uint32(buf))
 
 			buf, ok = r.next(size)
 			if !ok {
@@ -3708,12 +3711,12 @@ func (a *arrayBinary) unmarshal(r *buffer) error {
 	}
 
 	const typeSize = 2 // assume all binary is at least 2 bytes
-	if length*typeSize > r.len() {
+	if length*typeSize > int64(r.len()) {
 		return errorErrorf("invalid length %d", length)
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([][]byte, length)
 	} else {
 		aa = aa[:length]
@@ -3731,7 +3734,7 @@ func (a *arrayBinary) unmarshal(r *buffer) error {
 				return err
 			}
 
-			buf, ok := r.next(int(size))
+			buf, ok := r.next(int64(size))
 			if !ok {
 				return errorErrorf("invalid length %d", length)
 			}
@@ -3745,7 +3748,7 @@ func (a *arrayBinary) unmarshal(r *buffer) error {
 			}
 			size := binary.BigEndian.Uint32(buf)
 
-			buf, ok = r.next(int(size))
+			buf, ok = r.next(int64(size))
 			if !ok {
 				return errorNew("invalid length")
 			}
@@ -3795,7 +3798,7 @@ func (a *arrayTimestamp) unmarshal(r *buffer) error {
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]time.Time, length)
 	} else {
 		aa = aa[:length]
@@ -3847,7 +3850,7 @@ func (a *arrayUUID) unmarshal(r *buffer) error {
 	}
 
 	aa := (*a)[:0]
-	if cap(aa) < length {
+	if int64(cap(aa)) < length {
 		aa = make([]UUID, length)
 	} else {
 		aa = aa[:length]
@@ -3904,12 +3907,12 @@ func (l *list) unmarshal(r *buffer) error {
 	}
 
 	// assume that all types are at least 1 byte
-	if length > r.len() {
+	if length > int64(r.len()) {
 		return errorErrorf("invalid length %d", length)
 	}
 
 	ll := *l
-	if cap(ll) < length {
+	if int64(cap(ll)) < length {
 		ll = make([]interface{}, length)
 	} else {
 		ll = ll[:length]
@@ -3924,4 +3927,30 @@ func (l *list) unmarshal(r *buffer) error {
 
 	*l = ll
 	return nil
+}
+
+// multiSymbol can decode a single symbol or an array.
+type multiSymbol []symbol
+
+func (ms multiSymbol) marshal(wr *buffer) error {
+	return marshal(wr, []symbol(ms))
+}
+
+func (ms *multiSymbol) unmarshal(r *buffer) error {
+	type_, err := r.peekType()
+	if err != nil {
+		return err
+	}
+
+	if type_ == typeCodeSym8 || type_ == typeCodeSym32 {
+		s, err := readString(r)
+		if err != nil {
+			return err
+		}
+
+		*ms = []symbol{symbol(s)}
+		return nil
+	}
+
+	return unmarshal(r, (*[]symbol)(ms))
 }

@@ -89,16 +89,6 @@ func Run(cfg *types.Configuration) {
 				log.WithError(err).Panic("Error received dequeuing message - nil message")
 			}
 
-			if message.DeliveryAnnotations != nil && len(message.DeliveryAnnotations) > 0 {
-				lockToken, ok := message.DeliveryAnnotations["x-opt-lock-token"]
-				if ok {
-					log.WithField("message-lock-token", lockToken).Error("got x-opt-locktoken from message annotations in run.go")
-				}
-				log.WithField("deliveryAnnotations", message.DeliveryAnnotations).Info("Received message with delivery annotations")
-			} else {
-				log.Warning("message has nil or empty deliveryAnnotations")
-			}
-
 			wrapper := messaging.NewAmqpMessageWrapper(message)
 			contextualLogger := providers.GetLoggerForMessage(wrapper, log.NewEntry(log.StandardLogger()))
 			contextualLogger.Debug("message received")
