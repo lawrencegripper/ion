@@ -41,7 +41,7 @@ Supported executors include:
 
 The Dispatcher uses `providers` to schedule jobs onto execution environments. If you wish to add support for a new executor, please consider writing a custom provider and submitting a PR.
 
-For more details on dispatchers: please refer to the [Dispatcher docs](dispatcher/README.md)
+For more details on dispatchers: please refer to the [Dispatcher docs](internal/app/dispatcher/README.md)
 
 ### Jobs
 A job is the unit of deployment for a Dispatcher, it contains at least 2 sub components; a module and a handler. The job should be provided with all the parameters it needs to successfully fulfil its work during dispatch.
@@ -56,7 +56,7 @@ Each module is executed as part of a series of containers. There is a prepare ha
 The prepare handler is responsible for creating the environment in which the module will run. Including creating the desired directory structure and populating it with any data passed from previous modules.
 The commit handler is responsible for persisting any state written out by a module to Ion's data plane.
 
-For more details on handler: please refer to the [Handler docs](handler/README.md)
+For more details on handler: please refer to the [Handler docs](internal/app/handler/README.md)
 
 ## Developing
 

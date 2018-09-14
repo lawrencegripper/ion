@@ -18,7 +18,8 @@ message ModuleCreateRequest {
   int32 instancecount = 6;
   int32 retrycount = 7;
   string provider = 8;
-  map<string, string> configmap = 9;
+  int32 maxexecutiontimemins = 9;
+  map<string, string> configmap = 10;
 }
 
 message ModuleCreateResponse {

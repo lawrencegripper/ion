@@ -10,6 +10,14 @@
   revision = "e9dc86bbf0e5bbe6bf7ff5a6f71e048959b61f71"
 
 [[projects]]
+  digest = "1:d2ccb697dc13c8fbffafa37baae97594d5592ae8f7e113471084137315536e2b"
+  name = "github.com/Azure/azure-pipeline-go"
+  packages = ["pipeline"]
+  pruneopts = "NUT"
+  revision = "7571e8eb0876932ab505918ff7ed5107773e5ee2"
+  version = "0.1.7"
+
+[[projects]]
   digest = "1:507067bac5fff4a8005d0114b5e7d37a7d0ddacd02ddcbeb08caa8de433bd15f"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
@@ -60,6 +68,14 @@
   packages = ["."]
   pruneopts = "NUT"
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
+
+[[projects]]
+  digest = "1:0a05d409f73fb7d4595886e2de6093ab18eaeca1fb6470ddd0c96113975cb61b"
+  name = "github.com/azure/azure-storage-blob-go"
+  packages = ["2016-05-31/azblob"]
+  pruneopts = "NUT"
+  revision = "66ba96e49ebbdc3cd26970c6c675c906d304b5e2"
+  version = "0.1.4"
 
 [[projects]]
   digest = "1:7a6852b35eb5bbc184561443762d225116ae630c26a7c4d90546619f1e7d2ad2"
@@ -783,6 +799,7 @@
     "github.com/Azure/go-autorest/autorest/adal",
     "github.com/Azure/go-autorest/autorest/azure",
     "github.com/Azure/go-autorest/autorest/to",
+    "github.com/azure/azure-storage-blob-go/2016-05-31/azblob",
     "github.com/golang/protobuf/proto",
     "github.com/gorilla/mux",
     "github.com/jjcollinge/logrus-appinsights",

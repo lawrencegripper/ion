@@ -125,29 +125,32 @@ func (c *Committer) doCommit() error {
 }
 
 //CommitBlob commits the blob directory to an external blob provider
-func (c *Committer) commitBlob(blobsPath string) (map[string]string, error) {
-	if _, err := os.Stat(blobsPath); os.IsNotExist(err) {
-		logger.Debug(c.context, fmt.Sprintf("blob output directory '%s' does not exists '%+v'", blobsPath, err))
+func (c *Committer) commitBlob(blobsDir string) (map[string]string, error) {
+	if _, err := os.Stat(blobsDir); os.IsNotExist(err) {
+		logger.Debug(c.context, fmt.Sprintf("blob output directory '%s' does not exists '%+v'", blobsDir, err))
 		return nil, nil
 	}
 
-	// TODO: Search recursively to support sub folders.
-	files, err := ioutil.ReadDir(blobsPath)
+	files := make([]string, 0)
+	err := filepath.Walk(blobsDir, func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			return nil
+		}
+		files = append(files, path)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
-	var fileNames []string
-	for _, file := range files {
-		fileNames = append(fileNames, filepath.FromSlash(path.Join(blobsPath, file.Name())))
-	}
-	blobURIs, err := c.dataPlane.PutBlobs(fileNames)
+
+	blobURIs, err := c.dataPlane.PutBlobs(files)
 	if err != nil {
 		return nil, fmt.Errorf("failed to commit blob: %+v", err)
 	}
 
 	logger.Info(c.context, "committed blob data")
 	logger.DebugWithFields(c.context, "blob file names", map[string]interface{}{
-		"files": fileNames,
+		"files": files,
 	})
 	return blobURIs, nil
 }
@@ -220,78 +223,51 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		}
 
 		// Decode event into map
-		var keyValuePairs common.KeyValuePairs
+		var kvps common.KeyValuePairs
 		decoder := json.NewDecoder(f)
-		err = decoder.Decode(&keyValuePairs)
+		err = decoder.Decode(&kvps)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", fileName, err)
 		}
 		logger.DebugWithFields(c.context, "event data", map[string]interface{}{
-			"event": keyValuePairs,
+			"event": kvps,
 		})
 
 		var eventType string
-		var includedFilesCSV string
-		var eventTypeIndex, filesIndex int
-
-		// For each key/value in event data array.
-		for i, kvp := range keyValuePairs {
-			// Check the key against required keys
+		var incFiles []string
+		tmp := kvps[:0]
+		for _, kvp := range kvps {
 			switch kvp.Key {
 			case eventTypeKey:
-				// Check whether the event type is valid for this module
-				if helpers.ContainsString(c.validEventTypes, kvp.Value) == false {
-					logger.Info(c.context, fmt.Sprintf("this module is unable to publish event's of type '%s'", eventType))
+				if !c.isValidEventType(kvp.Value) {
+					logger.Info(c.context, fmt.Sprintf("module cannot publish events of type %s", kvp.Value))
 					continue
 				}
 				eventType = kvp.Value
-				eventTypeIndex = i
-				break
 			case filesToIncludeKey:
-				includedFilesCSV = kvp.Value
-				filesIndex = i
-				break
-			default:
-				// Ignore non required keys
-				break
-			}
-		}
-		itemsRemoved := 0
-
-		// [Required] Check that the key 'eventType' was found in the data
-		// if it wasn't return an error. If it was, remove it
-		// from the key value pairs as it is no longer needed
-		if eventType == "" {
-			return fmt.Errorf("all events must contain an 'eventType' field, error: '%+v'", err)
-		}
-		keyValuePairs, err = keyValuePairs.Remove(eventTypeIndex)
-		if err != nil {
-			return fmt.Errorf("error removing event type from metadata: '%+v'", err)
-		}
-		itemsRemoved++
-
-		// [Optional] Check whether the key 'files' was supplied in order
-		// to pass file references to event context. If it wasn't, log it
-		// and ignore it. If it was, remove it from the key value pairs
-		// as it is no longer needed and then add the file list and their
-		// blob uri for each of the files to the event context.
-		var fileSlice []string
-		if len(includedFilesCSV) == 0 {
-			logger.Info(c.context, "event contains no file references")
-		} else {
-			keyValuePairs, err = keyValuePairs.Remove(filesIndex - itemsRemoved)
-			if err != nil {
-				return fmt.Errorf("error removing event type from metadata: '%+v'", err)
-			}
-			itemsRemoved++
-			fileSlice = strings.Split(includedFilesCSV, ",")
-			for _, f := range fileSlice {
-				blobInfo := common.KeyValuePair{
-					Key:   f,
-					Value: blobURIs[f],
+				incFiles = strings.Split(kvp.Value, ",")
+				for _, f := range incFiles {
+					if f == "" {
+						continue // ignore empty strings
+					}
+					if !c.fileExistsInEnv(f) {
+						return fmt.Errorf("file '%s' specified in event does not exist in output", f)
+					}
+					if _, exists := blobURIs[f]; exists {
+						blobInfo := common.KeyValuePair{
+							Key:   f,
+							Value: blobURIs[f],
+						}
+						tmp = append(tmp, blobInfo)
+					}
 				}
-				keyValuePairs = keyValuePairs.Append(blobInfo)
+			default:
+				tmp = append(tmp, kvp)
 			}
+		}
+
+		if eventType == "" {
+			return fmt.Errorf("eventType is a required key value pair in an event")
 		}
 
 		eventID := helpers.NewGUID()
@@ -326,8 +302,8 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		// event id.
 		eventMeta := documentstorage.EventMeta{
 			Context: context,
-			Files:   fileSlice,
-			Data:    keyValuePairs,
+			Files:   incFiles,
+			Data:    tmp,
 		}
 		err = c.dataPlane.CreateEventMeta(&eventMeta)
 		if err != nil {
@@ -345,4 +321,19 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 
 	logger.Info(c.context, "committed events")
 	return nil
+}
+
+func (c *Committer) isValidEventType(eventType string) bool {
+	if !helpers.ContainsString(c.validEventTypes, eventType) {
+		return false
+	}
+	return true
+}
+
+func (c *Committer) fileExistsInEnv(f string) bool {
+	fileInEnv := filepath.Join(c.environment.OutputBlobDirPath, f)
+	if _, err := os.Stat(fileInEnv); err != nil {
+		return false
+	}
+	return true
 }

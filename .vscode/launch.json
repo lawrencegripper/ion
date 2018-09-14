@@ -57,7 +57,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceRoot}/cmd/management",
-            "envFile": "${workspaceRoot}/.vscode/management.private.env",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
             "showLog": true,
             "args": [
                 "start",

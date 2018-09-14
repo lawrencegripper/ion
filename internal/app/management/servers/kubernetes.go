@@ -190,6 +190,17 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 	// a unique ID for this creation
 	id := fmt.Sprintf("%s-%s", r.Modulename, genID())
 
+	// Validate provider
+	useAzureBatchProvider := false
+	switch strings.ToLower(r.Provider) {
+	case "azurebatch":
+		useAzureBatchProvider = true
+	case "kubernetes":
+		// noop
+	default:
+		return nil, fmt.Errorf("unrecognized provider %s", r.Provider)
+	}
+
 	// Create a configmap to store the configuration details
 	// needed by the module. These will be mounted into the
 	// dispatcher as a volume and then passed on when it
@@ -224,11 +235,6 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 
 	configMapFilePath := "/etc/config"
 
-	useAzureBatchProvider := false
-	if r.Provider == "azurebatch" {
-		useAzureBatchProvider = true
-	}
-
 	// Create an argument list to provide the the dispatcher binary
 	dispatcherArgs := []string{
 		"start",
@@ -241,6 +247,7 @@ func (k *Kubernetes) Create(ctx context.Context, r *module.ModuleCreateRequest) 
 		"--job.handlerimage=" + r.Handlerimage,
 		"--job.retrycount=" + fmt.Sprintf("%d", r.Retrycount),
 		"--job.pullalways=false",
+		"--job.maxrunningtimemins=" + fmt.Sprintf("%d", r.Maxexecutiontimemins),
 		"--kubernetes.namespace=" + k.namespace,
 		"--kubernetes.imagepullsecretname=" + sharedImagePullSecretName,
 		"--loglevel=" + logLevel,

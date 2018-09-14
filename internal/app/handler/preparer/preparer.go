@@ -6,6 +6,7 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
@@ -114,7 +115,7 @@ func (p *Preparer) prepareEnv() error {
 	// If in development enabled, make sure the development directories exist
 	if p.devConfig.Enabled {
 		if _, err := os.Stat(p.devConfig.ModuleDir); os.IsNotExist(err) {
-			_ = os.MkdirAll(p.devConfig.ModuleDir, 0777)
+			_ = os.MkdirAll(p.devConfig.ModuleDir, os.ModePerm)
 		}
 	}
 	return nil
@@ -145,7 +146,7 @@ func (p *Preparer) prepareData() error {
 			if err != nil {
 				return err
 			}
-			err = ioutil.WriteFile(p.environment.InputMetaFilePath, b, 0777)
+			err = ioutil.WriteFile(p.environment.InputMetaFilePath, b, os.ModePerm)
 			if err != nil {
 				return err
 			}
@@ -155,7 +156,12 @@ func (p *Preparer) prepareData() error {
 }
 
 func (p *Preparer) getEventMeta() (*documentstorage.EventMeta, error) {
-	context, _ := p.dataPlane.GetEventMetaByID(p.context.EventID)
-	//TODO: Fail on error conditions other than not found
-	return context, nil
+	context, err := p.dataPlane.GetEventMetaByID(p.context.EventID)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), documentstorage.NotFoundErr) {
+			logger.Info(p.context, "no event meta found, likely invoked manually")
+			return context, nil // Ignore not found errors
+		}
+	}
+	return context, err // Return all other errors
 }

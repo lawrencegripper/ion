@@ -6,6 +6,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
+
+	"github.com/lawrencegripper/ion/internal/app/handler/module"
 )
 
 //Config to setup a FileSystem storage provider
@@ -18,17 +21,19 @@ type Config struct {
 type BlobStorage struct {
 	inDir  string
 	outDir string
+	env    *module.Environment
 }
 
 //NewBlobStorage creates a new file system blob provider
-func NewBlobStorage(config *Config) (*BlobStorage, error) {
-	err := os.MkdirAll(config.OutputDir, 0777)
+func NewBlobStorage(config *Config, env *module.Environment) (*BlobStorage, error) {
+	err := os.MkdirAll(config.OutputDir, os.ModePerm)
 	if err != nil {
 		return nil, fmt.Errorf("error creating directory for filesystem blob provider '%+v'", err)
 	}
 	fs := &BlobStorage{
 		inDir:  config.InputDir,
 		outDir: config.OutputDir,
+		env:    env,
 	}
 	return fs, nil
 }
@@ -37,8 +42,14 @@ func NewBlobStorage(config *Config) (*BlobStorage, error) {
 func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 	uris := make(map[string]string)
 	for _, filePath := range filePaths {
-		_, nakedFilePath := filepath.Split(filePath)
+		nakedFilePath := strings.Replace(filePath, a.env.OutputBlobDirPath, "", -1)
+		if nakedFilePath[0] == '/' {
+			nakedFilePath = nakedFilePath[1:]
+		}
 		destPath := filepath.FromSlash(path.Join(a.outDir, nakedFilePath))
+		if err := os.MkdirAll(filepath.Dir(destPath), os.ModePerm); err != nil {
+			return nil, fmt.Errorf("error creating output directory %s: %+v", destPath, err)
+		}
 		if err := copy(filePath, destPath); err != nil {
 			return nil, fmt.Errorf("error copying file to blob storage '%+v'", err)
 		}
@@ -56,6 +67,8 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 			return fmt.Errorf("error getting blob '%s': '%+v'", file, err)
 		}
 		destPath := filepath.FromSlash(path.Join(outputDir, file))
+		destDir := filepath.Dir(destPath)
+		_ = os.MkdirAll(destDir, os.ModePerm)
 		if err := copy(srcPath, destPath); err != nil {
 			return fmt.Errorf("error copying from blob '%s': '%+v'", file, err)
 		}

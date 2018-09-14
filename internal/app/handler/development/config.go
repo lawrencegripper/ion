@@ -35,7 +35,7 @@ func (c *Configuration) Init(parentEventID, eventID string) error {
 	}
 
 	if _, err := os.Stat(c.BaseDir); os.IsNotExist(err) {
-		if err = os.MkdirAll(c.BaseDir, 0777); err != nil {
+		if err = os.MkdirAll(c.BaseDir, os.ModePerm); err != nil {
 			return fmt.Errorf("error creating development base directory %+v", err)
 		}
 	}
@@ -62,24 +62,24 @@ func (c *Configuration) Init(parentEventID, eventID string) error {
 	// If parentModuleDir is empty, assume module is root of tree
 	moduleDir := filepath.Join(prefix, c.ParentModuleDir, eventID)
 	if _, err := os.Stat(moduleDir); os.IsNotExist(err) {
-		_ = os.Mkdir(moduleDir, 0777)
+		_ = os.Mkdir(moduleDir, os.ModePerm)
 	}
 	blobsDir := filepath.Join(moduleDir, BlobsDirExt)
 	if _, err := os.Stat(blobsDir); os.IsNotExist(err) {
-		_ = os.Mkdir(blobsDir, 0777)
+		_ = os.Mkdir(blobsDir, os.ModePerm)
 	}
 	eventsDir := filepath.Join(moduleDir, EventsDirExt)
 	if _, err := os.Stat(eventsDir); os.IsNotExist(err) {
-		_ = os.Mkdir(eventsDir, 0777)
+		_ = os.Mkdir(eventsDir, os.ModePerm)
 
 	}
 	metadataDir := filepath.Join(moduleDir, MetadataDirExt)
 	if _, err := os.Stat(metadataDir); os.IsNotExist(err) {
-		_ = os.Mkdir(metadataDir, 0777)
+		_ = os.Mkdir(metadataDir, os.ModePerm)
 	}
 	insightsDir := filepath.Join(moduleDir, InsightsDirExt)
 	if _, err := os.Stat(insightsDir); os.IsNotExist(err) {
-		_ = os.Mkdir(insightsDir, 0777)
+		_ = os.Mkdir(insightsDir, os.ModePerm)
 	}
 
 	if moduleDir == "" {
@@ -142,7 +142,7 @@ func (c *Configuration) writeOutput(filename string, dir string, obj interface{}
 	if err != nil {
 		return fmt.Errorf("error generating development logs, '%+v'", err)
 	}
-	err = ioutil.WriteFile(path, b, 0777)
+	err = ioutil.WriteFile(path, b, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error writing development logs, '%+v'", err)
 	}

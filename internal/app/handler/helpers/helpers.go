@@ -38,7 +38,7 @@ func ClearDir(dirPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed removing directory path '%s' with error: '%+v'", dirPath, err)
 	}
-	err = os.MkdirAll(dirPath, 0777)
+	err = os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed creating directory path '%s' with error: '%+v'", dirPath, err)
 	}
@@ -85,7 +85,7 @@ func ContainsString(slice []string, target string) bool {
 //CreateDirClean creates a directory - deleting any existing directory
 func CreateDirClean(dirPath string) error {
 	_ = os.RemoveAll(dirPath)
-	if err := os.MkdirAll(dirPath, 0777); err != nil {
+	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
 		return fmt.Errorf("error creating directory '%s': '%+v'", dirPath, err)
 	}
 	return nil

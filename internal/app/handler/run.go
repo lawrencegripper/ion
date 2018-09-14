@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/documentstorage"
 	"github.com/lawrencegripper/ion/internal/app/handler/development"
 	"path/filepath"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/events/mock"
 	"github.com/lawrencegripper/ion/internal/app/handler/dataplane/events/servicebus"
 	"github.com/lawrencegripper/ion/internal/app/handler/helpers"
+	"github.com/lawrencegripper/ion/internal/app/handler/module"
 	"github.com/lawrencegripper/ion/internal/app/handler/preparer"
 	log "github.com/sirupsen/logrus"
 )
@@ -149,12 +151,17 @@ func getBlobProvider(config *Configuration, meta dataplane.DocumentStorageProvid
 		log.Info("getting event meta as the blob provider requires the SAS urls")
 		eventMeta, err := meta.GetEventMetaByID(config.Context.EventID)
 		if err != nil {
-			log.WithError(err).Panic("failed while getting eventmeta for blob provider to use sas urls")
+			if strings.HasPrefix(err.Error(), documentstorage.NotFoundErr) {
+				log.Info("no event meta found, likely handler invoked manually")
+			} else {
+				log.WithError(err).Panic("failed while getting event meta for blob provider to use SAS urls")
+			}
 		}
 		azureBlob, err := azure.NewBlobStorage(c,
 			helpers.JoinBlobPath(config.Context.ParentEventID, config.Context.Name),
 			helpers.JoinBlobPath(config.Context.EventID, config.Context.Name),
 			eventMeta,
+			module.GetModuleEnvironment(config.BaseDir),
 		)
 		if err != nil {
 			panic(fmt.Errorf("failed to establish blob storage with provider '%s', error: %+v", blobProviderAzureStorage, err))
@@ -165,7 +172,7 @@ func getBlobProvider(config *Configuration, meta dataplane.DocumentStorageProvid
 	fsBlob, err := filesystem.NewBlobStorage(&filesystem.Config{
 		InputDir:  filepath.FromSlash(path.Join(config.DevelopmentConfiguration.ParentModuleDir, development.BlobsDirExt)),
 		OutputDir: filepath.FromSlash(path.Join(config.DevelopmentConfiguration.ModuleDir, development.BlobsDirExt)),
-	})
+	}, module.GetModuleEnvironment(config.BaseDir))
 	if err != nil {
 		panic(fmt.Errorf("failed to establish metadata store with debug provider, error: %+v", err))
 	}
