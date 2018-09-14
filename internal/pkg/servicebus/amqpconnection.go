@@ -263,9 +263,6 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 		}
 	}
 
-	fmt.Println("...")
-	fmt.Printf("renew lock response: %+v", response)
-
 	return nil
 }
 
