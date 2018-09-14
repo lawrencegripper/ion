@@ -44,10 +44,10 @@ func TestIntegrationNewListener(t *testing.T) {
 	// pick a random name to prevent previous tests affecting this test
 	config.ModuleName = helpers.RandomName(8)
 
-	renewEvery := time.Second * 30
-	processingTime := time.Second * 120
+	renewEvery := time.Second * 35
+	processingTime := time.Second * 240
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*240)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*310)
 	defer cancel()
 
 	listener := NewAmqpConnection(ctx, config)
@@ -100,8 +100,15 @@ func TestIntegrationNewListener(t *testing.T) {
 				err := listener.RenewLocks(ctx, []*amqp.Message{
 					amqpMessage,
 				})
+
+				// Report the test error if the context hasn't been cancelled.
 				if err != nil {
-					t.Error(err)
+					select {
+					case <-renewContext.Done():
+						return
+					default:
+						t.Error(err)
+					}
 				}
 			}
 		}
