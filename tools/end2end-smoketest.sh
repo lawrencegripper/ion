@@ -106,9 +106,7 @@ echo "--------------------------------------------------------"
 ps aux | grep [k]ubectl | awk '{print $2}' | xargs kill || true
 
 kubectl get pods | grep ion-front | awk '{print $1}' | xargs -I % kubectl port-forward % 9001:9001 &
-FORWARD_PID1=$!
 kubectl get pods | grep ion-management | awk '{print $1}' | xargs -I % kubectl port-forward % 9000:9000 &
-FORWARD_PID2=$!
 
 
 echo "--------------------------------------------------------"

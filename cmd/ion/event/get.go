@@ -62,7 +62,10 @@ func Get(cmd *cobra.Command, args []string) error {
 	}
 
 	// Dequeue event
-	msg.Accept()
+	err = msg.Accept()
+	if err != nil {
+		return fmt.Errorf("error accepting event: %+v", err)
+	}
 
 	fmt.Println(string(msg.GetData()))
 	return nil

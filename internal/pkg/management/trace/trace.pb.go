@@ -34,7 +34,7 @@ func (m *GetFlowRequest) Reset()         { *m = GetFlowRequest{} }
 func (m *GetFlowRequest) String() string { return proto.CompactTextString(m) }
 func (*GetFlowRequest) ProtoMessage()    {}
 func (*GetFlowRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trace_9e18cb942ae3326e, []int{0}
+	return fileDescriptor_trace_24f21ce4024d85b8, []int{0}
 }
 func (m *GetFlowRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetFlowRequest.Unmarshal(m, b)
@@ -72,7 +72,7 @@ func (m *GetFlowResponse) Reset()         { *m = GetFlowResponse{} }
 func (m *GetFlowResponse) String() string { return proto.CompactTextString(m) }
 func (*GetFlowResponse) ProtoMessage()    {}
 func (*GetFlowResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trace_9e18cb942ae3326e, []int{1}
+	return fileDescriptor_trace_24f21ce4024d85b8, []int{1}
 }
 func (m *GetFlowResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetFlowResponse.Unmarshal(m, b)
@@ -176,9 +176,9 @@ var _TraceService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "trace.proto",
 }
 
-func init() { proto.RegisterFile("trace.proto", fileDescriptor_trace_9e18cb942ae3326e) }
+func init() { proto.RegisterFile("trace.proto", fileDescriptor_trace_24f21ce4024d85b8) }
 
-var fileDescriptor_trace_9e18cb942ae3326e = []byte{
+var fileDescriptor_trace_24f21ce4024d85b8 = []byte{
 	// 153 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2e, 0x29, 0x4a, 0x4c,
 	0x4e, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x57, 0x32, 0xe3, 0xe2, 0x73, 0x4f, 0x2d, 0x71, 0xcb,

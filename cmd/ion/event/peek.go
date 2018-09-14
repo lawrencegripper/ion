@@ -58,7 +58,10 @@ func Peek(cmd *cobra.Command, args []string) error {
 	}
 
 	// Release event
-	msg.Release()
+	err = msg.Release()
+	if err != nil {
+		return fmt.Errorf("error releasing event: %+v", err)
+	}
 
 	var event common.Event
 	b := msg.GetData()

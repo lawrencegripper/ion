@@ -60,14 +60,12 @@ func (m *AmqpMessage) Body() []byte {
 
 // Accept mark the message as processed successfully (don't re-queue)
 func (m *AmqpMessage) Accept() error {
-	m.OriginalMessage.Accept()
-	return nil
+	return m.OriginalMessage.Accept()
 }
 
 // Reject mark message to be requeued
 func (m *AmqpMessage) Reject() error {
-	m.OriginalMessage.Modify(true, false, nil)
-	return nil
+	return m.OriginalMessage.Modify(true, false, nil)
 }
 
 // EventData deserialize json value to type

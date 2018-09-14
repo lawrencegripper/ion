@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/twinj/uuid"
 	"net/http"
 	"strconv"
 	"strings"
