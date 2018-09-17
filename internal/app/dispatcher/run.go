@@ -44,21 +44,32 @@ func Run(cfg *types.Configuration) {
 	go func() {
 		defer wg.Done()
 		for {
-			// Locks are held for 1 mins, renew every 25 sec to keep locks
-			time.Sleep(25 * time.Second)
+			// Locks are held for 1 mins, renew every 20 sec to keep locks
+			time.Sleep(20 * time.Second)
+			// allow 20seconds for the renew operation, keeping a 25 second buffer
+			timeAllowanceForRenewalRequest := time.Second * 15
 
 			// Renew message locks with ServiceBus
 			//https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-amqp-request-response#message-renew-lock
 			activeMessages := provider.GetActiveMessages()
+			if len(activeMessages) < 1 {
+				log.Debug("no active messages, skipping lock renewal")
+				continue
+			}
+
 			messagesAMQP := make([]*amqp.Message, 0, len(activeMessages))
 			for _, m := range activeMessages {
 				originalMessage := m.GetAMQPMessage()
 				messagesAMQP = append(messagesAMQP, originalMessage)
 			}
 
-			err := amqpConnection.RenewLocks(ctx, messagesAMQP)
+			renewContextWithDeadline, cancel := context.WithTimeout(ctx, timeAllowanceForRenewalRequest)
+			defer cancel()
+			err := amqpConnection.RenewLocks(renewContextWithDeadline, messagesAMQP)
 			if err != nil {
-				log.WithError(err).Error("failed to renew locks")
+				// Todo: Additional could be put in here to cleanup operations. See: #171
+				// https://github.com/lawrencegripper/ion/issues/171
+				log.WithError(err).Panic("Failed to renew locks therefor cannot continue to operation as message maybe reassigned to another dispatcher.")
 			}
 		}
 	}()
