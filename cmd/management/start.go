@@ -152,6 +152,9 @@ func NewStartCommand() *cobra.Command {
 	flags.Int("management-port", 9000, "The management API port")
 	viper.BindPFlag("management-port", flags.Lookup("management-port"))
 
+	flags.String("provider", "kubernetes", "The management provider (options: kubernetes)")
+	viper.BindPFlag("provider", flags.Lookup("provider"))
+
 	flags.String("certfile", "", "The server x509 certificate for TLS")
 	viper.BindPFlag("certfile", flags.Lookup("certfile"))
 

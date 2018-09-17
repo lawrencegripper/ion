@@ -14,15 +14,15 @@ echo "WARNING: This script will deploy into your currently selected Azure Subscr
 echo "You must have already:"
 echo " MUST: Run terraform init in the ./deployment folder"
 echo " MUST: have kubectl installed and available in your path"
-echo " Must: Be logged into Azure CLI and have the right subscription set as your default"
-echo " Must: Be logged into Docker CLI and have set $DOCKER_USER to your username"
+echo " MUST: Be logged into Azure CLI and have the right subscription set as your default"
+echo ' MUST: Be logged into Docker CLI and have set $DOCKER_USER to your username'
 echo "--------------------------------------------------------"
 
 sleep 5
 
 if [ -z "$DOCKER_USER" ]
 then
-      echo "You must specify a $DOCKER_USER environment variable to which the ion images can be pushed"
+      echo 'You must specify a $DOCKER_USER environment variable to which the ion images can be pushed'
       exit 1
 fi
 
@@ -162,6 +162,6 @@ echo "docker run --rm -v ${PWD}:/src \
 --keyfile /src/tf/client.key \
 --cacertfile /src/tf/rootCA.pem"
 
-read -p "Press enter to to stop forwarding ports to management api and front api and exit..." key
+read -p "Press enter to to stop forwarding ports to the front api and exit..." key
 ps aux | grep [k]ubectl | awk '{print $2}' | xargs kill || true
 
