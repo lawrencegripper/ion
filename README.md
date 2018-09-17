@@ -78,14 +78,14 @@ There is no shortage of tools that can string together a series of processes int
 However, Ion has some key differentiators that make it very suitable to certain workloads.
 
 ## Heterogenous Environments
-Most existing workflow tools assume a homogenous execution environment i.e. each task is alike and has the same computational needs. However this isn't always the case, 1 task may need to render video frames for 48 hours on preemptable machines with GPUs whilst another simply tansforms a small document from JSON to YAML and could compute in seconds on a shared host. Ion makes these vastly different requirements easy to satisfy with a single tool by orchestrating tasks onto other execution environments for fulfillment. Ion will monitor the task across execution environments to give you a single aggregated view.
+Most existing workflow tools assume a homogenous execution environment i.e. each task is alike and has the same computational needs. However this isn't always the case, 1 task may need to render video frames for 48 hours on preemptable machines with GPUs whilst another simply transforms a small document from JSON to YAML and could compute in seconds on a shared host. Ion makes these vastly different requirements easy to satisfy with a single tool by orchestrating tasks onto other execution environments for fulfillment. Ion will monitor the task across execution environments to give you a single aggregated view.
 
  Currently supported enviornments:
  * Kubernetes
  * Azure Batch
 
 ## State Management
-A lot of workflow tools tend to follow a purely functional pattern, where state only exists as inputs and outputs of functions. This means that if you do want to store additional state, you end up writing custom tasks to read from and write to some external storage. With Ion, we decided to make data a first-class citizen of the platform. This means making handling data for the users as simple and intuitive as possible. Ion takes care of persisting data and transition it between different tasks in the workflow by leveraging various storage technologies as components of its data plane. Leaving the task author to simply read and write to disk without concerning themselves with external storage.
+A lot of workflow tools tend to follow a purely functional pattern, where state only exists as inputs and outputs of functions. This means that if you do want to store additional state, you end up writing custom tasks to read from and write to some external storage. With Ion, we decided to make data a first-class citizen of the platform. This means making handling data for the users as simple and intuitive as possible. Ion takes care of persisting data and transitioning it between different tasks in the workflow by leveraging various storage technologies as components of its data plane. Leaving the task author to simply read and write to disk without concerning themselves with external storage.
 
 Currently supported blob storage services:
 * Azure Blob Storage
