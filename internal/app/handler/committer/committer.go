@@ -150,7 +150,8 @@ func (c *Committer) commitBlob(blobsDir string) (map[string]string, error) {
 
 	logger.Info(c.context, "committed blob data")
 	logger.DebugWithFields(c.context, "blob file names", map[string]interface{}{
-		"files": files,
+		"files":    files,
+		"blobURIs": blobURIs,
 	})
 	return blobURIs, nil
 }
@@ -229,13 +230,13 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map '%s' with error: '%+v'", fileName, err)
 		}
-		logger.DebugWithFields(c.context, "event data", map[string]interface{}{
+		logger.DebugWithFields(c.context, "event data from file", map[string]interface{}{
 			"event": kvps,
 		})
 
 		var eventType string
 		var incFiles []string
-		tmp := kvps[:0]
+		eventDataField := make(common.KeyValuePairs, 0, len(kvps)+1)
 		for _, kvp := range kvps {
 			switch kvp.Key {
 			case eventTypeKey:
@@ -258,11 +259,11 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 							Key:   f,
 							Value: blobURIs[f],
 						}
-						tmp = append(tmp, blobInfo)
+						eventDataField = append(eventDataField, blobInfo)
 					}
 				}
 			default:
-				tmp = append(tmp, kvp)
+				eventDataField = append(eventDataField, kvp)
 			}
 		}
 
@@ -303,8 +304,14 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 		eventMeta := documentstorage.EventMeta{
 			Context: context,
 			Files:   incFiles,
-			Data:    tmp,
+			Data:    eventDataField,
 		}
+
+		logger.DebugWithFields(c.context, "event obj and event meta", map[string]interface{}{
+			"event":     event,
+			"eventMeta": eventMeta,
+		})
+
 		err = c.dataPlane.CreateEventMeta(&eventMeta)
 		if err != nil {
 			return fmt.Errorf("failed to add context '%+v' with error '%+v'", eventMeta, err)

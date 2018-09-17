@@ -19,9 +19,8 @@ type Insight struct {
 //EventMeta is a single entry in a document
 type EventMeta struct {
 	*common.Context
-	ParentEventID string               `bson:"parentEventId" json:"parentEventId"`
-	Files         []string             `bson:"files" json:"files"`
-	Data          common.KeyValuePairs `bson:"data" json:"data"`
+	Files []string             `bson:"files" json:"files"`
+	Data  common.KeyValuePairs `bson:"data" json:"data"`
 }
 
 //ModuleLogs is a single entry in a document
