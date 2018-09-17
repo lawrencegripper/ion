@@ -129,6 +129,41 @@ resource "kubernetes_deployment" "ion-front-api" {
   }
 }
 
+resource "kubernetes_secret" "ion-management-api" {
+  metadata {
+    name = "generic"
+  }
+
+  data {
+    certificate     = "${var.server_cert}"
+    certificate_key = "${var.server_key}"
+    certificate_ca  = "${var.root_ca}"
+  }
+}
+
+resource "kubernetes_service" "ion-management-api" {
+  metadata {
+    name = "ion-management-api"
+
+    annotations {
+      "service.beta.kubernetes.io/azure-dns-label-name" = "${var.prefix}"
+    }
+  }
+
+  spec {
+    selector {
+      app = "${kubernetes_deployment.ion-management-api.metadata.0.labels.app}"
+    }
+
+    port {
+      port        = 9000
+      target_port = 9000
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
 resource "kubernetes_deployment" "ion-management-api" {
   metadata {
     name = "ion-management-api"
@@ -162,6 +197,18 @@ resource "kubernetes_deployment" "ion-management-api" {
           }
 
           env = [
+            {
+              name  = "CERTFILE"
+              value = "${var.certificate_mount_path}/certificate"
+            },
+            {
+              name  = "KEYFILE"
+              value = "${var.certificate_mount_path}/certificate_key"
+            },
+            {
+              name  = "CACERTFILE"
+              value = "${var.certificate_mount_path}/certificate_ca"
+            },
             {
               name  = "AZURE_BATCH_ACCOUNT_LOCATION"
               value = "${var.resource_group_location}"
@@ -271,8 +318,26 @@ resource "kubernetes_deployment" "ion-management-api" {
               value = "${var.app_insights_key}"
             },
           ]
+
+          volume_mount {
+            mount_path = "${var.certificate_mount_path}"
+            name       = "ion-management-api"
+            read_only  = true
+          }
+        }
+
+        volume {
+          name = "ion-management-api"
+
+          secret {
+            secret_name = "${kubernetes_secret.ion-management-api.metadata.0.name}"
+          }
         }
       }
     }
   }
+}
+
+output "service_ip" {
+  value = "${kubernetes_service.ion-management-api.load_balancer_ingress.0.ip}"
 }

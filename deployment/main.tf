@@ -70,6 +70,13 @@ module "appinsights" {
 
 data "azurerm_client_config" "current" {}
 
+module "tls" {
+  source = "tls"
+
+  resource_group_name     = "${azurerm_resource_group.batchrg.name}"
+  resource_group_location = "${azurerm_resource_group.batchrg.location}"
+}
+
 module "ion" {
   source = "ion"
 
@@ -108,6 +115,12 @@ module "ion" {
   frontapi_docker_image      = "${var.docker_root}/ion-frontapi:${var.docker_tag}"
 
   app_insights_key = "${module.appinsights.instrumentation_key}"
+
+  server_cert = "${module.tls.server_cert}"
+  server_key  = "${module.tls.server_key}"
+  root_ca     = "${module.tls.root_ca}"
+  fqdn        = "${module.tls.fqdn}"
+  prefix      = "${module.tls.prefix}"
 }
 
 output "kubeconfig" {
@@ -134,4 +147,37 @@ output "acr_username" {
 output "acr_password" {
   sensitive = true
   value     = "${module.acr.password}"
+}
+
+output "ion_client_cert" {
+  value     = "${module.tls.client_cert}"
+  sensitive = true
+}
+
+output "ion_client_key" {
+  value     = "${module.tls.client_key}"
+  sensitive = true
+}
+
+output "ion_ca" {
+  value     = "${module.tls.root_ca}"
+  sensitive = true
+}
+
+output "ion_server_cert" {
+  value     = "${module.tls.server_cert}"
+  sensitive = true
+}
+
+output "ion_server_key" {
+  value     = "${module.tls.server_key}"
+  sensitive = true
+}
+
+output "ion_fqdn" {
+  value = "${module.tls.fqdn}"
+}
+
+output "ion_service_ip" {
+  value = "${module.ion.service_ip}"
 }

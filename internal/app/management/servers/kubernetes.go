@@ -94,6 +94,9 @@ func (k *Kubernetes) createSharedServicesSecret(config *types.Configuration) err
 			},
 		},
 		StringData: map[string]string{
+			"CERTFILE":                                  config.CertFile,
+			"KEYFILE":                                   config.KeyFile,
+			"CACERTFILE":                                config.CACertFile,
 			"CLIENTID":                                  config.AzureClientID,
 			"CLIENTSECRET":                              config.AzureClientSecret,
 			"SUBSCRIPTIONID":                            config.AzureSubscriptionID,
