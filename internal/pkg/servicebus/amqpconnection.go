@@ -194,9 +194,7 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 
 func swapIndex(indexOne, indexTwo int, array *[16]byte) {
 	v1 := array[indexOne]
-	v2 := array[indexTwo]
-
-	array[indexOne] = v2
+	array[indexOne] = array[indexTwo]
 	array[indexTwo] = v1
 }
 

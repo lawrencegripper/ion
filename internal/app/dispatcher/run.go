@@ -69,7 +69,7 @@ func Run(cfg *types.Configuration) {
 			if err != nil {
 				// Todo: Additional could be put in here to cleanup operations. See: #171
 				// https://github.com/lawrencegripper/ion/issues/171
-				log.WithError(err).Panic("Failed to renew locks therefor cannot continue to operation as message maybe reassigned to another dispatcher.")
+				log.WithError(err).Panic("Failed to renew locks therefore cannot continue ooperation as message could reassigned to another dispatcher.")
 			}
 		}
 	}()

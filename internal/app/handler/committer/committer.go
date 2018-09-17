@@ -150,8 +150,7 @@ func (c *Committer) commitBlob(blobsDir string) (map[string]string, error) {
 
 	logger.Info(c.context, "committed blob data")
 	logger.DebugWithFields(c.context, "blob file names", map[string]interface{}{
-		"files":    files,
-		"blobURIs": blobURIs,
+		"files": files,
 	})
 	return blobURIs, nil
 }
@@ -306,11 +305,6 @@ func (c *Committer) commitEvents(eventsPath string, blobURIs map[string]string) 
 			Files:   incFiles,
 			Data:    eventDataField,
 		}
-
-		logger.DebugWithFields(c.context, "event obj and event meta", map[string]interface{}{
-			"event":     event,
-			"eventMeta": eventMeta,
-		})
 
 		err = c.dataPlane.CreateEventMeta(&eventMeta)
 		if err != nil {
