@@ -123,6 +123,7 @@ echo "Submitting a video for processing to the frontapi"
 echo "--------------------------------------------------------"
 
 curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4"}'   http://localhost:9001/
+curl --header "Content-Type: application/json"   --request POST   --data '{"url": "http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_1080p_60fps_stereo_abl.mp4"}'   http://localhost:9001/
 
 if [ -x "$(command -v beep)" ]; then
     beep
