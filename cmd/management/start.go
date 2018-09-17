@@ -31,6 +31,10 @@ func NewStartCommand() *cobra.Command {
 			viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 			viper.AutomaticEnv()
 
+			managementConfig.CertFile = viper.GetString("certfile")
+			managementConfig.KeyFile = viper.GetString("keyfile")
+			managementConfig.CACertFile = viper.GetString("cacertfile")
+			managementConfig.Hostname = viper.GetString("hostname")
 			managementConfig.Provider = viper.GetString("provider")
 			managementConfig.Port = viper.GetInt("management-port")
 			managementConfig.Namespace = viper.GetString("namespace")
@@ -148,6 +152,21 @@ func NewStartCommand() *cobra.Command {
 	flags.Int("management-port", 9000, "The management API port")
 	viper.BindPFlag("management-port", flags.Lookup("management-port"))
 
+	flags.String("provider", "kubernetes", "The management provider (options: kubernetes)")
+	viper.BindPFlag("provider", flags.Lookup("provider"))
+
+	flags.String("certfile", "", "The server x509 certificate for TLS")
+	viper.BindPFlag("certfile", flags.Lookup("certfile"))
+
+	flags.String("keyfile", "", "The server private key for the certificate file")
+	viper.BindPFlag("keyfile", flags.Lookup("keyfile"))
+
+	flags.String("cacertfile", "", "The CA root certificate file")
+	viper.BindPFlag("cacertfile", flags.Lookup("cacertfile"))
+
+	flags.String("hostname", "localhost", "The hostname to listen on")
+	viper.BindPFlag("hostname", flags.Lookup("hostname"))
+
 	flags.String("namespace", "default", "Namespace to deploy Ion into")
 	cmd.MarkFlagRequired("namespace")
 	viper.BindPFlag("namespace", flags.Lookup("namespace"))
@@ -214,10 +233,10 @@ func NewStartCommand() *cobra.Command {
 	viper.BindPFlag("image-registry-url", flags.Lookup("image-registry-url"))
 
 	flags.String("image-registry-username", "", "The username for the image registry")
-	viper.BindPFlag("image-registry-username", flags.Lookup("image-registry-url"))
+	viper.BindPFlag("image-registry-username", flags.Lookup("image-registry-username"))
 
 	flags.String("image-registry-password", "", "The passworkd for the image registry")
-	viper.BindPFlag("image-registry-password", flags.Lookup("image-registry-url"))
+	viper.BindPFlag("image-registry-password", flags.Lookup("image-registry-password"))
 
 	//logging: Appinsights
 	flags.String("logging-appinsights", "", "App Insights instrumentation key")

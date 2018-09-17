@@ -1,3 +1,9 @@
+variable "certificate_mount_path" {
+  type        = "string"
+  description = "Path to mount certificates"
+  default     = "/etc/config/"
+}
+
 variable "client_id" {
   type        = "string"
   description = "Client ID"
@@ -107,3 +113,13 @@ variable "dispatcher_docker_image" {
 }
 
 variable "app_insights_key" {}
+
+variable "server_cert" {}
+
+variable "server_key" {}
+
+variable "root_ca" {}
+
+variable "fqdn" {}
+
+variable "prefix" {}

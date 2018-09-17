@@ -1,3 +1,4 @@
+certs
 .directory
 build/dispatcher/dispatcher
 build/handler/ion-handler
@@ -18,3 +19,7 @@ ionctl
 frontapi
 imagetag.temp
 **/debug
+cmd/ion/module/module.go
+cmd/management/management
+cmd/ion/ion
+tf/
