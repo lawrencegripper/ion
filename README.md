@@ -127,14 +127,14 @@ The Dispatcher uses different providers to schedule jobs onto execution environm
 ## Jobs
 A job is the unit of deployment for a Dispatcher, it contains 3 components. A [Preparer](#preparer), [Module](#modules) and a [Committer](#committer). The job should be provided with all the parameters it needs to successfully fulfil its work during dispatch.
 
+#### Modules
+A module is analogous to a task. It is the program that the user wishes to execute in response to a particular event. This is likely the only component a user of the platform needs to be concerned with. The module can be written in any language but should be containerized along with all its dependencies.
+
 #### Preparer
 The preparer is the first component of a job to execute. It is responsible for initialising the environment in which the module will run. This includes downloading any data the module needs and creating the directory structure.
 
 #### Committer
 The commit is the last component of a job to execute. It is responsible for uploading any data the module may have created and raising any output events.
-
-## Modules
-A module is analogous to a task. It is the program that the user wishes to execute in response to a particular event. This is likely the only component a user of the platform needs to be concerned with. The module can be written in any language but should be containerized along with all its dependencies.
 
 ## Management API
 Ion comes with a management API that can be used to operate modules. At current this can provide very basic management functionality such as create, delete and list modules. It also comes with an accompanying CLI tool that provides a simple way to manage Ion resources.
