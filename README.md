@@ -35,7 +35,7 @@ cd ./ion/deployment
 curl -L -o - PUT_RELASE_BINARY_LINK_YOU_FOUND_HERE | gunzip > terraform-provider-kubernetes
 chmod +x ./terraform-provider-kubernetes
 ```
-5. (cont) Or, use the appropriate provided script for your platform (found in the `deployments` folder); `bootstrap_linux.sh`, `bootstrap_mac.sh` and `bootstrap_windows.ps1`
+5. (cont.) Or, use the appropriate provided script for your platform (found in the `deployments` folder); `bootstrap_linux.sh`, `bootstrap_mac.sh` and `bootstrap_windows.ps1`
 
 6. Use `terraform init` to initialize your working directory and config
 7. Use `terraform plan -var-file=./vars.example.tfvars` to generate a terraform deployment plan
@@ -78,7 +78,7 @@ There is no shortage of tools that can string together a series of processes int
 However, Ion has some key differentiators that make it very suitable to certain workloads.
 
 ## Heterogenous Environments
-Most existing workflow tools assume a homogenous execution environment i.e. each task is alike and has the same computational needs. However this isn't always the case, 1 task may need to render video frames for 48 hours on preemptable machines with GPUs whilst another simply transforms a small document from JSON to YAML and could compute in seconds on a shared host. Ion makes these vastly different requirements easy to satisfy with a single tool by orchestrating tasks onto other execution environments for fulfillment. Ion will monitor the task across execution environments to give you a single aggregated view.
+Most existing workflow tools assume a homogenous execution environment i.e. each task is alike and has the same computational needs. However this isn't always the case, 1 task may need to render video frames for 48 hours on preemptable machines with GPUs whilst another simply transforms a small document from JSON to YAML and could compute in seconds on a shared host. Ion makes these vastly different requirements easy to satisfy with a single tool by orchestrating tasks onto other execution environments for fulfillment. Ion will then monitor the task across execution environments to give you a single aggregated view.
 
  Currently supported enviornments:
  * Kubernetes
@@ -137,7 +137,7 @@ The preparer is the first component of a job to execute. It is responsible for i
 The commit is the last component of a job to execute. It is responsible for uploading any data the module may have created and raising any output events.
 
 ## Management API
-Ion comes with a management API that can be used to operate modules. At current this can provide very basic management functionality such as create, delete and list modules. It also comes with an accompanying CLI tool that provides a simple way to manage Ion resources.
+Ion comes with a management API that can be used to operate modules. At current this can provide very basic management functionality such as create, delete and list modules. It also comes with an accompanying CLI tool that provides a simple way to manage Ion resources. In future we hope to extend this to provide a UI and more advanced integration with Ion's tracing system.
 
 ![](docs/images/ion2.png)
 
