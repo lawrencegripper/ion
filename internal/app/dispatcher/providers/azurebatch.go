@@ -398,9 +398,14 @@ func (b *AzureBatch) Reconcile() error {
 		}
 
 		if t.State != batch.TaskStateCompleted {
+			eventData, err := sourceMessage.EventData()
+			if err != nil {
+				log.WithError(err).Error("failed to get eventData for in-progress task")
+			}
+
 			log.WithFields(log.Fields{
-				"message": sourceMessage,
-				"task":    t,
+				"correlationId": eventData.Context.CorrelationID,
+				"eventId":       eventData.Context.EventID,
 			}).Info("Skipping task not currently in completed state")
 		}
 	}

@@ -192,22 +192,43 @@ func NewAmqpConnection(ctx context.Context, config *types.Configuration) *AmqpCo
 	return &listener
 }
 
+func swapIndex(indexOne, indexTwo int, array *[16]byte) {
+	v1 := array[indexOne]
+	array[indexOne] = array[indexTwo]
+	array[indexTwo] = v1
+}
+
 //RenewLocks renews the locks on messages provided
 func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Message) error {
 	lockTokens := make([]amqp.UUID, 0, len(messages))
 	for _, m := range messages {
-		lockToken, ok := m.DeliveryAnnotations["x-opt-lock-token"]
+		expires, ok := m.Annotations["x-opt-locked-until"]
 		if !ok {
-			log.WithField("message", m).Error("failed to get x-opt-locktoken from message annotations, cannot renew lock")
-			continue
-		}
-		lockTokenUUID, valid := lockToken.(amqp.UUID)
-		if !valid {
-			log.WithField("message", m).Error("failed to get x-opt-locktoken from message annotations - the type is not amqp.uuid, cannot renew lock")
+			log.WithField("message", m).Error("failed to get x-opt-locked-until from message annotations")
+		} else {
+			log.WithField("locked-until", expires).Debug("message lock expires at")
 		}
 
-		lockTokens = append(lockTokens, lockTokenUUID)
-		log.WithField("uuid", lockTokenUUID).Debug("adding lockid to renew")
+		if len(m.DeliveryTag) != 16 {
+			return fmt.Errorf("message's deliverytag incorrect length, expected: 16 got: %v", len(m.DeliveryTag))
+		}
+
+		// Get lock token from the deliveryTag
+		var lockTokenBytes [16]byte
+		copy(lockTokenBytes[:], m.DeliveryTag[:16])
+		// translate from .net guid byte serialisation format to amqp rfc standard
+		swapIndex(0, 3, &lockTokenBytes)
+		swapIndex(1, 2, &lockTokenBytes)
+		swapIndex(4, 5, &lockTokenBytes)
+		swapIndex(6, 7, &lockTokenBytes)
+
+		lockTokenUUIDDeliveryTag := amqp.UUID(lockTokenBytes)
+		lockTokens = append(lockTokens, lockTokenUUIDDeliveryTag)
+		log.WithField("uuid", lockTokenUUIDDeliveryTag).Debug("adding lockid to renew")
+	}
+
+	if len(lockTokens) < 1 {
+		return fmt.Errorf("no lock tokens present to renew")
 	}
 
 	hostname, _ := os.Hostname()
@@ -230,11 +251,15 @@ func (l *AmqpConnection) RenewLocks(ctx context.Context, messages []*amqp.Messag
 
 	response, err := l.ManagementReceiver.Receive(ctx)
 	if err != nil {
-		// See https://github.com/lawrencegripper/ion/issues/157
-		log.WithError(err).Error("error response from server on active messages, due to bug unmarshalling type 0x40 this is expected")
+		log.WithError(err).Error("error response from server when renewing locks")
+		return err
 	}
 
-	log.WithField("responseMsg", response).Debug("renew locks: response message")
+	if code, exists := response.ApplicationProperties["statusCode"]; exists {
+		if codeInt, valid := code.(int32); valid && codeInt != 200 {
+			return fmt.Errorf("lock renewal failed, response status message: %v", response.ApplicationProperties["statusDescription"])
+		}
+	}
 
 	return nil
 }
@@ -298,7 +323,7 @@ func (l *AmqpConnection) CreateAmqpSender(topic string) (*amqp.Sender, error) {
 	}
 
 	sender, err := l.Session.NewSender(
-		amqp.LinkTargetAddress("/" + topic),
+		amqp.LinkTargetAddress("/" + strings.ToLower(topic)),
 	)
 	if err != nil {
 		log.Fatal("Creating receiver:", err)

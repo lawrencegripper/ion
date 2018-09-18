@@ -6,7 +6,7 @@ if test -z "${protoc_version}"; then
 fi
 
 wget https://github.com/google/protobuf/releases/download/v${protoc_version}/protoc-${protoc_version}-linux-x86_64.zip
-unzip protoc-${protoc_version}-linux-x86_64.zip
+unzip -o protoc-${protoc_version}-linux-x86_64.zip
 mv bin/protoc /usr/local/bin
 chmod +x /usr/local/bin/protoc
 

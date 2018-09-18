@@ -18,10 +18,9 @@ import (
 func Run(cfg *types.Configuration) {
 	ctx := context.Background()
 
+	var provider providers.Provider
 	amqpConnection := servicebus.NewAmqpConnection(ctx, cfg)
 	handlerArgs := providers.GetSharedHandlerArgs(cfg, amqpConnection.AccessKeys)
-
-	var provider providers.Provider
 
 	if cfg.AzureBatch != nil {
 		log.Info("Using Azure batch provider...")
@@ -41,31 +40,56 @@ func Run(cfg *types.Configuration) {
 
 	var wg sync.WaitGroup
 
-	wg.Add(3)
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		for {
+			// Locks are held for 1 mins, renew every 20 sec to keep locks
+			time.Sleep(20 * time.Second)
+			// allow 20seconds for the renew operation, keeping a 25 second buffer
+			timeAllowanceForRenewalRequest := time.Second * 15
+
 			// Renew message locks with ServiceBus
 			//https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-amqp-request-response#message-renew-lock
-			time.Sleep(time.Duration(45) * time.Second)
-
 			activeMessages := provider.GetActiveMessages()
+			if len(activeMessages) < 1 {
+				log.Debug("no active messages, skipping lock renewal")
+				continue
+			}
+
 			messagesAMQP := make([]*amqp.Message, 0, len(activeMessages))
 			for _, m := range activeMessages {
 				originalMessage := m.GetAMQPMessage()
 				messagesAMQP = append(messagesAMQP, originalMessage)
 			}
 
-			err := amqpConnection.RenewLocks(ctx, messagesAMQP)
+			renewContextWithDeadline, cancel := context.WithTimeout(ctx, timeAllowanceForRenewalRequest)
+			defer cancel()
+			err := amqpConnection.RenewLocks(renewContextWithDeadline, messagesAMQP)
 			if err != nil {
-				log.WithError(err).Error("failed to renew locks")
+				// Todo: Additional could be put in here to cleanup operations. See: #171
+				// https://github.com/lawrencegripper/ion/issues/171
+				log.WithError(err).Panic("Failed to renew locks therefore cannot continue operation as message could be reassigned to another dispatcher.")
 			}
 		}
 	}()
 	go func() {
 		defer wg.Done()
 		for {
+			// output queue stats every 30 seconds
+			time.Sleep(30 * time.Second)
+			queueStats, err := amqpConnection.GetQueueDepth()
+			if err != nil {
+				log.WithError(err).Error("failed getting queue depth from listener")
+			}
+			log.WithField("activeMessageCount", queueStats.ActiveMessageCount).WithField("deadLetteredMessageCount", queueStats.DeadLetterMessageCount).Info("listenerStats")
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for {
 			message, err := amqpConnection.Receiver.Receive(ctx)
+
 			if err != nil {
 				// Todo: Investigate the type of error here. If this could be triggered by a poisened message
 				// app shouldn't panic.
@@ -93,17 +117,19 @@ func Run(cfg *types.Configuration) {
 			}
 
 			contextualLogger.Debug("message dispatched")
-			queueStats, err := amqpConnection.GetQueueDepth()
-			if err != nil {
-				contextualLogger.WithError(err).Error("failed getting queue depth from listener")
-			}
-			contextualLogger.WithField("activeMessageCount", queueStats.ActiveMessageCount).WithField("deadLetteredMessageCount", queueStats.DeadLetterMessageCount).Info("listenerStats")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for {
+			time.Sleep(time.Second * 15)
+
+			if len(provider.GetActiveMessages()) < 1 {
+				log.Debug("no active messages, skipping reconciling...")
+				continue
+			}
+
 			log.Debug("reconciling...")
 
 			err := provider.Reconcile()
@@ -112,9 +138,6 @@ func Run(cfg *types.Configuration) {
 				log.WithError(err).Panic("Failed to reconcile ....")
 			}
 			log.WithField("inProgress", provider.InProgressCount()).Info("providerStats")
-
-			time.Sleep(time.Second * 15)
-
 		}
 	}()
 	wg.Wait()

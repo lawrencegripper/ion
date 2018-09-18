@@ -34,14 +34,6 @@ type ServiceBus struct {
 	SKN        string
 }
 
-/* not currently needed - leaving for future use
-type brokerProperties struct {
-	correlationID string
-	messageID     string
-	timeToLive    time.Duration
-}
-*/
-
 const topicPlaceholderText = "%%TOPIC_PLACEHOLDER%%"
 
 //NewServiceBus creates a new Service Bus object
@@ -68,15 +60,6 @@ func (s *ServiceBus) Publish(e common.Event) error {
 	req, err := http.NewRequest(http.MethodPost, sbURL, bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", generateSAS(sbURL, s.SKN, s.Key))
-
-	/* not currently needed - leaving for future use
-	var props brokerProperties
-	p, err := json.Marshal(&props)
-	if err != nil {
-		return fmt.Errorf("error publishing event %+v", err)
-	}
-	req.Header.Set("BrokerProperties", string(p))
-	*/
 
 	//TODO: optimize
 	client := &http.Client{}

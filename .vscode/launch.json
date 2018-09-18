@@ -81,14 +81,31 @@
             "showLog": true
         },
         {
-            "name": "Dispatcher ServiceBus Tests",
+            "name": "Pkg ServiceBus Tests",
             "type": "go",
             "request": "launch",
             "mode": "test",
             "remotePath": "",
-            "port": 2345,
+            "port": 2346,
             "host": "127.0.0.1",
             "program": "${workspaceRoot}/internal/pkg/servicebus",
+            "envFile": "${workspaceRoot}/.vscode/private.env",
+            "args": [
+                "-test.v",
+                "-test.timeout",
+                "15m"
+            ],
+            "showLog": true
+        },
+        {
+            "name": "Handler ServiceBus Tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "remotePath": "",
+            "port": 2346,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}/internal/app/handler/dataplane/events/servicebus",
             "envFile": "${workspaceRoot}/.vscode/private.env",
             "args": [
                 "-test.v",

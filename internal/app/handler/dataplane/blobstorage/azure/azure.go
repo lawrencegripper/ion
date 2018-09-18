@@ -92,6 +92,7 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 		if filePathOutOfEnv[0] == '/' {
 			filePathOutOfEnv = filePathOutOfEnv[1:]
 		}
+		filePathOutOfEnv = filepath.Clean(filePathOutOfEnv)
 		blobPath := helpers.JoinBlobPath(a.outputBlobPrefix, filePathOutOfEnv)
 		file, err := os.Open(filePath)
 		if err != nil {
@@ -137,7 +138,8 @@ func (a *BlobStorage) PutBlobs(filePaths []string) (map[string]string, error) {
 		}.NewSASQueryParameters(c)
 
 		queryParams := sasQueryParams.Encode()
-		blobSASURIs[filePathOutOfEnv] = fmt.Sprintf("%s?%s", blobURL, queryParams)
+		_, filename := filepath.Split(filePathOutOfEnv)
+		blobSASURIs[filename] = fmt.Sprintf("%s?%s", blobURL, queryParams)
 	}
 	return blobSASURIs, nil
 }
@@ -150,7 +152,8 @@ func (a *BlobStorage) GetBlobs(outputDir string, filePaths []string) error {
 	}
 	dataAsMap := a.eventMeta.Data.AsMap()
 	for _, filePath := range filePaths {
-		fileSASURL, ok := dataAsMap[filePath]
+		_, filename := filepath.Split(filePath)
+		fileSASURL, ok := dataAsMap[filename]
 		if !ok {
 			log.WithField("filepath", filePath).WithField("eventMeta", a.eventMeta).Error("couldn't find SAS url for azure blob data")
 			return fmt.Errorf("failed to find sas url for azure blob data in event meta: %+v", a.eventMeta)

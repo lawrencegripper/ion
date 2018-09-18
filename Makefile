@@ -1,5 +1,5 @@
-.PHONY: dependencies management checks test dispatcher handler frontapi ioncli example-modules
-all: dependencies checks test dispatcher handler frontapi management ioncli example-modules
+.PHONY: dependencies generategrpc management checks test dispatcher handler frontapi ioncli example-modules
+all: dependencies generategrpc checks test dispatcher handler frontapi management ioncli example-modules
 
 dependencies:
 	dep ensure -v --vendor-only
@@ -19,9 +19,11 @@ dispatcher:
 handler:
 	make -f build/handler/Makefile.Docker
 
-management:
+generategrpc:
 	cd ./internal/pkg/management/module && rm -f *.pb.go && protoc -I . module.proto --go_out=plugins=grpc:. && cd -
 	cd ./internal/pkg/management/trace && rm -f *.pb.go && protoc -I . trace.proto --go_out=plugins=grpc:. && cd -
+
+management:
 	make -f build/management/Makefile.Docker
 	
 frontapi:
