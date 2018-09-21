@@ -110,19 +110,18 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ioncli.yaml)")
 
 	RootCmd.PersistentFlags().String("endpoint", "localhost:9000", "management server endpoint")
-	viper.BindPFlag("endpoint", RootCmd.PersistentFlags().Lookup("endpoint"))
+	viper.BindPFlag("endpoint", RootCmd.PersistentFlags().Lookup("endpoint")) // nolint: errcheck
 
 	RootCmd.PersistentFlags().IntVar(&timeoutSec, "timeout", 30, "timeout in seconds for cli to connect to management server")
-	// viper.BindPFlag("timeout", RootCmd.PersistentFlags().Lookup("timeout"))
 
 	RootCmd.PersistentFlags().String("certfile", "", "x509 PEM formatted client certificate")
-	viper.BindPFlag("certfile", RootCmd.PersistentFlags().Lookup("certfile"))
+	viper.BindPFlag("certfile", RootCmd.PersistentFlags().Lookup("certfile")) // nolint: errcheck
 
 	RootCmd.PersistentFlags().String("keyfile", "", "client private key for client certificate")
-	viper.BindPFlag("keyfile", RootCmd.PersistentFlags().Lookup("keyfile"))
+	viper.BindPFlag("keyfile", RootCmd.PersistentFlags().Lookup("keyfile")) // nolint: errcheck
 
 	RootCmd.PersistentFlags().String("cacertfile", "", "Root CA certificate file")
-	viper.BindPFlag("cacertfile", RootCmd.PersistentFlags().Lookup("cacertfile"))
+	viper.BindPFlag("cacertfile", RootCmd.PersistentFlags().Lookup("cacertfile")) // nolint: errcheck
 
 	cobra.OnInitialize(initConfig)
 }
