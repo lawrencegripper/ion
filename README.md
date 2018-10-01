@@ -72,6 +72,8 @@ docker run --rm -v "${PWD}/certs":/opt/ion/ ionuser/ion-cli module create -i fro
 
 14. You can now re-run the command from step 12 to see the module deployed to your Ion environment. This sample module won't do anything without being hooked up to a gateway that can trigger it (such as Ion's front API). However, this guide demonstrates how you can get an Ion environment up and running and deploy modules via the CLI.
 
+> *Next Step*: Have a look at the [Quick start for transcoding](./docs/QuickStartTranscode.md) to get a more detailed guide on chaining together ION modules. 
+
 # Why use Ion?
 Another workflow manager... really?!
 There is no shortage of tools that can string together a series of processes into a structured workflow.

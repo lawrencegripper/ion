@@ -6,24 +6,24 @@
 2. Have your `~/.ion.yaml` file configuration with the connection details
 3. Have the `ion` cli in your `PATH`
 
-# 1. Build and Deploy [Downloader module](./../modules/downloader)
+# 1. Build and Deploy [Downloader module](./../modules/downloadfile)
 
 Lets use docker to build a module and publish it to our docker repository. 
 
 ``` bash
 
-docker build -t lawrencegripper/ion-module-downloader -f ./modules/downloader/Dockerfile .
+docker build -t lawrencegripper/ion-module-downloader -f ./modules/downloadfile/Dockerfile .
 docker push lawrencegripper/ion-module-downloader 
 
 ```
 
 Now we can use the ION cli to create a module in our pipeline from this docker image. The `-i` and `-o` arguments represent the `input` and `output` events. 
-The `frontapi.new_link` event in outputted by the [FrontAPI used to submit items to the pipeline](./../cmd/frontapi). The `file_downloaded` event is what we'll output
+The `frontapi.new_link` event is outputted by the [FrontAPI used to submit items to the pipeline](./../cmd/frontapi). The `file_downloaded` event is what we'll output
 after we've downloaded the file. Lastly the `-p` specifies the provider to run the module under. In this case we'll use a shared Kuberentes environment and it will run as a [Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/). 
 
 ``` bash 
 
-ion module create --module-image lawrencegripper/ion-module-downloader -i frontapi.new_link -o file_downloaded -p Kuberentes
+ion module create -n downloader --module-image lawrencegripper/ion-module-downloader -i frontapi.new_link -o file_downloaded -p Kubernetes
 
 ```
 
@@ -44,18 +44,18 @@ Now again we'll use the ION cli to create the module but this time we'll subscri
 
 ``` bash 
 
-ion module create --module-image lawrencegripper/ion-module-transcode -i file_downloaded -o file_transcoded -p AzureBatch
+ion module create -n transcoder --module-image lawrencegripper/ion-module-transcode -i file_downloaded -o file_transcoded -p AzureBatch 
 
 ```
 
 # 3. Submit a link to the pipeline 
 
 
-So next lets trigger our pipeline with a new URL to download and transcode. We'll use CURL to POST [out request](./data/examplesubmission.json) for the [Big Buck Bunny film](https://peach.blender.org/).
+So next lets trigger the pipeline with a new URL to download and transcode. We'll use CURL to POST [out request](./data/examplesubmission.json) for the [Big Buck Bunny film](https://peach.blender.org/).
 
 ``` bash 
 
-curl --header "Content-Type: application/json"   --request POST   --data-binary "./docs/data/examplesubmission.json"   http://youendpointhere:9001/
+curl --header "Content-Type: application/json"   --request POST   --data-binary "@./docs/data/examplesubmission.json"   http://youendpointhere:9001/
 
 ```
 
@@ -93,8 +93,8 @@ Congratulations, you've run a pipeline in ION. You'll now get information back a
 Here is a quick guide to reading this output. 
 
 - `context.documentType` can be either:
-    - `eventMeta`: This is data transferred between events used by the system. Then include links to blob data uploaded by a module so you can debug the flow between modules. 
-    - `insight`: This is data stored by the module for querying by the user, this could include execution time, items spotted in the video or any arbitrary data for query. You can inspect the putput here. 
+    - `eventMeta`: This is data transferred between events used by the system. This includes links to blob data uploaded by a module so you can debug the flow between modules. 
+    - `insight`: This is data stored by the module for querying by the user, this could include execution time, items spotted in the video or any arbitrary data for query. You can inspect the output here. 
     - `modulelogs`: This contains a link to the console logs (`stdout/stderr`) outputted by the module when it ran. These documents contain a link to the full log.
 
 - The `context` object more generally gives context of the module which ran and which event triggered it, `parentEventId`. 
