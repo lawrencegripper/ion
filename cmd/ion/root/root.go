@@ -55,6 +55,11 @@ func Setup(cmd *cobra.Command, args []string) error {
 // not then the connection will be insecure.
 func GetManagementConnection() (*grpc.ClientConn, error) {
 
+	tlsCerts.CACertFile = viper.GetString("cacertfile")
+	tlsCerts.CertFile = viper.GetString("certfile")
+	tlsCerts.KeyFile = viper.GetString("keyfile")
+	managementEndpoint = viper.GetString("endpoint")
+
 	var options []grpc.DialOption
 
 	if tlsCerts.Available() {
@@ -100,15 +105,25 @@ func GetManagementConnection() (*grpc.ClientConn, error) {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
 
 	// Persistent flags shared by all subcommands
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ioncli.yaml)")
-	RootCmd.PersistentFlags().StringVar(&managementEndpoint, "endpoint", "localhost:9000", "management server endpoint")
+
+	RootCmd.PersistentFlags().String("endpoint", "localhost:9000", "management server endpoint")
+	viper.BindPFlag("endpoint", RootCmd.PersistentFlags().Lookup("endpoint")) // nolint: errcheck
+
 	RootCmd.PersistentFlags().IntVar(&timeoutSec, "timeout", 30, "timeout in seconds for cli to connect to management server")
-	RootCmd.PersistentFlags().StringVar(&tlsCerts.CertFile, "certfile", "", "x509 PEM formatted client certificate")
-	RootCmd.PersistentFlags().StringVar(&tlsCerts.KeyFile, "keyfile", "", "client private key for client certificate")
-	RootCmd.PersistentFlags().StringVar(&tlsCerts.CACertFile, "cacertfile", "", "Root CA certificate file")
+
+	RootCmd.PersistentFlags().String("certfile", "", "x509 PEM formatted client certificate")
+	viper.BindPFlag("certfile", RootCmd.PersistentFlags().Lookup("certfile")) // nolint: errcheck
+
+	RootCmd.PersistentFlags().String("keyfile", "", "client private key for client certificate")
+	viper.BindPFlag("keyfile", RootCmd.PersistentFlags().Lookup("keyfile")) // nolint: errcheck
+
+	RootCmd.PersistentFlags().String("cacertfile", "", "Root CA certificate file")
+	viper.BindPFlag("cacertfile", RootCmd.PersistentFlags().Lookup("cacertfile")) // nolint: errcheck
+
+	cobra.OnInitialize(initConfig)
 }
 
 // initConfig reads in config file and ENV variables if set.
